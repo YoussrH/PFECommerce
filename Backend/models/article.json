@@ -1,0 +1,1883 @@
+[
+  {
+    "nom_produit": "CHEMISE BASIQUE EN COTON RAYEE",
+    "sku": "CHEMISE-BASIQUE-EN-COTON-RAYEE-001",
+    "description": "Chemise rayée à manches longues, avec col à revers, décolleté en V et manches longues. Fermeture par boutonnage sur le devant, pince à l'arrière.",
+    "conseils": "Lavage à la machine maximum 30°\nEau de javel interdite\nRepasser max 110°C\nPas de nettoyage à sec\nSéchage en machine à basse température",
+    "prix": 69,
+    "remise": 0,
+    "seo_titre": "Chemise Rayée Col V à Manches Longues – Élégance Intemporelle",
+    "mots_cles_seo": "chemise rayée, chemise col V, chemise manches longues, chemise boutonnée, mode femme, chemise élégante, chemise tendance",
+    "categorie_id": 13,
+    "marque_id": 7,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 374,
+        "couleur_id": 12,
+        "quantite": 4
+      },
+      {
+        "taille_id": 373,
+        "couleur_id": 12,
+        "quantite": 4
+      },
+      {
+        "taille_id": 372,
+        "couleur_id": 12,
+        "quantite": 4
+      },
+      {
+        "taille_id": 371,
+        "couleur_id": 12,
+        "quantite": 4
+      },
+      {
+        "taille_id": 370,
+        "couleur_id": 12,
+        "quantite": 4
+      },
+      {
+        "taille_id": 370,
+        "couleur_id": 3,
+        "quantite": 4
+      },
+      {
+        "taille_id": 371,
+        "couleur_id": 3,
+        "quantite": 4
+      },
+      {
+        "taille_id": 372,
+        "couleur_id": 3,
+        "quantite": 4
+      },
+      {
+        "taille_id": 373,
+        "couleur_id": 3,
+        "quantite": 4
+      },
+      {
+        "taille_id": 374,
+        "couleur_id": 3,
+        "quantite": 4
+      },
+      {
+        "taille_id": 370,
+        "couleur_id": 9,
+        "quantite": 3
+      },
+      {
+        "taille_id": 371,
+        "couleur_id": 9,
+        "quantite": 3
+      },
+      {
+        "taille_id": 372,
+        "couleur_id": 9,
+        "quantite": 3
+      },
+      {
+        "taille_id": 373,
+        "couleur_id": 9,
+        "quantite": 3
+      },
+      {
+        "taille_id": 374,
+        "couleur_id": 9,
+        "quantite": 3
+      }
+    ],
+    "images_par_couleur": {
+      "12": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144923/ecommerce/CHEMISE-BASIQUE-EN-COTON-RAYEE-PEACH-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144928/ecommerce/CHEMISE-BASIQUE-EN-COTON-RAYEE-PEACH-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144934/ecommerce/CHEMISE-BASIQUE-EN-COTON-RAYEE-PEACH-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144940/ecommerce/CHEMISE-BASIQUE-EN-COTON-RAYEE-PEACH-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144944/ecommerce/CHEMISE-BASIQUE-EN-COTON-RAYEE-PEACH-5.jpg"
+      ],
+      "3": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144724/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON%20RAYEE-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144730/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON%20RAYEE-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144737/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON%20RAYEE-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144742/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON%20RAYEE-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144749/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON%20RAYEE-5.jpg"
+      ],
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144890/ecommerce/CHEMISE-BASIQUE-EN-COTON-RAYEE-BLEU-CLAIR-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144896/ecommerce/CHEMISE-BASIQUE-EN-COTON-RAYEE-BLEU-CLAIR-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144904/ecommerce/CHEMISE-BASIQUE-EN-COTON-RAYEE-BLEU-CLAIR-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144910/ecommerce/CHEMISE-BASIQUE-EN-COTON-RAYEE-BLEU-CLAIR-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144917/ecommerce/CHEMISE-BASIQUE-EN-COTON-RAYEE-BLEU-CLAIR-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible. \n Cinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement\n Laver séparément",
+    "prix": 65,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-031",
+    "seo_titre": "Jean slim homme CRISTAL BG2D2024 - Denim extensible, 5 poches",
+    "mots_cles_seo": "jean slim homme, jean CRISTAL, jean denim extensible, pantalon 5 poches, jean confortable, mode homme",
+    "categorie_id": 19,
+    "marque_id": 5,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 16, "quantite": 5},
+      {"taille_id": 671, "couleur_id": 16, "quantite": 5},
+      {"taille_id": 672, "couleur_id": 16, "quantite": 10},
+      {"taille_id": 673, "couleur_id": 16, "quantite": 5}
+    ],
+    "images_par_couleur": {
+      "16": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145270/ecommerce/Jean-CRISTAL-BG2D2024-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145278/ecommerce/Jean-CRISTAL-BG2D2024-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145284/ecommerce/Jean-CRISTAL-BG2D2024-3.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "CHEMISE COURTE",
+    "description": "Chemise courte blanche à manches langues, col classique, décolleté en V, grande poche détaillées. Fermeture par boutonnage sur le devant, Pince à l'arrière.",
+    "conseils": "Lavage à la machine maximum 30°\nEau de javel interdite\nRepasser max 110°C\nPas de nettoyage à sec\nSéchage en machine à basse température",
+    "sku": "CHEMISE-COURTE-002",
+    "prix": 69,
+    "remise": 0,
+    "seo_titre": "Chemise Courte Blanche à Manches Longues – Élégance Moderne",
+    "mots_cles_seo": "chemise courte, chemise blanche, chemise col classique, chemise manches longues, chemise boutonnée, mode femme, chemise tendance",
+    "categorie_id": 13,
+    "marque_id": 5,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 376,
+        "couleur_id": 6,
+        "quantite": 2
+      },
+      {
+        "taille_id": 377,
+        "couleur_id": 6,
+        "quantite": 2
+      },
+      {
+        "taille_id": 378,
+        "couleur_id": 6,
+        "quantite": 2
+      },
+      {
+        "taille_id": 379,
+        "couleur_id": 6,
+        "quantite": 2
+      },
+      {
+        "taille_id": 380,
+        "couleur_id": 6,
+        "quantite": 1
+      },
+      {
+        "taille_id": 374,
+        "couleur_id": 6,
+        "quantite": 1
+      },
+      {
+        "taille_id": 372,
+        "couleur_id": 6,
+        "quantite": 1
+      },
+      {
+        "taille_id": 374,
+        "couleur_id": 9,
+        "quantite": 3
+      },
+      {
+        "taille_id": 370,
+        "couleur_id": 9,
+        "quantite": 2
+      },
+      {
+        "taille_id": 374,
+        "couleur_id": 27,
+        "quantite": 3
+      },
+      {
+        "taille_id": 370,
+        "couleur_id": 27,
+        "quantite": 2
+      }
+    ],
+    "images_par_couleur": {
+      "6": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144999/ecommerce/CHEMISE-CROPPED-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145004/ecommerce/CHEMISE-CROPPED-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145011/ecommerce/CHEMISE-CROPPED-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145017/ecommerce/CHEMISE-CROPPED-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145023/ecommerce/CHEMISE-CROPPED-5.jpg"
+      ],
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145061/ecommerce/CHEMISE-CROPPED-RAYEE-BLEUCLAIR-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145070/ecommerce/CHEMISE-CROPPED-RAYEE-BLEUCLAIR-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145076/ecommerce/CHEMISE-CROPPED-RAYEE-BLEUCLAIR-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145082/ecommerce/CHEMISE-CROPPED-RAYEE-BLEUCLAIR-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145100/ecommerce/CHEMISE-CROPPED-RAYEE-BLEUCLAIR-5.jpg"
+      ],
+      "27": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145030/ecommerce/CHEMISE-CROPPED-RAYEE-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145036/ecommerce/CHEMISE-CROPPED-RAYEE-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145042/ecommerce/CHEMISE-CROPPED-RAYEE-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145047/ecommerce/CHEMISE-CROPPED-RAYEE-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145054/ecommerce/CHEMISE-CROPPED-RAYEE-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible. \n Cinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement\n Laver séparément",
+    "prix": 59,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-030",
+    "seo_titre": "Jean slim homme CRISTAL BG2D2024 - Denim extensible, 5 poches",
+    "mots_cles_seo": "jean slim homme, jean CRISTAL, jean denim extensible, pantalon 5 poches, jean confortable, mode homme",
+    "categorie_id": 19,
+    "marque_id": 9,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 16, "quantite": 5},
+      {"taille_id": 671, "couleur_id": 16, "quantite": 2},
+      {"taille_id": 672, "couleur_id": 16, "quantite": 10},
+      {"taille_id": 673, "couleur_id": 16, "quantite": 5}
+    ],
+    "images_par_couleur": {
+      "16": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145176/ecommerce/JEAN-CRISTAL-%20BG12219-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145182/ecommerce/JEAN-CRISTAL-%20BG12219-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145189/ecommerce/JEAN-CRISTAL-%20BG12219-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145196/ecommerce/JEAN-CRISTAL-%20BG12219-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145202/ecommerce/JEAN-CRISTAL-%20BG12219-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "CHEMISE AJUSTÉE CLASSIQUE",
+    "description": "Cette chemise ajustée présente un col classique, Fermeture par bouton-pression sur le devant, des manches longues et des poches à rabat boutonné sur la poitrine",
+    "conseils": "Déteint naturellement\nLaver séparément",
+    "sku": "CHEMISE-AJUSTEE-CLASSIQUE-003",
+    "prix": 69,
+    "remise": 0,
+    "seo_titre": "Chemise Ajustée à Col Classique – Élégance et Praticité",
+    "mots_cles_seo": "chemise ajustée, chemise col classique, chemise manches longues, chemise boutonnée, chemise à poches, mode homme, chemise élégante",
+    "categorie_id": 13,
+    "marque_id": 7,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 373,
+        "couleur_id": 33,
+        "quantite": 6
+      },
+      {
+        "taille_id": 374,
+        "couleur_id": 33,
+        "quantite": 6
+      },
+      {
+        "taille_id": 371,
+        "couleur_id": 33,
+        "quantite": 6
+      },
+      {
+        "taille_id": 370,
+        "couleur_id": 33,
+        "quantite": 6
+      }
+    ],
+    "images_par_couleur": {
+      "33": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145108/ecommerce/chemisebeije-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145116/ecommerce/chemisebeije-2.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible. \n Cinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement\n Laver séparément",
+    "prix": 69,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-029",
+    "seo_titre": "Jean slim homme CRISTAL BG2D2024 - Denim extensible, 5 poches",
+    "mots_cles_seo": "jean slim homme, jean CRISTAL, jean denim extensible, pantalon 5 poches, jean confortable, mode homme",
+    "categorie_id": 19,
+    "marque_id": 9,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 9, "quantite": 5},
+      {"taille_id": 671, "couleur_id": 9, "quantite": 5},
+      {"taille_id": 672, "couleur_id": 9, "quantite": 10},
+      {"taille_id": 673, "couleur_id": 9, "quantite": 5}
+    ],
+    "images_par_couleur": {
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145521/ecommerce/Jeans-CRISTAL-%20BGM2024-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145527/ecommerce/Jeans-CRISTAL-%20BGM2024-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145533/ecommerce/Jeans-CRISTAL-%20BGM2024-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145539/ecommerce/Jeans-CRISTAL-%20BGM2024-4.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "CHEMISE BASIQUE EN COTON",
+    "description": "Chemise à manches longues, avec col à revers, décolleté en V et manches longues. Fermeture par boutonnage sur le devant, pince à l'arrière.",
+    "conseils": "Lavage à la machine maximum 30°\nEau de javel interdite\nRepasser max 110°C\nPas de nettoyage à sec\nSéchage en machine à basse température",
+    "sku": "CHEMISE-BASIQUE-EN-COTON-004",
+    "prix": 69,
+    "remise": 0,
+    "seo_titre": "Chemise Col V à Manches Longues – Élégance et Confort",
+    "mots_cles_seo": "chemise col V, chemise manches longues, chemise élégante, chemise boutonnée, mode femme, chemise tendance",
+    "categorie_id": 13,
+    "marque_id": 7,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 371,
+        "couleur_id": 14,
+        "quantite": 3
+      },
+      {
+        "taille_id": 372,
+        "couleur_id": 14,
+        "quantite": 3
+      },
+      {
+        "taille_id": 373,
+        "couleur_id": 14,
+        "quantite": 2
+      },
+      {
+        "taille_id": 374,
+        "couleur_id": 14,
+        "quantite": 2
+      },
+      {
+        "taille_id": 370,
+        "couleur_id": 13,
+        "quantite": 4
+      },
+      {
+        "taille_id": 371,
+        "couleur_id": 13,
+        "quantite": 4
+      },
+      {
+        "taille_id": 372,
+        "couleur_id": 13,
+        "quantite": 4
+      },
+      {
+        "taille_id": 373,
+        "couleur_id": 13,
+        "quantite": 4
+      },
+      {
+        "taille_id": 374,
+        "couleur_id": 13,
+        "quantite": 4
+      },
+      {
+        "taille_id": 374,
+        "couleur_id": 29,
+        "quantite": 3
+      },
+      {
+        "taille_id": 373,
+        "couleur_id": 29,
+        "quantite": 3
+      },
+      {
+        "taille_id": 372,
+        "couleur_id": 29,
+        "quantite": 3
+      },
+      {
+        "taille_id": 371,
+        "couleur_id": 29,
+        "quantite": 1
+      },
+      {
+        "taille_id": 375,
+        "couleur_id": 29,
+        "quantite": 1
+      },
+      {
+        "taille_id": 374,
+        "couleur_id": 6,
+        "quantite": 3
+      },
+      {
+        "taille_id": 373,
+        "couleur_id": 6,
+        "quantite": 3
+      },
+      {
+        "taille_id": 372,
+        "couleur_id": 6,
+        "quantite": 3
+      },
+      {
+        "taille_id": 371,
+        "couleur_id": 6,
+        "quantite": 3
+      },
+      {
+        "taille_id": 370,
+        "couleur_id": 6,
+        "quantite": 3
+      }
+    ],
+    "images_par_couleur": {
+      "14": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144813/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-rozeclair-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144827/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-rozeclair-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144834/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-rozeclair-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144840/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-rozeclair-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144846/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-rozeclair-5.jpg"
+      ],
+      "13": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144785/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-Roze-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144790/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-Roze-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144796/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-Roze-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144801/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-Roze-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144808/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-Roze-5.jpg"
+      ],
+      "29": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144851/ecommerce/CHEMISE-BASIQUE-EN-COTON-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144860/ecommerce/CHEMISE-BASIQUE-EN-COTON-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144867/ecommerce/CHEMISE-BASIQUE-EN-COTON-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144884/ecommerce/CHEMISE-BASIQUE-EN-COTON-4.jpg"
+      ],
+      "6": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144756/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-Blanc-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144762/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-Blanc-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144768/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-Blanc-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144773/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-Blanc-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144780/ecommerce/CHEMISE%20BASIQUE%20EN%20COTON-Blanc-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible. \n Cinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement\n Laver séparément",
+    "prix": 59,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-028",
+    "seo_titre": "Jean slim homme GIMS NEW CASTELE - 5 poches, fermeture zip",
+    "mots_cles_seo": "jean slim homme, jean GIMS, jean denim extensible, pantalon 5 poches, fermeture zip, jean confortable, mode homme",
+    "categorie_id": 19,
+    "marque_id": 8,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 16, "quantite": 5},
+      {"taille_id": 671, "couleur_id": 16, "quantite": 5},
+      {"taille_id": 672, "couleur_id": 16, "quantite": 10},
+      {"taille_id": 673, "couleur_id": 16, "quantite": 5}
+    ],
+    "images_par_couleur": {
+      "16": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145603/ecommerce/Jeans-GIMS-NEW-CASTELE-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145609/ecommerce/Jeans-GIMS-NEW-CASTELE-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145617/ecommerce/Jeans-GIMS-NEW-CASTELE-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145622/ecommerce/Jeans-GIMS-NEW-CASTELE-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145631/ecommerce/Jeans-GIMS-NEW-CASTELE-5.jpg"
+      ]
+    }
+  },
+
+  {
+    "nom_produit": "PULL OVERSIZE COTON",
+    "description": "Pull OVERSIZE à col rond et manches longues. Finitions côtelées",
+    "conseils": "Lavage à la machine maximum 30°\nEau de javel interdite\nRepasser max 110°C\nPas de nettoyage à sec\nSéchage en machine à basse température",
+    "sku": "PULL-OVERSIZE-COTON-005",
+    "prix": 69,
+    "remise": 0,
+    "seo_titre": "Pull Oversize à Col Rond – Confort et Style Décontracté",
+    "mots_cles_seo": "pull oversize, pull col rond, pull manches longues, pull femme tendance, pull ample, pull confortable, mode décontractée",
+    "categorie_id": 15,
+    "marque_id": 8,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 449,
+        "couleur_id": 36,
+        "quantite": 2
+      },
+      {
+        "taille_id": 450,
+        "couleur_id": 36,
+        "quantite": 2
+      },
+      {
+        "taille_id": 451,
+        "couleur_id": 36,
+        "quantite": 2
+      },
+      {
+        "taille_id": 452,
+        "couleur_id": 36,
+        "quantite": 2
+      },
+      {
+        "taille_id": 453,
+        "couleur_id": 36,
+        "quantite": 1
+      },
+      {
+        "taille_id": 453,
+        "couleur_id": 18,
+        "quantite": 4
+      },
+      {
+        "taille_id": 452,
+        "couleur_id": 18,
+        "quantite": 4
+      },
+      {
+        "taille_id": 451,
+        "couleur_id": 18,
+        "quantite": 4
+      },
+      {
+        "taille_id": 450,
+        "couleur_id": 18,
+        "quantite": 4
+      },
+      {
+        "taille_id": 449,
+        "couleur_id": 18,
+        "quantite": 4
+      },
+      {
+        "taille_id": 453,
+        "couleur_id": 35,
+        "quantite": 5
+      },
+      {
+        "taille_id": 449,
+        "couleur_id": 35,
+        "quantite": 5
+      },
+      {
+        "taille_id": 452,
+        "couleur_id": 35,
+        "quantite": 5
+      },
+      {
+        "taille_id": 451,
+        "couleur_id": 35,
+        "quantite": 4
+      },
+      {
+        "taille_id": 450,
+        "couleur_id": 35,
+        "quantite": 2
+      },
+      {
+        "taille_id": 453,
+        "couleur_id": 17,
+        "quantite": 2
+      },
+      {
+        "taille_id": 454,
+        "couleur_id": 17,
+        "quantite": 2
+      },
+      {
+        "taille_id": 452,
+        "couleur_id": 17,
+        "quantite": 2
+      },
+      {
+        "taille_id": 451,
+        "couleur_id": 17,
+        "quantite": 2
+      },
+      {
+        "taille_id": 450,
+        "couleur_id": 17,
+        "quantite": 1
+      },
+      {
+        "taille_id": 449,
+        "couleur_id": 17,
+        "quantite": 1
+      }
+    ],
+    "images_par_couleur": {
+      "36": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146326/ecommerce/PULL-OVERSIZE-ORANGE-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146332/ecommerce/PULL-OVERSIZE-ORANGE-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146339/ecommerce/PULL-OVERSIZE-ORANGE-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146345/ecommerce/PULL-OVERSIZE-ORANGE-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146351/ecommerce/PULL-OVERSIZE-ORANGE-5.jpg"
+      ],
+      "18": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146083/ecommerce/PULL-OVERSIZE-Blanc-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146091/ecommerce/PULL-OVERSIZE-Blanc-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146099/ecommerce/PULL-OVERSIZE-Blanc-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146111/ecommerce/PULL-OVERSIZE-Blanc-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146119/ecommerce/PULL-OVERSIZE-Blanc-5.jpg"
+      ],
+      "35": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146154/ecommerce/PULL-OVERSIZE-MARRON-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146164/ecommerce/PULL-OVERSIZE-MARRON-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146171/ecommerce/PULL-OVERSIZE-MARRON-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146179/ecommerce/PULL-OVERSIZE-MARRON-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146211/ecommerce/PULL-OVERSIZE-MARRON-5.jpg"
+      ],
+      "17": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146393/ecommerce/PULL-OVERSIZE-Violet-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146400/ecommerce/PULL-OVERSIZE-Violet-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146407/ecommerce/PULL-OVERSIZE-Violet-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146415/ecommerce/PULL-OVERSIZE-Violet-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146428/ecommerce/PULL-OVERSIZE-Violet-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible. \n Cinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement\n Laver séparément",
+    "prix": 59,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-026",
+    "seo_titre": "Jean slim homme en denim extensible - 5 poches, fermeture zip",
+    "mots_cles_seo": "jean slim homme, jean denim extensible, jean 5 poches, jean avec bouton, jean fermeture zip, pantalon homme slim, mode homme, jean confortable",
+    "categorie_id": 19,
+    "marque_id": 5,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 16, "quantite": 5},
+      {"taille_id": 671, "couleur_id": 16, "quantite": 5},
+      {"taille_id": 672, "couleur_id": 16, "quantite": 10},
+      {"taille_id": 673, "couleur_id": 16, "quantite": 5}
+    ],
+    "images_par_couleur": {
+      "16": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145546/ecommerce/Jeans-CRISTAL-BG12223-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145553/ecommerce/Jeans-CRISTAL-BG12223-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145559/ecommerce/Jeans-CRISTAL-BG12223-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145565/ecommerce/Jeans-CRISTAL-BG12223-4.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible. \n Cinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement\n Laver séparément",
+    "prix": 69,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-027",
+    "seo_titre": "Jean slim homme CRISTAL BGD2024 - Denim extensible, 5 poches",
+    "mots_cles_seo": "jean slim homme, jean CRISTAL, jean denim extensible, pantalon 5 poches, jean confortable, mode homme",
+    "categorie_id": 19,
+    "marque_id": 5,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 9, "quantite": 5},
+      {"taille_id": 671, "couleur_id": 9, "quantite": 5},
+      {"taille_id": 672, "couleur_id": 9, "quantite": 10},
+      {"taille_id": 673, "couleur_id": 9, "quantite": 1}
+    ],
+    "images_par_couleur": {
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145291/ecommerce/Jean-CRISTAL-BGD2024-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145296/ecommerce/Jean-CRISTAL-BGD2024-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145303/ecommerce/Jean-CRISTAL-BGD2024-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145309/ecommerce/Jean-CRISTAL-BGD2024-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145317/ecommerce/Jean-CRISTAL-BGD2024-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "T-shirt COURTE",
+    "description": "T-shirt à manches courtes et demi-col roulé pour femme, résistant, printemps-automne .",
+    "conseils": "Lavage à la machine maximum 30°\nEau de javel interdite\nRepasser max 110°C\nPas de nettoyage à sec\nSéchage en machine à basse température",
+    "prix": 70,
+    "remise": 0,
+    "seo_titre": "T-shirt à Col Classique – Style Chic et Tendance",
+    "mots_cles_seo": "T-shirt courte, T-shirt noire, T-shirt,  mode femme, chemise tendance",
+    "categorie_id": 12,
+    "marque_id": 5,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 374,
+        "couleur_id": 5,
+        "quantite": 3
+      },
+      {
+        "taille_id": 370,
+        "couleur_id": 5,
+        "quantite": 2
+      }
+    ],
+    "images_par_couleur": {
+      "5": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146498/ecommerce/TOP-NOIR-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1741899919/articles/rxo2milgckbaxxojjo8d.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146504/ecommerce/TOP-NOIR-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146510/ecommerce/TOP-NOIR-3.jpg"
+      ]
+    }
+  },
+
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible. \nCinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement \nLaver séparément",
+    "prix": 59,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-025",
+    "seo_titre": "Jean slim en denim extensible - 5 poches et fermeture zip pour homme",
+    "mots_cles_seo": "jean slim homme, jean denim extensible, jean 5 poches, pantalon homme slim, jean fermeture zip, jean avec bouton, mode homme, jean confortable",
+    "categorie_id": 19,
+    "marque_id": 10,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 28, "quantite": 5},
+      {"taille_id": 671, "couleur_id": 28, "quantite": 5},
+      {"taille_id": 672, "couleur_id": 28, "quantite": 10},
+      {"taille_id": 673, "couleur_id": 28, "quantite": 30}
+    ],
+    "images_par_couleur": {
+      "28": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145472/ecommerce/Jean-TOSHIBA-BLGB2023-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145478/ecommerce/Jean-TOSHIBA-BLGB2023-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145484/ecommerce/Jean-TOSHIBA-BLGB2023-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145491/ecommerce/Jean-TOSHIBA-BLGB2023-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145497/ecommerce/Jean-TOSHIBA-BLGB2023-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "PULL OVERSIZE",
+    "description": "Pull oversize à col rond et manches longues, idéal pour un look tendance et décontracté. Confectionné dans une matière douce et confortable",
+    "conseils": "Lavage à la machine maximum 30°\nEau de javel interdite\nRepasser max 110°C\nPas de nettoyage à sec\nSéchage en machine à basse température",
+    "prix": 69,
+    "remise": 0,
+    "seo_titre": "Pull Oversize à Col Rond – Élégance Décontractée et Confort",
+    "mots_cles_seo": "pull oversize, pull col rond, pull manches longues, pull tendance, pull ample, pull cosy, mode casual",
+    "categorie_id": 15,
+    "marque_id": 8,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 453,
+        "couleur_id": 31,
+        "quantite": 4
+      },
+      {
+        "taille_id": 452,
+        "couleur_id": 31,
+        "quantite": 4
+      },
+      {
+        "taille_id": 451,
+        "couleur_id": 31,
+        "quantite": 4
+      },
+      {
+        "taille_id": 450,
+        "couleur_id": 31,
+        "quantite": 4
+      },
+      {
+        "taille_id": 449,
+        "couleur_id": 31,
+        "quantite": 4
+      },
+      {
+        "taille_id": 453,
+        "couleur_id": 30,
+        "quantite": 4
+      },
+      {
+        "taille_id": 452,
+        "couleur_id": 30,
+        "quantite": 4
+      },
+      {
+        "taille_id": 451,
+        "couleur_id": 30,
+        "quantite": 4
+      },
+      {
+        "taille_id": 450,
+        "couleur_id": 30,
+        "quantite": 4
+      },
+      {
+        "taille_id": 449,
+        "couleur_id": 30,
+        "quantite": 4
+      },
+      {
+        "taille_id": 453,
+        "couleur_id": 5,
+        "quantite": 4
+      },
+      {
+        "taille_id": 452,
+        "couleur_id": 5,
+        "quantite": 4
+      },
+      {
+        "taille_id": 451,
+        "couleur_id": 5,
+        "quantite": 4
+      },
+      {
+        "taille_id": 450,
+        "couleur_id": 5,
+        "quantite": 4
+      },
+      {
+        "taille_id": 449,
+        "couleur_id": 5,
+        "quantite": 4
+      }
+    ],
+    "images_par_couleur": {
+      "31": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146219/ecommerce/PULL-OVERSIZE-marronrayee-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146228/ecommerce/PULL-OVERSIZE-marronrayee-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146236/ecommerce/PULL-OVERSIZE-marronrayee-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146243/ecommerce/PULL-OVERSIZE-marronrayee-4.jpg"
+      ],
+      "30": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146250/ecommerce/PULL-OVERSIZE-marronrayeenoire-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146257/ecommerce/PULL-OVERSIZE-marronrayeenoire-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146263/ecommerce/PULL-OVERSIZE-marronrayeenoire-3.jpg"
+      ],
+      "5": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146296/ecommerce/PULL-OVERSIZE-noirerayee-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146303/ecommerce/PULL-OVERSIZE-noirerayee-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146310/ecommerce/PULL-OVERSIZE-noirerayee-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146317/ecommerce/PULL-OVERSIZE-noirerayee-4.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible.\n Cinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement \n Laver séparément",
+    "prix": 69,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-024",
+    "seo_titre": "Jean coupe slim homme en denim extensible - 5 poches, fermeture zip",
+    "mots_cles_seo": "jean coupe slim, jean homme, denim extensible, jean 5 poches, pantalon slim homme, jean fermeture zip, jean avec bouton, mode homme",
+    "categorie_id": 19,
+    "marque_id": 8,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 9, "quantite": 5},
+      {"taille_id": 671, "couleur_id": 9, "quantite": 5},
+      {"taille_id": 672, "couleur_id": 9, "quantite": 10},
+      {"taille_id": 673, "couleur_id": 9, "quantite": 10}
+    ],
+    "images_par_couleur": {
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145570/ecommerce/JEANS-CRISTAL-BGD2024-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145578/ecommerce/JEANS-CRISTAL-BGD2024-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145585/ecommerce/JEANS-CRISTAL-BGD2024-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145592/ecommerce/JEANS-CRISTAL-BGD2024-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145597/ecommerce/JEANS-CRISTAL-BGD2024-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "PULL OVERSIZE COTON RAYEE",
+    "description": "Pull oversize à col rond et manches longues Rayee, idéal pour un look tendance et décontracté. Confectionné dans une matière douce et confortable",
+    "conseils": "Lavage à la machine maximum 30°\nEau de javel interdite\nRepasser max 110°C\nPas de nettoyage à sec\nSéchage en machine à basse température",
+    "prix": 69,
+    "remise": 0,
+    "seo_titre": "Pull Oversize à Col Rond – Élégance Décontractée et Confort",
+    "mots_cles_seo": "pull oversize, pull col rond, pull manches longues, pull tendance, pull ample, pull cosy, mode casual",
+    "categorie_id": 15,
+    "marque_id": 8,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 453,
+        "couleur_id": 11,
+        "quantite": 4
+      },
+      {
+        "taille_id": 452,
+        "couleur_id": 11,
+        "quantite": 4
+      },
+      {
+        "taille_id": 451,
+        "couleur_id": 11,
+        "quantite": 4
+      },
+      {
+        "taille_id": 450,
+        "couleur_id": 11,
+        "quantite": 4
+      },
+      {
+        "taille_id": 449,
+        "couleur_id": 11,
+        "quantite": 4
+      },
+      {
+        "taille_id": 453,
+        "couleur_id": 9,
+        "quantite": 4
+      },
+      {
+        "taille_id": 452,
+        "couleur_id": 9,
+        "quantite": 4
+      },
+      {
+        "taille_id": 451,
+        "couleur_id": 9,
+        "quantite": 4
+      },
+      {
+        "taille_id": 450,
+        "couleur_id": 9,
+        "quantite": 4
+      },
+      {
+        "taille_id": 449,
+        "couleur_id": 9,
+        "quantite": 4
+      }
+    ],
+    "images_par_couleur": {
+      "11": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146269/ecommerce/PULL-OVERSIZE-marronrayyenoire-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146276/ecommerce/PULL-OVERSIZE-marronrayyenoire-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146282/ecommerce/PULL-OVERSIZE-marronrayyenoire-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146289/ecommerce/PULL-OVERSIZE-marronrayyenoire-4.jpg"
+      ],
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146125/ecommerce/PULL-OVERSIZE-bluerayyeblanc-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146132/ecommerce/PULL-OVERSIZE-bluerayyeblanc-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146140/ecommerce/PULL-OVERSIZE-bluerayyeblanc-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146147/ecommerce/PULL-OVERSIZE-bluerayyeblanc-4.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible.\nCinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement \nLaver séparément",
+    "prix": 69,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-023",
+    "seo_titre": "Jean slim homme en denim extensible - 5 poches, fermeture zip",
+    "mots_cles_seo": "jean slim, pantalon homme, jean denim extensible, coupe slim, jean 5 poches, fermeture éclair, jean avec bouton, jean tendance homme, jean ajusté",
+    "categorie_id": 19,
+    "marque_id": 5,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 9, "quantite": 5},
+      {"taille_id": 671, "couleur_id": 9, "quantite": 5},
+      {"taille_id": 672, "couleur_id": 9, "quantite": 10},
+      {"taille_id": 673, "couleur_id": 9, "quantite": 5}
+    ],
+    "images_par_couleur": {
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145322/ecommerce/Jean-PANASONIC-BLGL2023-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145329/ecommerce/Jean-PANASONIC-BLGL2023-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145335/ecommerce/Jean-PANASONIC-BLGL2023-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145343/ecommerce/Jean-PANASONIC-BLGL2023-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145348/ecommerce/Jean-PANASONIC-BLGL2023-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "PULL OVERSIZE COTON",
+    "description": "Pull oversize à col rond et manches longues, idéal pour un look tendance et décontracté. Confectionné dans une matière douce et confortable",
+    "conseils": "Lavage à la machine maximum 30°\nEau de javel interdite\nRepasser max 110°C\nPas de nettoyage à sec\nSéchage en machine à basse température",
+    "prix": 69,
+    "remise": 0,
+    "seo_titre": "Pull Oversize à Col Rond – Élégance Décontractée et Confort",
+    "mots_cles_seo": "pull oversize, pull col rond, pull manches longues, pull tendance, pull ample, pull cosy, mode casual",
+    "categorie_id": 15,
+    "marque_id": 8,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 453,
+        "couleur_id": 11,
+        "quantite": 4
+      },
+      {
+        "taille_id": 452,
+        "couleur_id": 11,
+        "quantite": 4
+      },
+      {
+        "taille_id": 451,
+        "couleur_id": 11,
+        "quantite": 4
+      },
+      {
+        "taille_id": 450,
+        "couleur_id": 11,
+        "quantite": 4
+      },
+      {
+        "taille_id": 449,
+        "couleur_id": 11,
+        "quantite": 4
+      }
+    ],
+    "images_par_couleur": {
+      "11": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146358/ecommerce/PULL-OVERSIZE-Rond-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146365/ecommerce/PULL-OVERSIZE-Rond-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146375/ecommerce/PULL-OVERSIZE-Rond-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146386/ecommerce/PULL-OVERSIZE-Rond-4.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible.\n Cinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement \nLaver séparément",
+    "prix": 59,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-022",
+    "seo_titre": "Jean coupe slim en denim extensible - 5 poches, fermeture zip",
+    "mots_cles_seo": "jean slim homme, jean coupe slim, denim stretch, pantalon 5 poches, jean avec zip, jean bouton, pantalon homme moderne, jean ajusté, jean confortable",
+    "categorie_id": 19,
+    "marque_id": 7,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 9, "quantite": 5},
+      {"taille_id": 671, "couleur_id": 9, "quantite": 5},
+      {"taille_id": 672, "couleur_id": 9, "quantite": 10},
+      {"taille_id": 673, "couleur_id": 9, "quantite": 5}
+    ],
+    "images_par_couleur": {
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145355/ecommerce/JEAN-PHILIPS-BLGML2023-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145362/ecommerce/JEAN-PHILIPS-BLGML2023-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145373/ecommerce/JEAN-PHILIPS-BLGML2023-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145380/ecommerce/JEAN-PHILIPS-BLGML2023-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145385/ecommerce/JEAN-PHILIPS-BLGML2023-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible. \n Cinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement\n Laver séparément",
+    "prix": 59,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-032",
+    "seo_titre": "Jean slim homme LH6010 - Denim extensible, 5 poches",
+    "mots_cles_seo": "jean slim homme, jean denim extensible, pantalon 5 poches, jean avec bouton, jean fermeture zip, mode homme",
+    "categorie_id": 19,
+    "marque_id": 5,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 16, "quantite": 5},
+      {"taille_id": 671, "couleur_id": 16, "quantite": 20},
+      {"taille_id": 672, "couleur_id": 16, "quantite": 10},
+      {"taille_id": 673, "couleur_id": 16, "quantite": 5}
+    ],
+    "images_par_couleur": {
+      "16": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145636/ecommerce/Jeans-LH6010-21812-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145642/ecommerce/Jeans-LH6010-21812-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145648/ecommerce/Jeans-LH6010-21812-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145654/ecommerce/Jeans-LH6010-21812-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145665/ecommerce/Jeans-LH6010-21812-5.jpg"
+      ]
+    }
+  },
+
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible.\n Cinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement\n Laver séparément",
+    "sku": "JEAN-SLIM-CLASSIQUE-006",
+    "prix": 65,
+    "remise": 0,
+    "seo_titre": "Jean slim homme en denim extensible - Cinq poches et fermeture zip",
+    "mots_cles_seo": "jean slim homme, jean coupe slim, denim extensible, jean cinq poches, pantalon homme tendance, jean mode homme, jean fermeture zip, jean bouton avant",
+    "categorie_id": 19,
+    "marque_id": 7,
+    "genre_id": 5,
+    "variations": [
+      {
+        "taille_id": 670,
+        "couleur_id": 5,
+        "quantite": 3
+      },
+      {
+        "taille_id": 671,
+        "couleur_id": 5,
+        "quantite": 3
+      },
+      {
+        "taille_id": 672,
+        "couleur_id": 5,
+        "quantite": 2
+      },
+      {
+        "taille_id": 673,
+        "couleur_id": 5,
+        "quantite": 2
+      },
+      {
+        "taille_id": 670,
+        "couleur_id": 28,
+        "quantite": 4
+      },
+      {
+        "taille_id": 671,
+        "couleur_id": 28,
+        "quantite": 4
+      },
+      {
+        "taille_id": 672,
+        "couleur_id": 28,
+        "quantite": 4
+      },
+      {
+        "taille_id": 673,
+        "couleur_id": 28,
+        "quantite": 4
+      },
+      {
+        "taille_id": 670,
+        "couleur_id": 9,
+        "quantite": 4
+      },
+      {
+        "taille_id": 671,
+        "couleur_id": 9,
+        "quantite": 4
+      },
+      {
+        "taille_id": 672,
+        "couleur_id": 9,
+        "quantite": 4
+      },
+      {
+        "taille_id": 673,
+        "couleur_id": 9,
+        "quantite": 4
+      },
+      {
+        "taille_id": 670,
+        "couleur_id": 16,
+        "quantite": 5
+      },
+      {
+        "taille_id": 671,
+        "couleur_id": 16,
+        "quantite": 5
+      },
+      {
+        "taille_id": 672,
+        "couleur_id": 16,
+        "quantite": 10
+      },
+      {
+        "taille_id": 673,
+        "couleur_id": 16,
+        "quantite": 5
+      }
+    ],
+    "images_par_couleur": {
+      "5": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145123/ecommerce/Jean-CITRINE-BG2023-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145137/ecommerce/Jean-CITRINE-BG2023-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145150/ecommerce/Jean-CITRINE-BG2023-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145155/ecommerce/Jean-CITRINE-BG2023-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145162/ecommerce/Jean-CITRINE-BG2023-5.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145168/ecommerce/Jean-CITRINE-BG2023-6.jpg"
+      ],
+      "28": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145209/ecommerce/Jean-CRISTAL-AMAZONE-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145212/ecommerce/Jean-CRISTAL-AMAZONE-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145218/ecommerce/Jean-CRISTAL-AMAZONE-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145225/ecommerce/Jean-CRISTAL-AMAZONE-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145231/ecommerce/Jean-CRISTAL-AMAZONE-5.jpg"
+      ],
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145237/ecommerce/JEAN-CRISTAL-BG12220-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145243/ecommerce/JEAN-CRISTAL-BG12220-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145250/ecommerce/JEAN-CRISTAL-BG12220-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145256/ecommerce/JEAN-CRISTAL-BG12220-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145263/ecommerce/JEAN-CRISTAL-BG12220-5.jpg"
+      ],
+      "16": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145546/ecommerce/Jeans-CRISTAL-BG12223-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145553/ecommerce/Jeans-CRISTAL-BG12223-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145559/ecommerce/Jeans-CRISTAL-BG12223-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145565/ecommerce/Jeans-CRISTAL-BG12223-4.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN ÉVASÉ TAILLE HAUTE",
+    "description": "Jean avec taille haute, Fabriqué avec de l'élastique pour plus de confort, Ce classique à cinq poches. Jambes ajustées et bas évasé. Fermeture avant par zip et bouton.",
+    "conseils": "Déteint naturellement\nLaver séparément",
+    "sku": "JEAN-ÉVASÉ-TAILLE-HAUTE-007",
+    "prix": 69,
+    "remise": 0,
+    "seo_titre": "Jean Taille Haute Évasé – Confort et Style Intemporel",
+    "mots_cles_seo": "jean taille haute, jean évasé, jean cinq poches, jean ajusté, denim stretch, mode femme, pantalon tendance",
+    "categorie_id": 19,
+    "marque_id": 6,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 660,
+        "couleur_id": 9,
+        "quantite": 3
+      },
+      {
+        "taille_id": 661,
+        "couleur_id": 9,
+        "quantite": 3
+      },
+      {
+        "taille_id": 662,
+        "couleur_id": 9,
+        "quantite": 3
+      },
+      {
+        "taille_id": 663,
+        "couleur_id": 9,
+        "quantite": 2
+      },
+      {
+        "taille_id": 664,
+        "couleur_id": 9,
+        "quantite": 1
+      }
+    ],
+    "images_par_couleur": {
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145794/ecommerce/PONTALLON-BOYFRIEND-Clair-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145801/ecommerce/PONTALLON-BOYFRIEND-Clair-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145807/ecommerce/PONTALLON-BOYFRIEND-Clair-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145813/ecommerce/PONTALLON-BOYFRIEND-Clair-4.jpg"
+      ]
+    }
+  },
+
+  {
+    "nom_produit": "JEAN CARGO",
+    "description": "Jean Cargo taille mi- haute avec poches plaquées sur la jambe. Fermeture par zip et bouton métallique sur le devant.",
+    "conseils": "Déteint naturellement\nLaver séparément",
+    "sku": "JEAN-CARGO-008",
+    "prix": 59,
+    "remise": 0,
+    "seo_titre": "Jean Taille Mi-Haute avec Poches – Style et Praticité",
+    "mots_cles_seo": "jean taille mi-haute, jean poches plaquées, jean tendance, pantalon denim, jean confortable, mode femme, jean zip bouton",
+    "categorie_id": 19,
+    "marque_id": 8,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 664,
+        "couleur_id": 16,
+        "quantite": 20
+      },
+      {
+        "taille_id": 663,
+        "couleur_id": 16,
+        "quantite": 20
+      },
+      {
+        "taille_id": 661,
+        "couleur_id": 16,
+        "quantite": 19
+      }
+    ],
+    "images_par_couleur": {
+      "16": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144640/ecommerce/BLUE-CARGO-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144645/ecommerce/BLUE-CARGO-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144651/ecommerce/BLUE-CARGO-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144656/ecommerce/BLUE-CARGO-4.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible.\n Cinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement\n Laver séparément",
+    "prix": 59,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-021",
+    "seo_titre": "Jean slim en denim extensible - 5 poches, fermeture zip et bouton",
+    "mots_cles_seo": "jean slim, jean homme, denim extensible, jean coupe slim, jean 5 poches, pantalon en jean, fermeture éclair, bouton sur le devant, mode homme",
+    "categorie_id": 19,
+    "marque_id": 5,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 9, "quantite": 4},
+      {"taille_id": 671, "couleur_id": 9, "quantite": 4},
+      {"taille_id": 672, "couleur_id": 9, "quantite": 4},
+      {"taille_id": 673, "couleur_id": 9, "quantite": 4}
+    ],
+    "images_par_couleur": {
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145237/ecommerce/JEAN-CRISTAL-BG12220-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145243/ecommerce/JEAN-CRISTAL-BG12220-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145250/ecommerce/JEAN-CRISTAL-BG12220-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145256/ecommerce/JEAN-CRISTAL-BG12220-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145263/ecommerce/JEAN-CRISTAL-BG12220-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN DÉLAVÉ DÉCHIRÉ",
+    "description": "Jean taille mi- haute large  à cinq poches. Effet délavé. Déchirures. Fermeture zip et bouton métallique sur le devant.",
+    "conseils": "Déteint naturellement\nLaver séparément",
+    "sku": "JEAN-DÉLAVÉ-DÉCHIRÉ-009",
+    "prix": 50,
+    "remise": 0,
+    "seo_titre": "Jean Taille Mi-Haute Délavé avec Déchirures – Look Tendance",
+    "mots_cles_seo": "jean taille mi-haute, jean délavé, jean déchiré, jean cinq poches, denim tendance, jean mode femme, pantalon stylé",
+    "categorie_id": 19,
+    "marque_id": 10,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 660,
+        "couleur_id": 9,
+        "quantite": 5
+      },
+      {
+        "taille_id": 661,
+        "couleur_id": 9,
+        "quantite": 5
+      },
+      {
+        "taille_id": 662,
+        "couleur_id": 9,
+        "quantite": 5
+      },
+      {
+        "taille_id": 663,
+        "couleur_id": 9,
+        "quantite": 3
+      },
+      {
+        "taille_id": 664,
+        "couleur_id": 9,
+        "quantite": 1
+      }
+    ],
+    "images_par_couleur": {
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145886/ecommerce/PONTALLON-LARGE-Clair-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145892/ecommerce/PONTALLON-LARGE-Clair-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145898/ecommerce/PONTALLON-LARGE-Clair-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145905/ecommerce/PONTALLON-LARGE-Clair-4.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible.\n Cinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement\n Laver séparément",
+    "prix": 49,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-020",
+    "seo_titre": "Jean coupe slim en denim extensible - Homme, 5 poches et fermeture zip",
+    "mots_cles_seo": "jean slim homme, jean coupe slim, denim extensible, jean 5 poches, pantalon homme slim, jean bouton zip, jean mode homme, jean confortable",
+    "categorie_id": 19,
+    "marque_id": 10,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 28, "quantite": 4},
+      {"taille_id": 671, "couleur_id": 28, "quantite": 4},
+      {"taille_id": 672, "couleur_id": 28, "quantite": 4},
+      {"taille_id": 673, "couleur_id": 28, "quantite": 4}
+    ],
+    "images_par_couleur": {
+      "28": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145392/ecommerce/Jean-SAPHIR-221MM014-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145399/ecommerce/Jean-SAPHIR-221MM014-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145406/ecommerce/Jean-SAPHIR-221MM014-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145414/ecommerce/Jean-SAPHIR-221MM014-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145425/ecommerce/Jean-SAPHIR-221MM014-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN ÉVASÉ TAILLE HAUTE",
+    "description": "Jean taille haute à cinq poches skinny. fini évasé sans couture. Fermeture zip et bouton métallique sur le devant.",
+    "conseils": "Déteint naturellement\nLaver séparément",
+    "sku": "JEAN-ÉVASÉ-TAILLE-HAUTE-010",
+    "prix": 69,
+    "remise": 0,
+    "seo_titre": "Jean Taille Haute Évasé – Élégance et Confort",
+    "mots_cles_seo": "jean taille haute, jean évasé, jean sans couture, jean cinq poches, denim tendance, mode femme, pantalon stylé",
+    "categorie_id": 19,
+    "marque_id": 9,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 661,
+        "couleur_id": 16,
+        "quantite": 8
+      },
+      {
+        "taille_id": 662,
+        "couleur_id": 16,
+        "quantite": 8
+      },
+      {
+        "taille_id": 663,
+        "couleur_id": 16,
+        "quantite": 8
+      },
+      {
+        "taille_id": 664,
+        "couleur_id": 16,
+        "quantite": 6
+      }
+    ],
+    "images_par_couleur": {
+      "16": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145842/ecommerce/PONTALLON-Cournee-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145848/ecommerce/PONTALLON-Cournee-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145853/ecommerce/PONTALLON-Cournee-3.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "PANTALON SKINNY IMPRIMÉ",
+    "description": "Pantalon imprimé, matière stretch. Une coupe skinny avec le confort de la taille élastiquée. Fermeture avant par zip et bouton",
+    "conseils": "Déteint naturellement\nLaver séparément",
+    "sku": "PANTALON-SKINNY-IMPRIMÉ-011",
+    "prix": 45,
+    "remise": 0,
+    "seo_titre": "Pantalon Skinny Imprimé – Confort et Style Moderne",
+    "mots_cles_seo": "pantalon imprimé, pantalon skinny, taille élastiquée, pantalon stretch, mode femme, pantalon tendance, pantalon ajusté",
+    "categorie_id": 19,
+    "marque_id": 5,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 664,
+        "couleur_id": 15,
+        "quantite": 4
+      },
+      {
+        "taille_id": 662,
+        "couleur_id": 15,
+        "quantite": 4
+      },
+      {
+        "taille_id": 661,
+        "couleur_id": 15,
+        "quantite": 4
+      },
+      {
+        "taille_id": 660,
+        "couleur_id": 15,
+        "quantite": 3
+      }
+    ],
+    "images_par_couleur": {
+      "15": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145995/ecommerce/PONTALLON-STRETCH-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146001/ecommerce/PONTALLON-STRETCH-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146008/ecommerce/PONTALLON-STRETCH-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744146014/ecommerce/PONTALLON-STRETCH-4.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN TAILLE MI-HAUTE",
+    "description": "Jean taille mi- haute avec poches plaquées sur la jambe. Fermeture par zip et bouton métallique sur le devant.",
+    "conseils": "Déteint naturellement\nLaver séparément",
+    "sku": "JEAN-TAILLE-MI-HAUTE-012",
+    "prix": 59,
+    "remise": 0,
+    "seo_titre": "Jean Taille Mi-Haute avec Poches Plaquées – Pratique et Tendance",
+    "mots_cles_seo": "jean taille mi-haute, jean poches plaquées, jean tendance, pantalon denim, jean confortable, mode femme, jean zip bouton",
+    "categorie_id": 19,
+    "marque_id": 9,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 664,
+        "couleur_id": 16,
+        "quantite": 3
+      },
+      {
+        "taille_id": 663,
+        "couleur_id": 16,
+        "quantite": 3
+      },
+      {
+        "taille_id": 662,
+        "couleur_id": 16,
+        "quantite": 2
+      },
+      {
+        "taille_id": 661,
+        "couleur_id": 16,
+        "quantite": 2
+      }
+    ],
+    "images_par_couleur": {
+      "16": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144662/ecommerce/BLUE-JEANS-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144668/ecommerce/BLUE-JEANS-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144673/ecommerce/BLUE-JEANS-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144679/ecommerce/BLUE-JEANS-4.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible.\n Cinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement\n Laver séparément",
+    "prix": 59,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-019",
+    "seo_titre": "Jean slim en denim extensible pour homme - Style moderne à 5 poches",
+    "mots_cles_seo": "jean slim homme, denim extensible, jean cinq poches, pantalon slim homme, jean moderne, fermeture éclair jean, jean bouton avant, pantalon homme ajusté",
+    "categorie_id": 19,
+    "marque_id": 7,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 28, "quantite": 4},
+      {"taille_id": 671, "couleur_id": 28, "quantite": 4},
+      {"taille_id": 672, "couleur_id": 28, "quantite": 4},
+      {"taille_id": 673, "couleur_id": 28, "quantite": 4}
+    ],
+    "images_par_couleur": {
+      "28": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145209/ecommerce/Jean-CRISTAL-AMAZONE-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145212/ecommerce/Jean-CRISTAL-AMAZONE-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145218/ecommerce/Jean-CRISTAL-AMAZONE-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145225/ecommerce/Jean-CRISTAL-AMAZONE-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145231/ecommerce/Jean-CRISTAL-AMAZONE-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN LARGE TAILLE BASSE",
+    "description": "Jean taille basse avec passants à la taille. Cinq poches. Détail de surpiqûres marquées en contraste. Jambe large. Fermeture devant avec zip et boutons.",
+    "conseils": "Déteint naturellement\nLaver séparément",
+    "sku": "JEAN-LARGE-TAILLE-BASSE-013",
+    "prix": 69,
+    "remise": 0,
+    "seo_titre": "Jean Taille Basse Large – Style Décontracté et Tendance",
+    "mots_cles_seo": "jean taille basse, jean large, jean cinq poches, denim tendance, pantalon confortable, mode femme, jean surpiqûres contrastées",
+    "categorie_id": 19,
+    "marque_id": 5,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 664,
+        "couleur_id": 5,
+        "quantite": 4
+      },
+      {
+        "taille_id": 663,
+        "couleur_id": 5,
+        "quantite": 4
+      },
+      {
+        "taille_id": 662,
+        "couleur_id": 5,
+        "quantite": 4
+      },
+      {
+        "taille_id": 661,
+        "couleur_id": 5,
+        "quantite": 4
+      }
+    ],
+    "images_par_couleur": {
+      "5": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145951/ecommerce/PONTALLON-LARGE-Noir-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145959/ecommerce/PONTALLON-LARGE-Noir-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145968/ecommerce/PONTALLON-LARGE-Noir-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145978/ecommerce/PONTALLON-LARGE-Noir-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145986/ecommerce/PONTALLON-LARGE-Noir-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN AMPLE TAILLE HAUTE",
+    "description": "Jean taille Haute avec Jambe ample. Cinq poches. Fermeture devant avec zip et boutons.",
+    "conseils": "Déteint naturellement\nLaver séparément",
+    "sku": "JEAN-AMBLE-TAILLE-HAUTE-014",
+    "prix": 70,
+    "remise": 0,
+    "seo_titre": "Jean Taille Haute à Jambe Ample – Confort et Style Tendance",
+    "mots_cles_seo": "jean taille haute, jean ample, jean cinq poches, pantalon large, denim tendance, mode femme, jean confortable",
+    "categorie_id": 19,
+    "marque_id": 8,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 663,
+        "couleur_id": 37,
+        "quantite": 5
+      },
+      {
+        "taille_id": 662,
+        "couleur_id": 37,
+        "quantite": 5
+      },
+      {
+        "taille_id": 661,
+        "couleur_id": 37,
+        "quantite": 5
+      },
+      {
+        "taille_id": 660,
+        "couleur_id": 37,
+        "quantite": 5
+      }
+    ],
+    "images_par_couleur": {
+      "37": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145503/ecommerce/JEANS-CARGO-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145509/ecommerce/JEANS-CARGO-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145515/ecommerce/JEANS-CARGO-3.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN DÉCHIRÉ TAILLE MI HAUTE",
+    "description": "Jean taille haute à cinq poches déchiré. Effet délavé. Ceinture. Jambes larges et courtes. Fermeture à l'avant par zip et bouton.",
+    "conseils": "Déteint naturellement\nLaver séparément",
+    "sku": "JEAN-DÉCHIRÉ-TAILLE-MI-HAUTE-015",
+    "prix": 69,
+    "remise": 0,
+    "seo_titre": "Jean Taille Haute Déchiré – Effet Délavé et Coupe Large",
+    "mots_cles_seo": "jean taille haute, jean déchiré, jean effet délavé, jean cinq poches, jean large court, denim tendance, mode femme",
+    "categorie_id": 19,
+    "marque_id": 9,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 664,
+        "couleur_id": 9,
+        "quantite": 5
+      },
+      {
+        "taille_id": 663,
+        "couleur_id": 9,
+        "quantite": 5
+      },
+      {
+        "taille_id": 662,
+        "couleur_id": 9,
+        "quantite": 5
+      },
+      {
+        "taille_id": 661,
+        "couleur_id": 9,
+        "quantite": 5
+      }
+    ],
+    "images_par_couleur": {
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144706/ecommerce/BOYFREIND-JEANS-CLAIR-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144712/ecommerce/BOYFREIND-JEANS-CLAIR-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144718/ecommerce/BOYFREIND-JEANS-CLAIR-3.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible.\n Cinq poches. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement\n Laver séparément",
+    "prix": 65,
+    "remise": 0,
+    "sku": "JEAN-SLIM-CLASSIQUE-018",
+    "seo_titre": "Jean slim homme en denim extensible - Cinq poches et fermeture zip",
+    "mots_cles_seo": "jean slim homme, jean coupe slim, denim extensible, jean cinq poches, pantalon homme tendance, jean mode homme, jean fermeture zip, jean bouton avant",
+    "categorie_id": 19,
+    "marque_id": 7,
+    "genre_id": 5,
+    "variations": [
+      {"taille_id": 670, "couleur_id": 5, "quantite": 3},
+      {"taille_id": 671, "couleur_id": 5, "quantite": 3},
+      {"taille_id": 672, "couleur_id": 5, "quantite": 2},
+      {"taille_id": 673, "couleur_id": 5, "quantite": 2}
+    ],
+    "images_par_couleur": {
+      "5": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145123/ecommerce/Jean-CITRINE-BG2023-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145137/ecommerce/Jean-CITRINE-BG2023-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145150/ecommerce/Jean-CITRINE-BG2023-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145155/ecommerce/Jean-CITRINE-BG2023-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145162/ecommerce/Jean-CITRINE-BG2023-5.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145168/ecommerce/Jean-CITRINE-BG2023-6.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN DÉLAVÉ TAILLE MI-HAUTE",
+    "description": "Jean taille mi- haute à cinq poches. Effet délavé. Fermeture zip et bouton métallique sur le devant.",
+    "conseils": "Déteint naturellement\nLaver séparément",
+    "sku": "JEAN-DÉLAVÉ-TAILLE-MI-HAUTE-016",
+    "prix": 50,
+    "remise": 0,
+    "seo_titre": "Jean Taille Mi-Haute Délavé – Intemporel et Confortable",
+    "mots_cles_seo": "jean taille mi-haute, jean délavé, jean cinq poches, denim tendance, mode femme, jean casual, jean zip bouton",
+    "categorie_id": 19,
+    "marque_id": 5,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 660,
+        "couleur_id": 9,
+        "quantite": 4
+      },
+      {
+        "taille_id": 661,
+        "couleur_id": 9,
+        "quantite": 4
+      },
+      {
+        "taille_id": 662,
+        "couleur_id": 9,
+        "quantite": 3
+      },
+      {
+        "taille_id": 663,
+        "couleur_id": 9,
+        "quantite": 3
+      }
+    ],
+    "images_par_couleur": {
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145503/ecommerce/JEANS-CARGO-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145509/ecommerce/JEANS-CARGO-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145515/ecommerce/JEANS-CARGO-3.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN AMPLE TAILLE HAUTE",
+    "description": "Jean taille Haute avec Jambe ample. Cinq poches. Fermeture devant avec zip et boutons.",
+    "conseils": "Déteint naturellement\nLaver séparément",
+    "sku": "JEAN-AMBLE-TAILLE-HAUTE-017",
+    "prix": 69,
+    "remise": 0,
+    "seo_titre": "Déteint naturellement Laver séparément",
+    "mots_cles_seo": "jean taille haute, jean ample, jean cinq poches, pantalon large, denim tendance, mode femme, jean confortable",
+    "categorie_id": 19,
+    "marque_id": 8,
+    "genre_id": 4,
+    "variations": [
+      {
+        "taille_id": 666,
+        "couleur_id": 16,
+        "quantite": 3
+      },
+      {
+        "taille_id": 660,
+        "couleur_id": 16,
+        "quantite": 3
+      },
+      {
+        "taille_id": 661,
+        "couleur_id": 16,
+        "quantite": 2
+      },
+      {
+        "taille_id": 662,
+        "couleur_id": 16,
+        "quantite": 2
+      },
+      {
+        "taille_id": 663,
+        "couleur_id": 16,
+        "quantite": 1
+      },
+      {
+        "taille_id": 664,
+        "couleur_id": 16,
+        "quantite": 1
+      }
+    ],
+    "images_par_couleur": {
+      "16": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145921/ecommerce/PONTALLON-LARGE-JEANS-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145929/ecommerce/PONTALLON-LARGE-JEANS-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145938/ecommerce/PONTALLON-LARGE-JEANS-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145944/ecommerce/PONTALLON-LARGE-JEANS-5.jpg"
+      ]
+    }
+  },
+  {
+    "nom_produit": "JEAN SLIM CLASSIQUE",
+    "description": "Jean coupe slim en tissu denim extensible. Cinq poches. Effet délavé. Fermeture zip et bouton sur le devant.",
+    "conseils": "Déteint naturellement\nLaver séparément",
+    "sku": "JEAN-SLIM-CLASSIQUE-018",
+    "prix": 69,
+    "remise": 0,
+    "seo_titre": "Jean Slim Extensible – Coupe Ajustée et Confort Moderne",
+    "mots_cles_seo": "jean slim, jean stretch, jean coupe ajustée, denim extensible, jean effet délavé, jean tendance, mode casual",
+    "categorie_id": 19,
+    "marque_id": 6,
+    "genre_id": 5,
+    "variations": [
+      {
+        "taille_id": 674,
+        "couleur_id": 16,
+        "quantite": 3
+      },
+      {
+        "taille_id": 673,
+        "couleur_id": 16,
+        "quantite": 3
+      },
+      {
+        "taille_id": 672,
+        "couleur_id": 16,
+        "quantite": 3
+      },
+      {
+        "taille_id": 671,
+        "couleur_id": 16,
+        "quantite": 1
+      },
+      {
+        "taille_id": 670,
+        "couleur_id": 16,
+        "quantite": 1
+      }
+    ],
+    "images_par_couleur": {
+      "16": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145432/ecommerce/Jean-slim-Dark-blue-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145444/ecommerce/Jean-slim-Dark-blue-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145451/ecommerce/Jean-slim-Dark-blue-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145459/ecommerce/Jean-slim-Dark-blue-4.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145465/ecommerce/Jean-slim-Dark-blue-5.jpg"
+      ]
+    }
+  }
+]

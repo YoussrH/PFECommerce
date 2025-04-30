@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compte administrateur supprimé</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: #7f8c8d;
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+        .content {
+            padding: 30px;
+        }
+        .info-card {
+            border-left: 4px solid #7f8c8d;
+            padding: 15px;
+            margin: 20px 0;
+            background-color: #f8f9fa;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #7f8c8d;
+            background-color: #ecf0f1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Compte administrateur supprimé</h1>
+        </div>
+        <div class="content">
+            <p>Bonjour {{PRENOM}} {{NOM}},</p>
+            
+            <div class="info-card">
+                <p>Nous vous informons que votre compte administrateur a été supprimé par {{DELETER_NAME}}.</p>
+            </div>
+            
+            <p>Détails :</p>
+            <ul>
+                <li><strong>Email du compte :</strong> {{EMAIL}}</li>
+                <li><strong>Rôle :</strong> {{ROLE}}</li>
+                <li><strong>Date de suppression :</strong> {{DELETION_DATE}}</li>
+            </ul>
+            
+            <p>Si vous pensez qu'il s'agit d'une erreur, veuillez contacter immédiatement l'équipe technique.</p>
+            
+            <p>Nous vous remercions pour votre collaboration et vous souhaitons bonne continuation.</p>
+            
+            <p>Cordialement,<br>L'équipe MGM</p>
+        </div>
+        <div class="footer">
+            <p>© {{CURRENT_YEAR}} MGM. Tous droits réservés.</p>
+            <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
+        </div>
+    </div>
+</body>
+</html>

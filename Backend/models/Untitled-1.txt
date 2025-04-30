@@ -1,0 +1,1238 @@
+module.exports = (sequelize, DataTypes) => {
+  const Article = sequelize.define('Article', {
+    nom_produit: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    description: DataTypes.TEXT,
+    conseils: DataTypes.TEXT,
+    prix: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+    },
+    prix_final: {
+      type: DataTypes.FLOAT,
+      defaultValue: 0,
+    },
+    stock: DataTypes.INTEGER,
+    sku: DataTypes.STRING,
+    images: {
+      type: DataTypes.ARRAY(DataTypes.STRING),
+      allowNull: false,
+      defaultValue: [],
+    },
+    seo_titre: DataTypes.STRING,
+    mots_cles_seo: DataTypes.STRING,
+    categorie_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    marque_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    genre_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+  }, {
+    tableName: 'article',
+  });
+
+  Article.associate = (models) => {
+    Article.belongsTo(models.Categorie, {
+      foreignKey: 'categorie_id',
+      as: 'categorie',
+    });
+    Article.belongsTo(models.Marque, {
+      foreignKey: 'marque_id',
+      as: 'marque',
+    });
+    Article.belongsTo(models.Genre, {
+      foreignKey: 'genre_id',
+      as: 'genre',
+    });
+    Article.belongsToMany(models.Taille, {
+      through: models.ArticleTaille,
+      foreignKey: 'article_id',
+      as: 'tailles',
+    });
+    Article.belongsToMany(models.Couleur, {
+      through: models.ArticleCouleur,
+      foreignKey: 'article_id',
+      as: 'couleurs',
+    });
+    Article.belongsToMany(models.Panier, {
+      through: models.ArticlePanier,
+      foreignKey: 'article_id',
+      as: 'paniers',
+    });
+    Article.belongsToMany(models.Commande, {
+      through: models.CommandeArticle,
+      foreignKey: 'article_id',
+      as: 'commandes',
+    });
+    Article.belongsToMany(models.Remise, {
+      through: models.RemiseArticle,
+      foreignKey: 'article_id',
+      as: 'remises',
+    });
+  };
+
+  return Article;
+};
+module.exports = (sequelize, DataTypes) => {
+  const ArticleCouleur = sequelize.define('ArticleCouleur', {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    article_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    couleur_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+  }, {
+    tableName: 'article_couleur',
+  });
+
+  ArticleCouleur.associate = (models) => {
+    ArticleCouleur.belongsTo(models.Article, {
+      foreignKey: 'article_id',
+      as: 'article',
+    });
+    ArticleCouleur.belongsTo(models.Couleur, {
+      foreignKey: 'couleur_id',
+      as: 'couleur',
+    });
+  };
+
+  return ArticleCouleur;
+};
+module.exports = (sequelize, DataTypes) => {
+  const ArticlePanier = sequelize.define('ArticlePanier', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    article_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    panier_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+    quantite: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
+    },
+    prix_au_moment_ajout: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+    },
+  }, {
+    tableName: 'article_panier',
+  });
+
+  ArticlePanier.associate = (models) => {
+    ArticlePanier.belongsTo(models.Article, {
+      foreignKey: 'article_id',
+      as: 'article',
+    });
+    ArticlePanier.belongsTo(models.Panier, {
+      foreignKey: 'panier_id',
+      as: 'panier',
+    });
+  };
+
+  return ArticlePanier;
+};
+module.exports = (sequelize, DataTypes) => {
+  const ArticleTaille = sequelize.define('ArticleTaille', {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    article_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    taille_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+  }, {
+    tableName: 'article_taille',
+  });
+
+  ArticleTaille.associate = (models) => {
+    ArticleTaille.belongsTo(models.Article, {
+      foreignKey: 'article_id',
+      as: 'article',
+    });
+    ArticleTaille.belongsTo(models.Taille, {
+      foreignKey: 'taille_id',
+      as: 'taille',
+    });
+  };
+
+  return ArticleTaille;
+};
+module.exports = (sequelize, DataTypes) => {
+  const ArticlePanier = sequelize.define('ArticlePanier', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    article_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    panier_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+    quantite: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
+    },
+    prix_au_moment_ajout: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+    },
+  }, {
+    tableName: 'article_panier',
+  });
+
+  ArticlePanier.associate = (models) => {
+    ArticlePanier.belongsTo(models.Article, {
+      foreignKey: 'article_id',
+      as: 'article',
+    });
+    ArticlePanier.belongsTo(models.Panier, {
+      foreignKey: 'panier_id',
+      as: 'panier',
+    });
+  };
+
+  return ArticlePanier;
+};
+module.exports = (sequelize, DataTypes) => {
+  const Categorie = sequelize.define('Categorie', {
+    libelle: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
+    parent_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+  }, {
+    tableName: 'categorie',
+  });
+
+  Categorie.associate = (models) => {
+    Categorie.hasMany(models.Categorie, {
+      as: 'sous_categories',
+      foreignKey: 'parent_id',
+    });
+    Categorie.belongsTo(models.Categorie, {
+      as: 'parent',
+      foreignKey: 'parent_id',
+    });
+    Categorie.hasMany(models.Article, {
+      foreignKey: 'categorie_id',
+      as: 'articles',
+    });
+    Categorie.hasMany(models.Taille, {
+      foreignKey: 'categorie_id',
+      as: 'tailles',
+    });
+  };
+
+  return Categorie;
+};
+module.exports = (sequelize, DataTypes) => {
+  const Client = sequelize.define('Client', {
+    utilisateur_id: {
+      type: DataTypes.UUID,
+      primaryKey: true,
+    },
+    telephone: DataTypes.STRING,
+    adresse_expedition: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: {
+        address: "",
+        complement: "",
+        postal_code: "",
+        city: "",
+        governorate: "",
+      },
+    },
+    points_fidelite: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+    },
+    newsletter: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    methode_paiement: DataTypes.STRING,
+    derniere_connexion: DataTypes.DATE,
+  }, {
+    tableName: 'client',
+  });
+
+  Client.associate = (models) => {
+    Client.belongsTo(models.Utilisateur, {
+      foreignKey: 'utilisateur_id',
+      as: 'utilisateur',
+    });
+    Client.hasMany(models.Commande, {
+      foreignKey: 'client_id',
+      as: 'commandes',
+    });
+  };
+
+  return Client;
+};
+module.exports = (sequelize, DataTypes) => {
+  const Commande = sequelize.define('Commande', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    client_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+    prix_total: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+    },
+    etat: {
+      type: DataTypes.STRING,
+      defaultValue: 'pending',
+    },
+  }, {
+    tableName: 'commande',
+  });
+
+  Commande.associate = (models) => {
+    Commande.belongsTo(models.Client, {
+      foreignKey: 'client_id',
+      as: 'client',
+    });
+    Commande.belongsToMany(models.Article, {
+      through: models.CommandeArticle,
+      foreignKey: 'commande_id',
+      as: 'articles',
+    });
+  };
+
+  return Commande;
+};
+module.exports = (sequelize, DataTypes) => {
+  const CommandeArticle = sequelize.define('CommandeArticle', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    commande_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+    article_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    quantite: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
+    },
+    prix_unitaire: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+    },
+    couleur_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    taille_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+  }, {
+    tableName: 'commande_article',
+  });
+
+  CommandeArticle.associate = (models) => {
+    CommandeArticle.belongsTo(models.Commande, {
+      foreignKey: 'commande_id',
+      as: 'commande',
+    });
+    CommandeArticle.belongsTo(models.Article, {
+      foreignKey: 'article_id',
+      as: 'article',
+    });
+    CommandeArticle.belongsTo(models.Couleur, {
+      foreignKey: 'couleur_id',
+      as: 'couleur',
+    });
+    CommandeArticle.belongsTo(models.Taille, {
+      foreignKey: 'taille_id',
+      as: 'taille',
+    });
+  };
+
+  return CommandeArticle;
+};
+module.exports = (sequelize, DataTypes) => {
+  const Couleur = sequelize.define('Couleur', {
+    libelle: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
+    hexcode: DataTypes.STRING,
+  }, {
+    tableName: 'couleur',
+  });
+
+  Couleur.associate = (models) => {
+    Couleur.belongsToMany(models.Article, {
+      through: models.ArticleCouleur,
+      foreignKey: 'couleur_id',
+      as: 'articles',
+    });
+  };
+
+  return Couleur;
+};
+module.exports = (sequelize, DataTypes) => {
+  const Marque = sequelize.define('Marque', {
+    libelle: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+  }, {
+    tableName: 'marque',
+  });
+
+  Marque.associate = (models) => {
+    Marque.hasMany(models.Article, {
+      foreignKey: 'marque_id',
+      as: 'articles',
+    });
+  };
+
+  return Marque;
+};
+module.exports = (sequelize, DataTypes) => {
+  const Genre = sequelize.define('Genre', {
+    libelle: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+  }, {
+    tableName: 'genre',
+  });
+
+  Genre.associate = (models) => {
+    Genre.hasMany(models.Article, {
+      foreignKey: 'genre_id',
+      as: 'articles',
+    });
+    Genre.hasMany(models.Taille, {
+      foreignKey: 'genre_id',
+      as: 'tailles',
+    });
+  };
+
+  return Genre;
+};
+module.exports = (sequelize, DataTypes) => {
+  const Remise = sequelize.define('Remise', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    libelle: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    type: {
+      type: DataTypes.ENUM(
+        'pourcentage', 'fixe', 'quantite', 'cumulatif', 'code_promo',
+        'fidelite', 'premier_achat', 'deuxieme_article_remise',
+        'bogo', 'taille', 'categorie', 'genre'
+      ),
+      allowNull: false,
+    },
+    valeur: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+    },
+    buy_x: DataTypes.INTEGER,
+    get_y: DataTypes.INTEGER,
+    date_debut: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
+    date_fin: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
+    min_achat: DataTypes.FLOAT,
+    empilable: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    automatique: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+    },
+    code: DataTypes.STRING,
+    etat: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+    },
+  }, {
+    tableName: 'remise',
+  });
+
+  Remise.associate = (models) => {
+    Remise.belongsToMany(models.Article, {
+      through: models.RemiseArticle,
+      foreignKey: 'remise_id',
+      as: 'articles',
+    });
+    Remise.belongsToMany(models.Categorie, {
+      through: models.RemiseCategorie,
+      foreignKey: 'remise_id',
+      as: 'categories',
+    });
+    Remise.belongsToMany(models.Utilisateur, {
+      through: models.RemiseUtilisateur,
+      foreignKey: 'remise_id',
+      as: 'utilisateurs',
+    });
+    Remise.belongsToMany(models.Taille, {
+      through: models.RemiseTaille,
+      foreignKey: 'remise_id',
+      as: 'tailles',
+    });
+    Remise.belongsToMany(models.Genre, {
+      through: models.RemiseGenre,
+      foreignKey: 'remise_id',
+      as: 'genres',
+    });
+  };
+
+  return Remise;
+};// models/relations.js
+module.exports = function(models) {
+  try {
+    console.log('Setting up model relations...');
+    
+    // Verify all required models exist
+    const requiredModels = [
+      'Remise', 'Article', 'Categorie', 'Genre', 'Taille', 'Client',
+      'Marque', 'Couleur', 'Commande', 'Panier', 'RemiseArticle',
+      'RemiseCategorie', 'RemiseUtilisateur', 'RemiseTaille', 'RemiseGenre',
+      'CommandeArticle', 'ArticlePanier', 'ArticleCouleur', 'ArticleTaille', 'Utilisateur'
+    ];
+
+    // Check model availability
+    const missingModels = requiredModels.filter(name => !models[name]);
+    if (missingModels.length > 0) {
+      throw new Error(`Missing models: ${missingModels.join(', ')}`);
+    }
+
+    // Destructure models after verification
+    const {
+      Remise,
+      Article,
+      Categorie,
+      Genre,
+      Taille,
+      Client,
+      Marque,
+      Couleur,
+      Commande,
+      Panier,
+      RemiseArticle,
+      RemiseCategorie,
+      RemiseUtilisateur,
+      RemiseTaille,
+      RemiseGenre,
+      CommandeArticle,
+      ArticlePanier,
+      ArticleCouleur,
+      ArticleTaille,
+      Utilisateur
+    } = models;
+
+    // 1. DISCOUNT RELATIONS
+    Remise.belongsToMany(Article, {
+      through: RemiseArticle,
+      foreignKey: 'remise_id',
+      as: 'articles',
+      onDelete: 'CASCADE'
+    });
+
+    Article.belongsToMany(Remise, {
+      through: RemiseArticle,
+      foreignKey: 'article_id',
+      as: 'remises',
+      onDelete: 'CASCADE'
+    });
+
+    Remise.belongsToMany(Categorie, {
+      through: RemiseCategorie,
+      foreignKey: 'remise_id',
+      as: 'categories',
+      onDelete: 'CASCADE'
+    });
+
+    Categorie.belongsToMany(Remise, {
+      through: RemiseCategorie,
+      foreignKey: 'categorie_id',
+      as: 'remises',
+      onDelete: 'CASCADE'
+    });
+
+    Remise.belongsToMany(Utilisateur, {
+      through: RemiseUtilisateur,
+      foreignKey: 'remise_id',
+      as: 'utilisateurs',
+      onDelete: 'CASCADE'
+    });
+
+    Utilisateur.belongsToMany(Remise, {
+      through: RemiseUtilisateur,
+      foreignKey: 'utilisateur_id',
+      as: 'remises',
+      onDelete: 'CASCADE'
+    });
+
+    Remise.hasMany(RemiseTaille, {
+      foreignKey: 'remise_id',
+      as: 'tailles',
+      onDelete: 'CASCADE'
+    });
+
+    RemiseTaille.belongsTo(Remise, {
+      foreignKey: 'remise_id',
+      as: 'remise'
+    });
+
+    Remise.hasMany(RemiseGenre, {
+      foreignKey: 'remise_id',
+      as: 'genres',
+      onDelete: 'CASCADE'
+    });
+
+    RemiseGenre.belongsTo(Remise, {
+      foreignKey: 'remise_id',
+      as: 'remise'
+    });
+
+    // 2. CATEGORY RELATIONS
+    Categorie.hasMany(Categorie, {
+      as: 'sous_categories',
+      foreignKey: 'parent_id',
+      onDelete: 'CASCADE'
+    });
+
+    Categorie.belongsTo(Categorie, {
+      as: 'parent',
+      foreignKey: 'parent_id'
+    });
+
+    Categorie.hasMany(Article, {
+      foreignKey: 'categorie_id',
+      as: 'articles',
+      onDelete: 'CASCADE'
+    });
+
+    // 3. ARTICLE RELATIONS
+    Article.belongsTo(Categorie, {
+      foreignKey: 'categorie_id',
+      as: 'categorie',
+      onDelete: 'CASCADE'
+    });
+
+    Article.belongsTo(Marque, {
+      foreignKey: 'marque_id',
+      as: 'marque',
+      onDelete: 'CASCADE'
+    });
+
+    Article.belongsTo(Genre, {
+      foreignKey: 'genre_id',
+      as: 'genre',
+      onDelete: 'CASCADE'
+    });
+
+    // 4. ARTICLE-TAILLE RELATIONS
+    Article.belongsToMany(Taille, {
+      through: ArticleTaille,
+      foreignKey: 'article_id',
+      as: 'tailles',
+      onDelete: 'CASCADE'
+    });
+
+    Taille.belongsToMany(Article, {
+      through: ArticleTaille,
+      foreignKey: 'taille_id',
+      as: 'articles',
+      onDelete: 'CASCADE'
+    });
+
+    // 5. ARTICLE-COULEUR RELATIONS
+    Article.belongsToMany(Couleur, {
+      through: ArticleCouleur,
+      foreignKey: 'article_id',
+      as: 'couleurs',
+      onDelete: 'CASCADE'
+    });
+
+    Couleur.belongsToMany(Article, {
+      through: ArticleCouleur,
+      foreignKey: 'couleur_id',
+      as: 'articles',
+      onDelete: 'CASCADE'
+    });
+
+    // 6. MARQUE & GENRE RELATIONS
+    Marque.hasMany(Article, {
+      foreignKey: 'marque_id',
+      as: 'articles',
+      onDelete: 'CASCADE'
+    });
+
+    Genre.hasMany(Article, {
+      foreignKey: 'genre_id',
+      as: 'articles',
+      onDelete: 'CASCADE'
+    });
+
+    // 7. TAILLE RELATIONS
+    Taille.belongsTo(Categorie, {
+      foreignKey: 'categorie_id',
+      as: 'categorie',
+      onDelete: 'CASCADE'
+    });
+
+    Taille.belongsTo(Genre, {
+      foreignKey: 'genre_id',
+      as: 'genre',
+      onDelete: 'CASCADE'
+    });
+
+    // 8. PANIER RELATIONS
+    Panier.belongsTo(Utilisateur, {
+      foreignKey: 'utilisateur_id',
+      as: 'utilisateur',
+      onDelete: 'CASCADE'
+    });
+
+    Utilisateur.hasOne(Panier, {
+      foreignKey: 'utilisateur_id',
+      as: 'panier',
+      onDelete: 'CASCADE'
+    });
+
+    Panier.belongsToMany(Article, {
+      through: ArticlePanier,
+      foreignKey: 'panier_id',
+      otherKey: 'article_id',
+      as: 'articles',
+      onDelete: 'CASCADE'
+    });
+
+    Article.belongsToMany(Panier, {
+      through: ArticlePanier,
+      foreignKey: 'article_id',
+      otherKey: 'panier_id',
+      as: 'paniers',
+      onDelete: 'CASCADE'
+    });
+
+    ArticlePanier.belongsTo(Panier, {
+      foreignKey: 'panier_id',
+      as: 'panier'
+    });
+
+    ArticlePanier.belongsTo(Article, {
+      foreignKey: 'article_id',
+      as: 'article'
+    });
+
+    Panier.hasMany(ArticlePanier, {
+      foreignKey: 'panier_id',
+      as: 'panier_articles',
+      onDelete: 'CASCADE'
+    });
+
+    Article.hasMany(ArticlePanier, {
+      foreignKey: 'article_id',
+      as: 'panier_articles',
+      onDelete: 'CASCADE'
+    });
+
+    // 9. COMMANDE RELATIONS
+    Commande.belongsTo(Client, {
+      foreignKey: 'client_id',
+      as: 'client',
+      onDelete: 'CASCADE'
+    });
+
+    Client.hasMany(Commande, {
+      foreignKey: 'client_id',
+      as: 'commandes',
+      onDelete: 'CASCADE'
+    });
+
+    Commande.belongsToMany(Article, {
+      through: CommandeArticle,
+      foreignKey: 'commande_id',
+      otherKey: 'article_id',
+      as: 'articles',
+      onDelete: 'CASCADE'
+    });
+
+    Article.belongsToMany(Commande, {
+      through: CommandeArticle,
+      foreignKey: 'article_id',
+      otherKey: 'commande_id',
+      as: 'commandes',
+      onDelete: 'CASCADE'
+    });
+
+    // 10. CLIENT-UTILISATEUR RELATIONS
+    Utilisateur.hasOne(Client, {
+      foreignKey: 'utilisateur_id',
+      as: 'client',
+      onDelete: 'CASCADE'
+    });
+
+    Client.belongsTo(Utilisateur, {
+      foreignKey: 'utilisateur_id',
+      as: 'utilisateur',
+      onDelete: 'CASCADE'
+    });
+
+    // 11. THROUGH TABLE RELATIONS
+    ArticleCouleur.belongsTo(Couleur, {
+      foreignKey: 'couleur_id',
+      as: 'couleur'
+    });
+
+    ArticleCouleur.belongsTo(Article, {
+      foreignKey: 'article_id',
+      as: 'article'
+    });
+
+    Couleur.hasMany(ArticleCouleur, {
+      foreignKey: 'couleur_id',
+      as: 'article_couleurs',
+      onDelete: 'CASCADE'
+    });
+
+    ArticleTaille.belongsTo(Taille, {
+      foreignKey: 'taille_id',
+      as: 'taille'
+    });
+
+    ArticleTaille.belongsTo(Article, {
+      foreignKey: 'article_id',
+      as: 'article'
+    });
+
+    Taille.hasMany(ArticleTaille, {
+      foreignKey: 'taille_id',
+      as: 'article_tailles',
+      onDelete: 'CASCADE'
+    });
+
+    CommandeArticle.belongsTo(Commande, {
+      foreignKey: 'commande_id',
+      as: 'commande'
+    });
+
+    CommandeArticle.belongsTo(Article, {
+      foreignKey: 'article_id',
+      as: 'article'
+    });
+
+    console.log('✅ All model associations set up successfully');
+  } catch (error) {
+    console.error('❌ Error setting up model relations:', error);
+    throw error;
+  }
+};
+module.exports = (sequelize, DataTypes) => {
+  const Remise = sequelize.define('Remise', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    libelle: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    type: {
+      type: DataTypes.ENUM(
+        'pourcentage', 'fixe', 'quantite', 'cumulatif', 'code_promo',
+        'fidelite', 'premier_achat', 'deuxieme_article_remise',
+        'bogo', 'taille', 'categorie', 'genre'
+      ),
+      allowNull: false,
+    },
+    valeur: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+    },
+    buy_x: DataTypes.INTEGER,
+    get_y: DataTypes.INTEGER,
+    date_debut: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
+    date_fin: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
+    min_achat: DataTypes.FLOAT,
+    empilable: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    automatique: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+    },
+    code: DataTypes.STRING,
+    etat: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+    },
+  }, {
+    tableName: 'remise',
+  });
+
+  Remise.associate = (models) => {
+    Remise.belongsToMany(models.Article, {
+      through: models.RemiseArticle,
+      foreignKey: 'remise_id',
+      as: 'articles',
+    });
+    Remise.belongsToMany(models.Categorie, {
+      through: models.RemiseCategorie,
+      foreignKey: 'remise_id',
+      as: 'categories',
+    });
+    Remise.belongsToMany(models.Utilisateur, {
+      through: models.RemiseUtilisateur,
+      foreignKey: 'remise_id',
+      as: 'utilisateurs',
+    });
+    Remise.belongsToMany(models.Taille, {
+      through: models.RemiseTaille,
+      foreignKey: 'remise_id',
+      as: 'tailles',
+    });
+    Remise.belongsToMany(models.Genre, {
+      through: models.RemiseGenre,
+      foreignKey: 'remise_id',
+      as: 'genres',
+    });
+  };
+
+  return Remise;
+};
+
+module.exports = (sequelize, DataTypes) => {
+  const RemiseGenre = sequelize.define('RemiseGenre', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    remise_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+    genre_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+  }, {
+    tableName: 'remise_genre',
+  });
+
+  RemiseGenre.associate = (models) => {
+    RemiseGenre.belongsTo(models.Remise, {
+      foreignKey: 'remise_id',
+      as: 'remise',
+    });
+    RemiseGenre.belongsTo(models.Genre, {
+      foreignKey: 'genre_id',
+      as: 'genre',
+    });
+  };
+
+  return RemiseGenre;
+};module.exports = (sequelize, DataTypes) => {
+  const RemiseCategorie = sequelize.define('RemiseCategorie', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    remise_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+    categorie_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+  }, {
+    tableName: 'remise_categorie',
+  });
+
+  RemiseCategorie.associate = (models) => {
+    RemiseCategorie.belongsTo(models.Remise, {
+      foreignKey: 'remise_id',
+      as: 'remise',
+    });
+    RemiseCategorie.belongsTo(models.Categorie, {
+      foreignKey: 'categorie_id',
+      as: 'categorie',
+    });
+  };
+
+  return RemiseCategorie;
+};module.exports = (sequelize, DataTypes) => {
+  const RemiseArticle = sequelize.define('RemiseArticle', {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    remise_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+    article_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    pourcentage: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+      defaultValue: 0,
+      validate: {
+        min: 0,
+        max: 100,
+      },
+    },
+  }, {
+    tableName: 'remise_article',
+  });
+
+  RemiseArticle.associate = (models) => {
+    RemiseArticle.belongsTo(models.Remise, {
+      foreignKey: 'remise_id',
+      as: 'remise',
+    });
+    RemiseArticle.belongsTo(models.Article, {
+      foreignKey: 'article_id',
+      as: 'article',
+    });
+  };
+
+  return RemiseArticle;
+};
+module.exports = (sequelize, DataTypes) => {
+  const RemiseTaille = sequelize.define('RemiseTaille', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    remise_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+    taille_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+  }, {
+    tableName: 'remise_taille',
+  });
+
+  RemiseTaille.associate = (models) => {
+    RemiseTaille.belongsTo(models.Remise, {
+      foreignKey: 'remise_id',
+      as: 'remise',
+    });
+    RemiseTaille.belongsTo(models.Taille, {
+      foreignKey: 'taille_id',
+      as: 'taille',
+    });
+  };
+
+  return RemiseTaille;
+};
+module.exports = (sequelize, DataTypes) => {
+  const RemiseUtilisateur = sequelize.define('RemiseUtilisateur', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    remise_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+    utilisateur_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+  }, {
+    tableName: 'remise_utilisateur',
+  });
+
+  RemiseUtilisateur.associate = (models) => {
+    RemiseUtilisateur.belongsTo(models.Remise, {
+      foreignKey: 'remise_id',
+      as: 'remise',
+    });
+    RemiseUtilisateur.belongsTo(models.Utilisateur, {
+      foreignKey: 'utilisateur_id',
+      as: 'utilisateur',
+    });
+  };
+
+  return RemiseUtilisateur;
+};module.exports = (sequelize, DataTypes) => {
+  const Taille = sequelize.define('Taille', {
+    libelle: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    categorie_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    genre_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+  }, {
+    tableName: 'taille',
+  });
+
+  Taille.associate = (models) => {
+    Taille.belongsTo(models.Categorie, {
+      foreignKey: 'categorie_id',
+      as: 'categorie',
+    });
+    Taille.belongsTo(models.Genre, {
+      foreignKey: 'genre_id',
+      as: 'genre',
+    });
+    Taille.belongsToMany(models.Article, {
+      through: models.ArticleTaille,
+      foreignKey: 'taille_id',
+      as: 'articles',
+    });
+  };
+
+  return Taille;
+};module.exports = (sequelize, DataTypes) => {
+  const Utilisateur = sequelize.define('Utilisateur', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    prefix: {
+      type: DataTypes.ENUM('Madame', 'Monsieur', 'Mlle', ''),
+      defaultValue: '',
+    },
+    nom: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    prenom: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    email: {
+      type: DataTypes.STRING,
+      unique: true,
+      allowNull: false,
+    },
+    mot_de_passe: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    otp: DataTypes.STRING,
+    otp_expires: DataTypes.DATE,
+    est_verifie: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    newsletter: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    role: {
+      type: DataTypes.ENUM('user', 'admin', 'super_admin'),
+      defaultValue: 'user',
+    },
+  }, {
+    tableName: 'utilisateur',
+  });
+
+  Utilisateur.associate = (models) => {
+    Utilisateur.hasOne(models.Client, {
+      foreignKey: 'utilisateur_id',
+      as: 'client',
+    });
+    Utilisateur.hasOne(models.Panier, {
+      foreignKey: 'utilisateur_id',
+      as: 'panier',
+    });
+    Utilisateur.belongsToMany(models.Remise, {
+      through: models.RemiseUtilisateur,
+      foreignKey: 'utilisateur_id',
+      as: 'remises',
+    });
+  };
+
+  return Utilisateur;
+};

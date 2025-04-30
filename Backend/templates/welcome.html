@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenue sur notre plateforme</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: #2ecc71;
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+        .content {
+            padding: 30px;
+        }
+        .welcome-icon {
+            text-align: center;
+            font-size: 48px;
+            margin: 20px 0;
+            color: #2ecc71;
+        }
+        .cta-button {
+            display: block;
+            width: 200px;
+            margin: 30px auto;
+            padding: 12px 0;
+            background-color: #2ecc71;
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .features {
+            margin: 25px 0;
+        }
+        .feature {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .feature-icon {
+            margin-right: 15px;
+            color: #2ecc71;
+            font-size: 20px;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #7f8c8d;
+            background-color: #ecf0f1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Bienvenue sur MGM</h1>
+        </div>
+        <div class="content">
+            <div class="welcome-icon">👋</div>
+            
+            <p>Bonjour {{PRENOM}} {{NOM}},</p>
+            
+            <p>Nous sommes ravis de vous accueillir sur notre plateforme. Votre compte a été créé avec succès et est maintenant prêt à être utilisé.</p>
+            
+            <div class="features">
+                <div class="feature">
+                    <span class="feature-icon">✓</span>
+                    <span>Accédez à votre tableau de bord personnalisé</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">✓</span>
+                    <span>Profitez de toutes nos fonctionnalités</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">✓</span>
+                    <span>Gérez vos informations en toute sécurité</span>
+                </div>
+            </div>
+            
+            <a href="{{LOGIN_URL}}" class="cta-button">Commencer</a>
+            
+            <p>Si vous avez des questions, n'hésitez pas à répondre à cet email ou à consulter notre centre d'aide.</p>
+            
+            <p>Bien cordialement,<br>L'équipe MGM</p>
+        </div>
+        <div class="footer">
+            <p>© {{CURRENT_YEAR}} MGM. Tous droits réservés.</p>
+            <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
+        </div>
+    </div>
+</body>
+</html>

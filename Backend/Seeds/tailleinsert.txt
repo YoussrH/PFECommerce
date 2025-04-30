@@ -1,0 +1,487 @@
+INSERT INTO taille (libelle, categorie_id, genre_id, created_at, updated_at) VALUES
+
+-- 🥿 Sandales et Claquettes (Category ID: 2)
+('16', 4, 1, NOW(), NOW()),  -- Bébé
+('17', 4, 1, NOW(), NOW()),
+('18', 4, 1, NOW(), NOW()),
+('19', 4, 1, NOW(), NOW()),
+('20', 4, 1, NOW(), NOW()),
+('21', 4, 1, NOW(), NOW()),
+('24', 2, 1, NOW(), NOW()),
+
+('23', 4, 2, NOW(), NOW()),  -- Fille
+('24', 4, 2, NOW(), NOW()),
+('25',4, 2, NOW(), NOW()),
+('26',4, 2, NOW(), NOW()),
+('27',4, 2, NOW(), NOW()),
+('28',4, 2, NOW(), NOW()),
+('29',4, 2, NOW(), NOW()),
+('30',4, 2, NOW(), NOW()),
+('31',4, 2, NOW(), NOW()),
+('32',4, 2, NOW(), NOW()),
+('33',4, 2, NOW(), NOW()),
+('34',4, 2, NOW(), NOW()),
+('35',4, 2, NOW(), NOW()),
+
+('23',4, 3, NOW(), NOW()),  -- Garçon
+('24',4, 3, NOW(), NOW()),
+('25',4, 3, NOW(), NOW()),
+('26',4, 3, NOW(), NOW()),
+('27',4, 3, NOW(), NOW()),
+('28',4, 3, NOW(), NOW()),
+('29',4, 3, NOW(), NOW()),
+('30',4, 3, NOW(), NOW()),
+('31',4, 3, NOW(), NOW()),
+('32',4, 3, NOW(), NOW()),
+('33',4, 3, NOW(), NOW()),
+('34',4, 3, NOW(), NOW()),
+('35',4, 3, NOW(), NOW()),
+
+('36',4, 4, NOW(), NOW()),  -- Femme
+('37',4, 4, NOW(), NOW()),
+('38',4, 4, NOW(), NOW()),
+('39',4, 4, NOW(), NOW()),
+('40',4, 4, NOW(), NOW()),
+('41',4, 4, NOW(), NOW()),
+
+('39',4, 5, NOW(), NOW()),  -- Homme
+('40',4, 5, NOW(), NOW()),
+('41',4, 5, NOW(), NOW()),
+('42',4, 5, NOW(), NOW()),
+('43',4, 5, NOW(), NOW()),
+('44',4, 5, NOW(), NOW()),
+('45',4, 5, NOW(), NOW()),
+('46',4, 5, NOW(), NOW()),
+
+-- 👟 Baskets (Category ID: 3)
+
+('16',5, 1, NOW(), NOW()),  -- Bébé
+('17',5, 1, NOW(), NOW()),
+('18',5, 1, NOW(), NOW()),
+('19',5, 1, NOW(), NOW()),
+('20',5, 1, NOW(), NOW()),
+('21',5, 1, NOW(), NOW()),
+('22',5, 1, NOW(), NOW()),
+
+('23',5, 2, NOW(), NOW()),  -- Fille
+('24',5, 2, NOW(), NOW()),
+('25',5, 2, NOW(), NOW()),
+('26',5, 2, NOW(), NOW()),
+('27',5, 2, NOW(), NOW()),
+('28',5, 2, NOW(), NOW()),
+('29',5, 2, NOW(), NOW()),
+('30',5, 2, NOW(), NOW()),
+('31',5, 2, NOW(), NOW()),
+('32',5, 2, NOW(), NOW()),
+('33',5, 2, NOW(), NOW()),
+('34',5, 2, NOW(), NOW()),
+('35',5, 2, NOW(), NOW()),
+
+('23',5, 3, NOW(), NOW()),  -- Garçon
+('24',5, 3, NOW(), NOW()),
+('25',5, 3, NOW(), NOW()),
+('26',5, 3, NOW(), NOW()),
+('27',5, 3, NOW(), NOW()),
+('28',5, 3, NOW(), NOW()),
+('29',5, 3, NOW(), NOW()),
+('30',5, 3, NOW(), NOW()),
+('31',5, 3, NOW(), NOW()),
+('32',5, 3, NOW(), NOW()),
+('33',5, 3, NOW(), NOW()),
+('34',5, 3, NOW(), NOW()),
+('35',5, 3, NOW(), NOW()),
+
+('36',5, 4, NOW(), NOW()),  -- Femme
+('37',5, 4, NOW(), NOW()),
+('38',5, 4, NOW(), NOW()),
+('39',5, 4, NOW(), NOW()),
+('40',5, 4, NOW(), NOW()),
+('41',5, 4, NOW(), NOW()),
+
+('39',5, 5, NOW(), NOW()),  -- Homme
+('40',5, 5, NOW(), NOW()),
+('41',5, 5, NOW(), NOW()),
+('42',5, 5, NOW(), NOW()),
+('43',5, 5, NOW(), NOW()),
+('44',5, 5, NOW(), NOW()),
+('45',5, 5, NOW(), NOW()),
+('46',5, 5, NOW(), NOW());
+
+INSERT INTO taille (libelle, categorie_id, genre_id, created_at, updated_at) VALUES
+
+-- 🎒 Accessoires (Category ID: 5)
+-- 📌 Sacs, sacs à dos, cartables
+-- Bébé
+('20 cm',6, 1, NOW(), NOW()), 
+('25 cm',6, 1, NOW(), NOW()),
+('30 cm',6, 1, NOW(), NOW()), 
+-- Fille
+('35 cm',6, 2, NOW(), NOW()),
+('40 cm',6, 2, NOW(), NOW()),
+('45 cm',6, 2, NOW(), NOW()), 
+-- Garçon
+('50 cm',6, 3, NOW(), NOW()), 
+('55 cm',6, 3, NOW(), NOW()), 
+('60 cm',6, 3, NOW(), NOW()), 
+-- Femme
+('65 cm',6, 4, NOW(), NOW()),
+('70 cm',6, 4, NOW(), NOW()),
+('75 cm',6, 4, NOW(), NOW()), 
+-- Homme
+('80 cm',6, 5, NOW(), NOW()),
+('85 cm',6, 5, NOW(), NOW()), 
+('90 cm',6, 5, NOW(), NOW()),
+
+-- 🧢 Casquettes
+-- Bébé
+('45-48 cm',7, 1, NOW(), NOW()), 
+-- Fille
+('49-54 cm',7, 2, NOW(), NOW()), 
+-- Garçon
+('49-54 cm',7, 3, NOW(), NOW()), 
+-- Femme
+('54-58 cm',7, 4, NOW(), NOW()), 
+-- Homme
+('56-62 cm',7, 5, NOW(), NOW()),
+
+-- 🧣 Foulards
+('30x90 cm',8, 1, NOW(), NOW()), 
+('40x120 cm',8, 2, NOW(), NOW()), 
+('40x120 cm',8, 3, NOW(), NOW()), 
+('50x180 cm',8, 4, NOW(), NOW()), 
+('50x180 cm',8, 5, NOW(), NOW()),
+
+-- 👚 Sous-vêtements et Pyjamas
+-- Bébé: 3M-24M
+('3M',9, 1, NOW(), NOW()), ('4M',9, 1, NOW(), NOW()), ('5M',9, 1, NOW(), NOW()), ('6M',9, 1, NOW(), NOW()), ('7M',9, 1, NOW(), NOW()), 
+('8M',9, 1, NOW(), NOW()), ('9M',9, 1, NOW(), NOW()), ('10M',9, 1, NOW(), NOW()), ('11M',9, 1, NOW(), NOW()), ('12M',9, 1, NOW(), NOW()), 
+('13M',9, 1, NOW(), NOW()), ('14M',9, 1, NOW(), NOW()), ('15M',9, 1, NOW(), NOW()), ('16M',9, 1, NOW(), NOW()), ('17M',9, 1, NOW(), NOW()), 
+('18M',9, 1, NOW(), NOW()), ('19M',9, 1, NOW(), NOW()), ('20M',9, 1, NOW(), NOW()), ('21M',9, 1, NOW(), NOW()), ('22M',9, 1, NOW(), NOW()), 
+('23M',9, 1, NOW(), NOW()), ('24M',9, 1, NOW(), NOW()),
+
+-- Fille: 2-14 ans
+('2ans',9, 2, NOW(), NOW()), ('3ans',9, 2, NOW(), NOW()), ('4ans',9, 2, NOW(), NOW()), ('5ans',9, 2, NOW(), NOW()), ('6ans',9, 2, NOW(), NOW()), 
+('7ans',9, 2, NOW(), NOW()), ('8ans',9, 2, NOW(), NOW()), ('9ans',9, 2, NOW(), NOW()), ('10ans',9, 2, NOW(), NOW()), ('11ans',9, 2, NOW(), NOW()), 
+('12ans',9, 2, NOW(), NOW()), ('13ans',9, 2, NOW(), NOW()), ('14ans',9, 2, NOW(), NOW()),
+
+-- Garçon: 2-14 ans
+('2ans',9, 3, NOW(), NOW()), ('3ans',9, 3, NOW(), NOW()), ('4ans',9, 3, NOW(), NOW()), ('5ans',9, 3, NOW(), NOW()), ('6ans',9, 3, NOW(), NOW()), 
+('7ans',9, 3, NOW(), NOW()), ('8ans',9, 3, NOW(), NOW()), ('9ans',9, 3, NOW(), NOW()), ('10ans',9, 3, NOW(), NOW()), ('11ans',9, 3, NOW(), NOW()), 
+('12ans',9, 3, NOW(), NOW()), ('13ans',9, 3, NOW(), NOW()), ('14ans',9, 3, NOW(), NOW()),
+
+-- Femme: XS-XXL
+('XS',9, 4, NOW(), NOW()), ('S',9, 4, NOW(), NOW()), ('M',9, 4, NOW(), NOW()), ('L',9, 4, NOW(), NOW()), ('XL',9, 4, NOW(), NOW()), 
+('XXL',9, 4, NOW(), NOW()),
+
+-- Homme: S-XXXL
+('S',9, 5, NOW(), NOW()), ('M',9, 5, NOW(), NOW()), ('L',9, 5, NOW(), NOW()), ('XL',9, 5, NOW(), NOW()), ('XXL',9, 5, NOW(), NOW()), 
+('XXXL',9, 5, NOW(), NOW()),
+
+-- 🎽 Ceintures
+-- Bébé: 40-50 cm
+('40cm',10, 1, NOW(), NOW()), 
+('42cm',10, 1, NOW(), NOW()),
+('44cm',10, 1, NOW(), NOW()), 
+('46cm',10, 1, NOW(), NOW()),
+('48cm',10, 1, NOW(), NOW()), 
+('50cm',10, 1, NOW(), NOW()),
+
+-- Fille: 50-76 cm
+('50cm',10, 2, NOW(), NOW()),
+('52cm',10, 2, NOW(), NOW()), 
+('54cm',10, 2, NOW(), NOW()),
+('56cm',10, 2, NOW(), NOW()), 
+('58cm',10, 2, NOW(), NOW()),
+('60cm',10, 2, NOW(), NOW()),
+('62cm',10, 2, NOW(), NOW()), 
+('64cm',10, 2, NOW(), NOW()), 
+('66cm',10, 2, NOW(), NOW()), 
+('68cm',10, 2, NOW(), NOW()), 
+('70cm',10, 2, NOW(), NOW()),  
+('72cm',10, 2, NOW(), NOW()),  
+('74cm',10, 2, NOW(), NOW()), 
+('76cm',10, 2, NOW(), NOW()),
+
+-- Garçon: 50-75 cm
+('50cm',10, 3, NOW(), NOW()),
+('52cm',10, 3, NOW(), NOW()), 
+('54cm',10, 3, NOW(), NOW()),
+('56cm',10, 3, NOW(), NOW()), 
+('58cm',10, 3, NOW(), NOW()),
+('60cm',10, 3, NOW(), NOW()),
+('62cm',10, 3, NOW(), NOW()), 
+('64cm',10, 3, NOW(), NOW()), 
+('66cm',10, 3, NOW(), NOW()), 
+('68cm',10, 3, NOW(), NOW()), 
+('70cm',10, 3, NOW(), NOW()),  
+('72cm',10, 3, NOW(), NOW()),  
+('74cm',10, 3, NOW(), NOW()), 
+('76cm',10, 3, NOW(), NOW()),
+
+-- Femme: 70-110 cm
+('70cm',10, 4, NOW(), NOW()),
+('74cm',10, 4, NOW(), NOW()), 
+('78cm',10, 4, NOW(), NOW()), 
+('82cm',10, 4, NOW(), NOW()),  
+('86cm',10, 4, NOW(), NOW()), 
+('90cm',10, 4, NOW(), NOW()), 
+('94cm',10, 4, NOW(), NOW()), 
+('98cm',10, 4, NOW(), NOW()),  
+('102cm',10, 4, NOW(), NOW()),  
+('106cm',10, 4, NOW(), NOW()), 
+('110cm',10, 4, NOW(), NOW()),
+
+-- Homme: 80-130 cm
+('70cm',10, 5, NOW(), NOW()),
+('74cm',10, 5, NOW(), NOW()), 
+('78cm',10, 5, NOW(), NOW()), 
+('82cm',10, 5, NOW(), NOW()),  
+('86cm',10, 5, NOW(), NOW()), 
+('90cm',10, 5, NOW(), NOW()), 
+('94cm',10, 5, NOW(), NOW()), 
+('98cm',10, 5, NOW(), NOW()),  
+('102cm',10,5, NOW(), NOW()),  
+('106cm',10, 5, NOW(), NOW()), 
+('110cm',10, 5, NOW(), NOW()),
+
+
+-- 🧦 Chaussettes
+-- Bébé: 15-22
+('15',11, 1, NOW(), NOW()),('16',11, 1, NOW(), NOW()),('17',11, 1, NOW(), NOW()),('18',11, 1, NOW(), NOW()),('19',11, 1, NOW(), NOW()),
+('20',11, 1, NOW(), NOW()),('21',11, 1, NOW(), NOW()),('22',11, 1, NOW(), NOW()),
+-- Fille: 23-35
+('23',11, 2, NOW(), NOW()),('24',11, 2, NOW(), NOW()),('25',11, 2, NOW(), NOW()),('26',11, 2, NOW(), NOW()),('27',11, 2, NOW(), NOW()),
+('28',11, 2, NOW(), NOW()),('29',11, 2, NOW(), NOW()),('30',11, 2, NOW(), NOW()),('31',11, 2, NOW(), NOW()),('32',11, 2, NOW(), NOW()),
+('33',11, 2, NOW(), NOW()),('34',11, 2, NOW(), NOW()),('35',11, 2, NOW(), NOW()),
+-- Garçon: 23-35
+('23',11, 3, NOW(), NOW()),('24',11, 3, NOW(), NOW()),('25',11, 3, NOW(), NOW()),('26',11, 3, NOW(), NOW()),('27',11, 3, NOW(), NOW()),
+('28',11, 3, NOW(), NOW()),('29',11, 3, NOW(), NOW()),('30',11, 3, NOW(), NOW()),('31',11, 3, NOW(), NOW()),('32',11, 3, NOW(), NOW()),
+('33',11, 3, NOW(), NOW()),('34',11, 3, NOW(), NOW()),('35',11, 3, NOW(), NOW()),
+-- Femme: 36-41
+('36',11, 4, NOW(), NOW()),('37',11, 4, NOW(), NOW()),('38',11, 4, NOW(), NOW()),('39',11, 4, NOW(), NOW()),('40',11, 4, NOW(), NOW()),
+('41',11, 4, NOW(), NOW()),
+-- Homme: 39-46
+('39',11, 5, NOW(), NOW()),('40',11, 5, NOW(), NOW()),('41',11, 5, NOW(), NOW()),('42',11, 5, NOW(), NOW()),('43',11, 5, NOW(), NOW()),
+('44',11, 5, NOW(), NOW()),('45',11, 5, NOW(), NOW()),('46',11, 5, NOW(), NOW());
+
+
+INSERT INTO taille (libelle, categorie_id, genre_id, created_at, updated_at) VALUES
+
+-- 👕 Tops et T-shirts
+-- Bébé: 3M-24M
+('3M', 12, 1, NOW(), NOW()),('4M', 12, 1, NOW(), NOW()),('5M', 12, 1, NOW(), NOW()),('6M', 12, 1, NOW(), NOW()),('7M', 12, 1, NOW(), NOW()),
+('8M', 12, 1, NOW(), NOW()),('9M', 12, 1, NOW(), NOW()),('10M', 12, 1, NOW(), NOW()),('11M', 12, 1, NOW(), NOW()),('12M', 12, 1, NOW(), NOW()),
+('13M', 12, 1, NOW(), NOW()),('14M', 12, 1, NOW(), NOW()),('15M', 12, 1, NOW(), NOW()),('16M', 12, 1, NOW(), NOW()),('17M', 12, 1, NOW(), NOW()),
+('18M', 12, 1, NOW(), NOW()),('19M', 12, 1, NOW(), NOW()),('20M', 12, 1, NOW(), NOW()),('21M', 12, 1, NOW(), NOW()),('22M', 12, 1, NOW(), NOW()),
+('23M', 12, 1, NOW(), NOW()),('24M', 12, 1, NOW(), NOW()),
+-- Fille: 2-14 ans
+('2ans', 12, 2, NOW(), NOW()),('3ans', 12, 2, NOW(), NOW()),('4ans', 12, 2, NOW(), NOW()),('5ans', 12, 2, NOW(), NOW()),('6ans', 12, 2, NOW(), NOW()),
+('7ans', 12, 2, NOW(), NOW()),('8ans', 12, 2, NOW(), NOW()),('9ans', 12, 2, NOW(), NOW()),('10ans', 12, 2, NOW(), NOW()),('11ans', 12, 2, NOW(), NOW()),
+('12ans', 12, 2, NOW(), NOW()),('13ans', 12, 2, NOW(), NOW()),('14ans', 12, 2, NOW(), NOW()),
+-- Garçon: 2-14 ans
+('2ans', 12, 3, NOW(), NOW()),('3ans', 12, 3, NOW(), NOW()),('4ans', 12, 3, NOW(), NOW()),('5ans', 12, 3, NOW(), NOW()),('6ans', 12, 3, NOW(), NOW()),
+('7ans', 12, 3, NOW(), NOW()),('8ans', 12, 3, NOW(), NOW()),('9ans', 12, 3, NOW(), NOW()),('10ans', 12, 3, NOW(), NOW()),('11ans', 12, 3, NOW(), NOW()),
+('12ans', 12, 3, NOW(), NOW()),('13ans', 12, 3, NOW(), NOW()),('14ans', 12, 3, NOW(), NOW()),
+-- Femme: XS-XXL
+('XS', 12, 4, NOW(), NOW()),('S', 12, 4, NOW(), NOW()),('M', 12, 4, NOW(), NOW()),('L', 12, 4, NOW(), NOW()),('XL', 12, 4, NOW(), NOW()),
+('XXL', 12, 4, NOW(), NOW()),
+-- Homme: S-XXXL
+('S', 12, 5, NOW(), NOW()),('M', 12, 5, NOW(), NOW()),('L', 12, 5, NOW(), NOW()),('XL', 12, 5, NOW(), NOW()),('XXL', 12, 5, NOW(), NOW()),
+('XXXL', 12, 5, NOW(), NOW()),
+
+-- 👚 Chemises et Blouses
+-- Fille: 2-14 ans
+('2ans', 13, 2, NOW(), NOW()),('3ans', 13, 2, NOW(), NOW()),('4ans', 13, 2, NOW(), NOW()),('5ans', 13, 2, NOW(), NOW()),('6ans', 13, 2, NOW(), NOW()),
+('7ans', 13, 2, NOW(), NOW()),('8ans', 13, 2, NOW(), NOW()),('9ans', 13, 2, NOW(), NOW()),('10ans', 13, 2, NOW(), NOW()),('11ans', 13, 2, NOW(), NOW()),
+('12ans', 13, 2, NOW(), NOW()),('13ans', 13, 2, NOW(), NOW()),('14ans', 13, 2, NOW(), NOW()),
+-- Garçon: 2-14 ans
+('2ans', 13, 3, NOW(), NOW()),('3ans', 13, 3, NOW(), NOW()),('4ans', 13, 3, NOW(), NOW()),('5ans', 13, 3, NOW(), NOW()),('6ans', 13, 3, NOW(), NOW()),
+('7ans', 13, 3, NOW(), NOW()),('8ans', 13, 3, NOW(), NOW()),('9ans', 13, 3, NOW(), NOW()),('10ans', 13, 3, NOW(), NOW()),('11ans', 13, 3, NOW(), NOW()),
+('12ans', 13, 3, NOW(), NOW()),('13ans', 13, 3, NOW(), NOW()),('14ans', 13, 3, NOW(), NOW()),
+-- Femme: XS-XXL
+('XS', 13, 4, NOW(), NOW()),('S', 13, 4, NOW(), NOW()),('M', 13, 4, NOW(), NOW()),('L', 13, 4, NOW(), NOW()),('XL', 13, 4, NOW(), NOW()),
+('XXL', 13, 4, NOW(), NOW()),
+-- Homme: S-XXXL
+('S', 13, 5, NOW(), NOW()),('M', 13, 5, NOW(), NOW()),('L', 13, 5, NOW(), NOW()),('XL', 13, 5, NOW(), NOW()),('XXL', 13, 5, NOW(), NOW()),
+('XXXL', 13, 5, NOW(), NOW()),
+
+-- 👗 Robes
+-- Bébé: 3M-24M
+('3M', 14, 1, NOW(), NOW()),('4M', 14, 1, NOW(), NOW()),('5M', 14, 1, NOW(), NOW()),('6M', 14, 1, NOW(), NOW()),('7M', 14, 1, NOW(), NOW()),
+('8M', 14, 1, NOW(), NOW()),('9M', 14, 1, NOW(), NOW()),('10M', 14, 1, NOW(), NOW()),('11M', 14, 1, NOW(), NOW()),('12M', 14, 1, NOW(), NOW()),
+('13M', 14, 1, NOW(), NOW()),('14M', 14, 1, NOW(), NOW()),('15M', 14, 1, NOW(), NOW()),('16M', 14, 1, NOW(), NOW()),('17M', 14, 1, NOW(), NOW()),
+('18M', 14, 1, NOW(), NOW()),('19M', 14, 1, NOW(), NOW()),('20M', 14, 1, NOW(), NOW()),('21M', 14, 1, NOW(), NOW()),('22M', 14, 1, NOW(), NOW()),
+('23M', 14, 1, NOW(), NOW()),('24M', 14, 1, NOW(), NOW()),
+-- Fille: 2-14 ans
+('2ans', 14, 2, NOW(), NOW()),('3ans', 14, 2, NOW(), NOW()),('4ans', 14, 2, NOW(), NOW()),('5ans', 14, 2, NOW(), NOW()),('6ans', 14, 2, NOW(), NOW()),
+('7ans', 14, 2, NOW(), NOW()),('8ans', 14, 2, NOW(), NOW()),('9ans', 14, 2, NOW(), NOW()),('10ans', 14, 2, NOW(), NOW()),('11ans', 14, 2, NOW(), NOW()),
+('12ans', 14, 2, NOW(), NOW()),('13ans', 14, 2, NOW(), NOW()),('14ans', 14, 2, NOW(), NOW()),
+-- Femme: XS-XXL
+('XS', 14, 4, NOW(), NOW()),('S', 14, 4, NOW(), NOW()),('M', 14, 4, NOW(), NOW()),('L', 14, 4, NOW(), NOW()),('XL', 14, 4, NOW(), NOW()),
+('XXL', 14, 4, NOW(), NOW()),
+
+
+
+-- 🧥 Pulls, Sweats et Gilets
+-- Fille: 2-14 ans
+('2ans', 15, 2, NOW(), NOW()),('3ans', 15, 2, NOW(), NOW()),('4ans', 15, 2, NOW(), NOW()),('5ans', 15, 2, NOW(), NOW()),('6ans', 15, 2, NOW(), NOW()),
+('7ans', 15, 2, NOW(), NOW()),('8ans', 15, 2, NOW(), NOW()),('9ans', 15, 2, NOW(), NOW()),('10ans', 15, 2, NOW(), NOW()),('11ans', 15, 2, NOW(), NOW()),
+('12ans', 15, 2, NOW(), NOW()),('13ans', 15, 2, NOW(), NOW()),('14ans', 15, 2, NOW(), NOW()),
+-- Garçon: 2-14 ans
+('2ans', 15, 3, NOW(), NOW()),('3ans', 15, 3, NOW(), NOW()),('4ans', 15, 3, NOW(), NOW()),('5ans', 15, 3, NOW(), NOW()),('6ans', 15, 3, NOW(), NOW()),
+('7ans', 15, 3, NOW(), NOW()),('8ans', 15, 3, NOW(), NOW()),('9ans', 15, 3, NOW(), NOW()),('10ans', 15, 3, NOW(), NOW()),('11ans', 15, 3, NOW(), NOW()),
+('12ans', 15, 3, NOW(), NOW()),('13ans', 15, 3, NOW(), NOW()),('14ans', 15, 3, NOW(), NOW()),
+-- Femme: XS-XXL
+('XS', 15, 4, NOW(), NOW()),('S', 15, 4, NOW(), NOW()),('M', 15, 4, NOW(), NOW()),('L', 15, 4, NOW(), NOW()),('XL', 15, 4, NOW(), NOW()),
+('XXL', 15, 4, NOW(), NOW()),
+-- Homme: S-XXXL
+('S', 15, 5, NOW(), NOW()),('M', 15, 5, NOW(), NOW()),('L', 15, 5, NOW(), NOW()),('XL', 15, 5, NOW(), NOW()),('XXL', 15, 5, NOW(), NOW()),
+('XXXL', 15, 5, NOW(), NOW());
+
+
+INSERT INTO taille (libelle, categorie_id, genre_id, created_at, updated_at) VALUES
+
+
+-- 🧥 Vestes et Blousons
+-- Bébé: 3M-24M
+('3M', 16, 1, NOW(), NOW()),('4M', 16, 1, NOW(), NOW()),('5M', 16, 1, NOW(), NOW()),('6M', 16, 1, NOW(), NOW()),('7M', 16, 1, NOW(), NOW()),
+('8M', 16, 1, NOW(), NOW()),('9M', 16, 1, NOW(), NOW()),('10M', 16, 1, NOW(), NOW()),('11M', 16, 1, NOW(), NOW()),('12M', 16, 1, NOW(), NOW()),
+('13M', 16, 1, NOW(), NOW()),('14M', 16, 1, NOW(), NOW()),('15M', 16, 1, NOW(), NOW()),('16M', 16, 1, NOW(), NOW()),('17M', 16, 1, NOW(), NOW()),
+('18M', 16, 1, NOW(), NOW()),('19M', 16, 1, NOW(), NOW()),('20M', 16, 1, NOW(), NOW()),('21M', 16, 1, NOW(), NOW()),('22M', 16, 1, NOW(), NOW()),
+('23M', 16, 1, NOW(), NOW()),('24M', 16, 1, NOW(), NOW()),
+-- Fille: 2-14 ans
+('2ans', 16, 2, NOW(), NOW()),('3ans', 16, 2, NOW(), NOW()),('4ans', 16, 2, NOW(), NOW()),('5ans', 16, 2, NOW(), NOW()),('6ans', 16, 2, NOW(), NOW()),
+('7ans', 16, 2, NOW(), NOW()),('8ans', 16, 2, NOW(), NOW()),('9ans', 16, 2, NOW(), NOW()),('10ans', 16, 2, NOW(), NOW()),('11ans', 16, 2, NOW(), NOW()),
+('12ans', 16, 2, NOW(), NOW()),('13ans', 16, 2, NOW(), NOW()),('14ans', 16, 2, NOW(), NOW()),
+-- Garçon: 2-14 ans
+('2ans', 16, 3, NOW(), NOW()),('3ans', 16, 3, NOW(), NOW()),('4ans', 16, 3, NOW(), NOW()),('5ans', 16, 3, NOW(), NOW()),('6ans', 16, 3, NOW(), NOW()),
+('7ans', 16, 3, NOW(), NOW()),('8ans', 16, 3, NOW(), NOW()),('9ans', 16, 3, NOW(), NOW()),('10ans', 16, 3, NOW(), NOW()),('11ans', 16, 3, NOW(), NOW()),
+('12ans', 16, 3, NOW(), NOW()),('13ans', 16, 3, NOW(), NOW()),('14ans', 16, 3, NOW(), NOW()),
+-- Femme: XS-XXL
+('XS', 16, 4, NOW(), NOW()),('S', 16, 4, NOW(), NOW()),('M', 16, 4, NOW(), NOW()),('L', 16, 4, NOW(), NOW()),('XL', 16, 4, NOW(), NOW()),
+('XXL', 16, 4, NOW(), NOW()),
+-- Homme: S-XXXL
+('S', 16, 5, NOW(), NOW()),('M', 16, 5, NOW(), NOW()),('L', 16, 5, NOW(), NOW()),('XL', 16, 5, NOW(), NOW()),('XXL', 16, 5, NOW(), NOW()),
+('XXXL', 16, 5, NOW(), NOW()),
+
+-- 👗 Jupes
+-- Bébé: 3M-24M
+('3M', 17, 1, NOW(), NOW()),('4M', 17, 1, NOW(), NOW()),('5M', 17, 1, NOW(), NOW()),('6M', 17, 1, NOW(), NOW()),('7M', 17, 1, NOW(), NOW()),
+('8M', 17, 1, NOW(), NOW()),('9M', 17, 1, NOW(), NOW()),('10M', 17, 1, NOW(), NOW()),('11M', 17, 1, NOW(), NOW()),('12M', 17, 1, NOW(), NOW()),
+('13M', 17, 1, NOW(), NOW()),('14M', 17, 1, NOW(), NOW()),('15M', 17, 1, NOW(), NOW()),('16M', 17, 1, NOW(), NOW()),('17M', 17, 1, NOW(), NOW()),
+('18M', 17, 1, NOW(), NOW()),('19M', 17, 1, NOW(), NOW()),('20M', 17, 1, NOW(), NOW()),('21M', 17, 1, NOW(), NOW()),('22M', 17, 1, NOW(), NOW()),
+('23M', 17, 1, NOW(), NOW()),('24M', 17, 1, NOW(), NOW()),
+-- Fille: 2-14 ans
+('2ans', 17, 2, NOW(), NOW()),('3ans', 17, 2, NOW(), NOW()),('4ans', 17, 2, NOW(), NOW()),('5ans', 17, 2, NOW(), NOW()),('6ans', 17, 2, NOW(), NOW()),
+('7ans', 17, 2, NOW(), NOW()),('8ans', 17, 2, NOW(), NOW()),('9ans', 17, 2, NOW(), NOW()),('10ans', 17, 2, NOW(), NOW()),('11ans', 17, 2, NOW(), NOW()),
+('12ans', 17, 2, NOW(), NOW()),('13ans', 17, 2, NOW(), NOW()),('14ans', 17, 2, NOW(), NOW()),
+-- Femme: XS-XXL
+('XS', 17, 4, NOW(), NOW()),('S', 17, 4, NOW(), NOW()),('M', 17, 4, NOW(), NOW()),('L', 17, 4, NOW(), NOW()),('XL', 17, 4, NOW(), NOW()),
+('XXL', 17, 4, NOW(), NOW());
+
+
+INSERT INTO taille (libelle, categorie_id, genre_id, created_at, updated_at) VALUES
+
+-- 👖 Shorts
+-- Bébé: 3M-24M
+('3M', 18, 1, NOW(), NOW()),('4M', 18, 1, NOW(), NOW()),('5M', 18, 1, NOW(), NOW()),('6M', 18, 1, NOW(), NOW()),('7M', 18, 1, NOW(), NOW()),
+('8M', 18, 1, NOW(), NOW()),('9M', 18, 1, NOW(), NOW()),('10M', 18, 1, NOW(), NOW()),('11M', 18, 1, NOW(), NOW()),('12M', 18, 1, NOW(), NOW()),
+('13M', 18, 1, NOW(), NOW()),('14M', 18, 1, NOW(), NOW()),('15M', 18, 1, NOW(), NOW()),('16M', 18, 1, NOW(), NOW()),('17M', 18, 1, NOW(), NOW()),
+('18M', 18, 1, NOW(), NOW()),('19M', 18, 1, NOW(), NOW()),('20M', 18, 1, NOW(), NOW()),('21M', 18, 1, NOW(), NOW()),('22M', 18, 1, NOW(), NOW()),
+('23M', 18, 1, NOW(), NOW()),('24M', 18, 1, NOW(), NOW()),
+-- Fille : 2-14 ans
+('2ans', 18, 2, NOW(), NOW()),('4ans', 18, 2, NOW(), NOW()),('6ans', 18, 2, NOW(), NOW()),
+('8ans', 18, 2, NOW(), NOW()),('10ans', 18, 2, NOW(), NOW()),
+('12ans', 18, 2, NOW(), NOW()),('14ans', 18, 2, NOW(), NOW()),('16ans', 18, 2, NOW(), NOW()),
+-- Garçon: 2-14 ans
+('2ans', 18, 3, NOW(), NOW()),
+('4ans', 18, 3, NOW(), NOW()),
+('6ans', 18, 3, NOW(), NOW()),
+('8ans', 18, 3, NOW(), NOW()),
+('10ans', 18, 3, NOW(), NOW()),('12ans', 18, 3, NOW(), NOW()),('14ans', 18, 3, NOW(), NOW()),('16ans', 18, 3, NOW(), NOW()),
+-- Femme: XS-XXL
+('34', 18, 4, NOW(), NOW()),('36', 18, 4, NOW(), NOW()),
+('38', 18, 4, NOW(), NOW()),('40', 18, 4, NOW(), NOW()),('42', 18, 4, NOW(), NOW()),('44', 18, 4, NOW(), NOW()),
+('46', 18, 4, NOW(), NOW()),
+('48', 18, 4, NOW(), NOW()),
+('50', 18, 4, NOW(), NOW()),
+('52', 18, 4, NOW(), NOW()),
+
+-- Homme: S-XXXL
+('28', 18, 5, NOW(), NOW()),('30', 18, 5, NOW(), NOW()),('31', 18, 5, NOW(), NOW()),('32', 18, 5, NOW(), NOW()),('33', 18, 5, NOW(), NOW()),('34', 18, 5, NOW(), NOW()),('36', 18, 5, NOW(), NOW()),
+('38', 18, 5, NOW(), NOW()),('40', 18, 5, NOW(), NOW()),('42', 18, 5, NOW(), NOW()),('44', 18, 5, NOW(), NOW()),('46', 18, 5, NOW(), NOW()),
+
+-- 👖 Pantalons et Leggings
+-- Bébé: 3M-24M
+('3M', 19, 1, NOW(), NOW()),('4M', 19, 1, NOW(), NOW()),('5M', 19, 1, NOW(), NOW()),('6M', 19, 1, NOW(), NOW()),('7M', 19, 1, NOW(), NOW()),
+('8M', 19, 1, NOW(), NOW()),('9M', 19, 1, NOW(), NOW()),('10M', 19, 1, NOW(), NOW()),('11M', 19, 1, NOW(), NOW()),('12M', 19, 1, NOW(), NOW()),
+('13M', 19, 1, NOW(), NOW()),('14M', 19, 1, NOW(), NOW()),('15M', 19, 1, NOW(), NOW()),('16M', 19, 1, NOW(), NOW()),('17M', 19, 1, NOW(), NOW()),
+('18M', 19, 1, NOW(), NOW()),('19M', 19, 1, NOW(), NOW()),('20M', 19, 1, NOW(), NOW()),('21M', 19, 1, NOW(), NOW()),('22M', 19, 1, NOW(), NOW()),
+('23M', 19, 1, NOW(), NOW()),('24M', 19, 1, NOW(), NOW()),
+-- Fille : 2-14 ans
+('2ans', 19, 2, NOW(), NOW()),('4ans', 19, 2, NOW(), NOW()),('6ans', 19, 2, NOW(), NOW()),
+('8ans', 19, 2, NOW(), NOW()),
+
+('10ans', 19, 2, NOW(), NOW()),
+('12ans', 19, 2, NOW(), NOW()),('14ans', 19, 2, NOW(), NOW()),('16ans', 19, 2, NOW(), NOW()),
+-- Garçon: 2-14 ans
+('2ans', 19, 3, NOW(), NOW()),('4ans', 19, 3, NOW(), NOW()),('6ans', 19, 3, NOW(), NOW()),
+('8ans', 19, 3, NOW(), NOW()),
+
+('10ans', 19, 3, NOW(), NOW()),
+('12ans', 19, 3, NOW(), NOW()),('14ans', 19, 3, NOW(), NOW()),('16ans', 19, 3, NOW(), NOW()),
+-- Femme: XS-XXL
+('34', 19, 4, NOW(), NOW()),('36', 19, 4, NOW(), NOW()),
+('38', 19, 4, NOW(), NOW()),('40', 19, 4, NOW(), NOW()),('42', 19, 4, NOW(), NOW()),('44', 19, 4, NOW(), NOW()),
+('46', 19, 4, NOW(), NOW()),
+('48', 19, 4, NOW(), NOW()),
+('50', 19, 4, NOW(), NOW()),
+('52', 19, 4, NOW(), NOW()),
+
+-- Homme: S-XXXL
+('28', 19, 5, NOW(), NOW()),('30', 19, 5, NOW(), NOW()),('31', 19, 5, NOW(), NOW()),('32', 19, 5, NOW(), NOW()),('33', 19, 5, NOW(), NOW()),('34', 19, 5, NOW(), NOW()),('36', 19, 5, NOW(), NOW()),
+('38', 19, 5, NOW(), NOW()),('40', 19, 5, NOW(), NOW()),('42', 19, 5, NOW(), NOW()),('44', 19, 5, NOW(), NOW()),('46', 19, 5, NOW(), NOW()),
+
+-- 👚 Ensembles et Combinaisons
+-- Bébé: 3M-24M
+('3M', 20, 1, NOW(), NOW()),('4M', 20, 1, NOW(), NOW()),('5M', 20, 1, NOW(), NOW()),('6M', 20, 1, NOW(), NOW()),('7M', 20, 1, NOW(), NOW()),
+('8M', 20, 1, NOW(), NOW()),('9M', 20, 1, NOW(), NOW()),('10M', 20, 1, NOW(), NOW()),('11M', 20, 1, NOW(), NOW()),('12M', 20, 1, NOW(), NOW()),
+('13M', 20, 1, NOW(), NOW()),('14M', 20, 1, NOW(), NOW()),('15M', 20, 1, NOW(), NOW()),('16M', 20, 1, NOW(), NOW()),('17M', 20, 1, NOW(), NOW()),
+('18M', 20, 1, NOW(), NOW()),('19M', 20, 1, NOW(), NOW()),('20M', 20, 1, NOW(), NOW()),('21M', 20, 1, NOW(), NOW()),('22M', 20, 1, NOW(), NOW()),
+('23M', 20, 1, NOW(), NOW()),('24M', 20, 1, NOW(), NOW()),
+-- Fille: 2-14 ans
+('2ans', 20, 2, NOW(), NOW()),('3ans', 20, 2, NOW(), NOW()),('4ans', 20, 2, NOW(), NOW()),('5ans', 20, 2, NOW(), NOW()),('6ans', 20, 2, NOW(), NOW()),
+('7ans', 20, 2, NOW(), NOW()),('8ans', 20, 2, NOW(), NOW()),('9ans', 20, 2, NOW(), NOW()),('10ans', 20, 2, NOW(), NOW()),('11ans', 20, 2, NOW(), NOW()),
+('12ans', 20, 2, NOW(), NOW()),('13ans', 20, 2, NOW(), NOW()),('14ans', 20, 2, NOW(), NOW()),
+-- Garçon: 2-14 ans
+('2ans', 20, 3, NOW(), NOW()),('3ans', 20, 3, NOW(), NOW()),('4ans', 20, 3, NOW(), NOW()),('5ans', 20, 3, NOW(), NOW()),('6ans', 20, 3, NOW(), NOW()),
+('7ans', 20, 3, NOW(), NOW()),('8ans', 20, 3, NOW(), NOW()),('9ans', 20, 3, NOW(), NOW()),('10ans', 20, 3, NOW(), NOW()),('11ans', 20, 3, NOW(), NOW()),
+('12ans', 20, 3, NOW(), NOW()),('13ans', 20, 3, NOW(), NOW()),('14ans', 20, 3, NOW(), NOW()),
+-- Femme: XS-XXL
+('XS', 20, 4, NOW(), NOW()),('S', 20, 4, NOW(), NOW()),('M', 20, 4, NOW(), NOW()),('L', 20, 4, NOW(), NOW()),('XL', 20, 4, NOW(), NOW()),
+('XXL', 20, 4, NOW(), NOW()),
+-- Homme: S-XXXL
+('S', 20, 5, NOW(), NOW()),('M', 20, 5, NOW(), NOW()),('L', 20, 5, NOW(), NOW()),('XL', 20, 5, NOW(), NOW()),('XXL', 20, 5, NOW(), NOW()),
+('XXXL', 20, 5, NOW(), NOW()),
+
+-- 🏖️ Maillots de Bain
+-- Bébé: 3M-24M
+('3M', 21, 1, NOW(), NOW()),('4M', 21, 1, NOW(), NOW()),('5M', 21, 1, NOW(), NOW()),('6M', 21, 1, NOW(), NOW()),('7M', 21, 1, NOW(), NOW()),
+('8M', 21, 1, NOW(), NOW()),('9M', 21, 1, NOW(), NOW()),('10M', 21, 1, NOW(), NOW()),('11M', 21, 1, NOW(), NOW()),('12M', 21, 1, NOW(), NOW()),
+('13M', 21, 1, NOW(), NOW()),('14M', 21, 1, NOW(), NOW()),('15M', 21, 1, NOW(), NOW()),('16M', 21, 1, NOW(), NOW()),('17M', 21, 1, NOW(), NOW()),
+('18M', 21, 1, NOW(), NOW()),('19M', 21, 1, NOW(), NOW()),('20M', 21, 1, NOW(), NOW()),('21M', 21, 1, NOW(), NOW()),('22M', 21, 1, NOW(), NOW()),
+('23M', 21, 1, NOW(), NOW()),('24M', 21, 1, NOW(), NOW()),
+-- Fille: 2-14 ans
+('2ans', 21, 2, NOW(), NOW()),('3ans', 21, 2, NOW(), NOW()),('4ans', 21, 2, NOW(), NOW()),('5ans', 21, 2, NOW(), NOW()),('6ans', 21, 2, NOW(), NOW()),
+('7ans', 21, 2, NOW(), NOW()),('8ans', 21, 2, NOW(), NOW()),('9ans', 21, 2, NOW(), NOW()),('10ans', 21, 2, NOW(), NOW()),('11ans', 21, 2, NOW(), NOW()),
+('12ans', 21, 2, NOW(), NOW()),('13ans', 21, 2, NOW(), NOW()),('14ans', 21, 2, NOW(), NOW()),
+-- Garçon: 2-14 ans
+('2ans', 21, 3, NOW(), NOW()),('3ans', 21, 3, NOW(), NOW()),('4ans', 21, 3, NOW(), NOW()),('5ans', 21, 3, NOW(), NOW()),('6ans', 21, 3, NOW(), NOW()),
+('7ans', 21, 3, NOW(), NOW()),('8ans', 21, 3, NOW(), NOW()),('9ans', 21, 3, NOW(), NOW()),('10ans', 21, 3, NOW(), NOW()),('11ans', 21, 3, NOW(), NOW()),
+('12ans', 21, 3, NOW(), NOW()),('13ans', 21, 3, NOW(), NOW()),('14ans', 21, 3, NOW(), NOW()),
+-- Femme: XS-XXL
+('XS', 21, 4, NOW(), NOW()),('S', 21, 4, NOW(), NOW()),('M', 21, 4, NOW(), NOW()),('L', 21, 4, NOW(), NOW()),('XL', 21, 4, NOW(), NOW()),
+('XXL', 21, 4, NOW(), NOW()),
+-- Homme: S-XXXL
+('S', 21, 5, NOW(), NOW()),('M', 21, 5, NOW(), NOW()),('L', 21, 5, NOW(), NOW()),('XL', 21, 5, NOW(), NOW()),('XXL', 21, 5, NOW(), NOW()),
+('XXXL', 21, 5, NOW(), NOW());

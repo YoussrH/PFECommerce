@@ -1,0 +1,69 @@
+INSERT INTO couleur (libelle, hexcode, created_at, updated_at) VALUES
+('ROUGE', '#FF0000', NOW(), NOW()),
+('BLEU', '#0000FF', NOW(), NOW()),
+('MINT GREEN', '#BFE3DD', NOW(), NOW()),
+('JAUNE', '#FFFF00', NOW(), NOW()),
+('NOIR', '#000000', NOW(), NOW()),
+('BLANC', '#FFFFFF', NOW(), NOW()),
+('GRIS', '#808080', NOW(), NOW()),
+('BURGUNDY', '#A51C29', NOW(), NOW()),
+('BLEU CLAIR', '#ADD8E6', NOW(), NOW()),
+('BLANCHE', '#FFFFFF', NOW(), NOW()),
+('BEIGE', '#DDAD87', NOW(), NOW()),
+('PEACH', '#F8BCA3', NOW(), NOW()),
+('ROSE', '#FF478C', NOW(), NOW()),
+('ROSE CLAIR', '#FFE1EC', NOW(), NOW()),
+('TURQUOISE', '#5F9DB3', NOW(), NOW()),
+('BLEU FONCE', '#32374C', NOW(), NOW()),
+('MAUVE', '#9370DB', NOW(), NOW()),
+('BLANC CASSE', '#EEE6DC', NOW(), NOW()),
+('ORANGE', '#C0371C', NOW(), NOW()),
+('PAYNE''S GRAY', '#515A68', NOW(), NOW()),
+('COOL GRAY', '#8092AF', NOW(), NOW()),
+('TEA ROSE', '#EBC6CA', NOW(), NOW());
+
+
+INSERT INTO categorie (id, libelle, parent_id, created_at, updated_at)
+VALUES
+  (1, 'Chaussures', NULL, NOW(), NOW()),
+  (2, 'Accessoires', NULL, NOW(), NOW()),
+  (3, 'Vêtements', NULL, NOW(), NOW()),
+  (4, 'Sandales et claquettes', 1, NOW(), NOW()),
+  (5, 'Baskets', 1, NOW(), NOW()),
+  (6, 'Sacs, sacs à dos, cartables', 2, NOW(), NOW()),
+  (7, 'Casquettes, chapeaux, bobs', 2, NOW(), NOW()),
+  (8, 'Foulards, écharpes et snoods', 2, NOW(), NOW()),
+  (9, 'Sous-vêtements et pyjamas', 2, NOW(), NOW()),
+  (10, 'Ceintures', 2, NOW(), NOW()),
+  (11, 'Chaussettes, collants', 2, NOW(), NOW()),
+  (12, 'Tops et T-shirts', 3, NOW(), NOW()),
+  (13, 'Chemises et blouses', 3, NOW(), NOW()),
+  (14, 'Robes', 3, NOW(), NOW()),
+  (15, 'Pulls, sweats et gilets', 3, NOW(), NOW()),
+  (16, 'Vestes et blousons', 3, NOW(), NOW()),
+  (17, 'Jupes', 3, NOW(), NOW()),
+  (18, 'Shorts', 3, NOW(), NOW()),
+  (19, 'Pantalons et leggings', 3, NOW(), NOW()),
+  (20, 'Ensembles et combinaisons', 3, NOW(), NOW()),
+  (21, 'Maillots de bain', 3, NOW(), NOW());
+
+INSERT INTO marque (libelle, created_at, updated_at)
+VALUES
+  ('KENZO', NOW(), NOW()),
+  ('CHLOE', NOW(), NOW()), -- Note the accent on the E
+  ('LANVIN', NOW(), NOW()),
+  ('P''TIT FRIMEUR', NOW(), NOW()), -- Single quote escaped
+  ('HUGO', NOW(), NOW()),
+  ('O''SPELLA', NOW(), NOW()), -- Single quote escaped
+  ('TLILA', NOW(), NOW()),
+  ('BOSS', NOW(), NOW()),
+  ('TED', NOW(), NOW()),
+  ('CLARNE''S', NOW(), NOW()); -- Single quote escaped
+
+INSERT INTO genre (id, libelle, created_at, updated_at)
+VALUES
+  (1, 'Bebe', NOW(), NOW()),
+  (2, 'Fille', NOW(), NOW()),
+  (3, 'Garcon', NOW(), NOW()),
+  (4, 'Femme', NOW(), NOW()),
+  (5, 'Homme', NOW(), NOW());

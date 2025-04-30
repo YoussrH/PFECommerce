@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commande livrée</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .bg-green-500 { background-color: #22c55e; }
+        .text-green-500 { color: #22c55e; }
+        .border-green-500 { border-color: #22c55e; }
+        .header { background-color: #22c55e; color: white; }
+        .footer { background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid p-0">
+        <div class="header p-4 text-center">
+            <h1 class="mb-0">Votre commande a été livrée!</h1>
+        </div>
+        
+        <div class="container py-4">
+            <p>Bonjour {{PRENOM}} {{NOM}},</p>
+            <p>Nous sommes heureux de vous informer que votre commande #{{ORDER_REF}} a été livrée avec succès.</p>
+            
+            <div class="card border-green-500 my-4">
+                <div class="card-header bg-green-500 text-white">
+                    <h5 class="mb-0">Détails de livraison</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2"><strong>Date de livraison:</strong> {{DELIVERY_DATE}}</p>
+                    <p class="mb-2"><strong>Lieu de livraison:</strong> {{SHIPPING_ADDRESS}}</p>
+                    <p class="mb-0"><strong>Signé par:</strong> {{RECIPIENT}}</p>
+                </div>
+            </div>
+            
+            <div class="alert alert-success">
+                <h5 class="alert-heading">Merci pour votre confiance!</h5>
+                <p class="mb-0">Nous espérons que vous êtes satisfait de votre achat. N'hésitez pas à nous laisser un avis.</p>
+            </div>
+            
+            <div class="text-center mt-4">
+                <a href="{{REVIEW_LINK}}" class="btn btn-success">Donner votre avis</a>
+            </div>
+            
+            <p class="mt-4">Cordialement,<br>L'équipe MGM</p>
+        </div>
+        
+        <div class="footer p-4 text-center">
+            <p class="mb-1">© {{CURRENT_YEAR}} MGM. Tous droits réservés.</p>
+            <p class="mb-0 small text-muted">Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
+        </div>
+    </div>
+</body>
+</html>

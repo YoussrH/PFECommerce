@@ -1,0 +1,1273 @@
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
+const { Op, Sequelize } = require('sequelize');
+const { isUUID } = require('validator');
+const QRCode = require('qrcode');
+const { envoyerEmail } = require('../services/emailService');
+const db = require('../models');
+const sequelize = db.sequelize;
+
+
+
+const {
+  Commande,
+  Client,
+  Adresse,
+  Taille,
+  Couleur,
+  CommandeArticle,
+  CommandeHistorique,
+  Facture,
+  Livreur,
+  Article,
+  Marque,
+  Utilisateur,
+  ArticleTaille,
+  ImageArticleCouleur
+
+} = require('../models');
+
+// Debug helper
+const debugError = (operation, error, context = {}) => {
+  const timestamp = new Date().toISOString();
+  const errorInfo = {
+    timestamp,
+    operation,
+    error: {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    },
+    context
+  };
+  console.error('DEBUG ERROR:', JSON.stringify(errorInfo, null, 2));
+  return errorInfo;
+};
+
+// Delivery fee constants
+const DELIVERY_FEES = {
+  standard: 7.00,
+  express: 15.00
+};
+
+// Helper to get delivery info
+const getDeliveryInfo = (method) => ({
+  fee: DELIVERY_FEES[method],
+  description: method === 'express' 
+    ? 'Livraison express (15.00 DT)' 
+    : 'Livraison standard (7.00 DT)'
+});
+
+// 1. Generate PDF Invoice
+const genererFacturePDF = async (req, res) => {
+  try {
+    const { reference } = req.params;
+
+    const commande = await Commande.findOne({
+      where: { reference },
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          include: [{ model: Utilisateur, as: 'utilisateur' }]
+        },
+        { model: Adresse, as: 'adresse' },
+        {
+          model: Article,
+          as: 'articles',
+          through: { 
+            model: CommandeArticle,
+            attributes: ['quantite', 'prix_unitaire', 'taille_id', 'couleur_id']
+          },
+          include: [
+            { model: Marque, as: 'marque' },
+            { 
+              model: Taille,
+              as: 'tailles',
+              through: { attributes: [] } 
+            },
+            { 
+              model: Couleur,
+              as: 'couleurs',
+              through: { attributes: [] } 
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!commande) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande non trouvée'
+      });
+    }
+
+    if (commande.statut === 'annulee') {
+      return res.status(400).json({
+        success: false,
+        message: 'Impossible de générer une facture pour une commande annulée'
+      });
+    }
+
+    // Create PDF
+    const doc = new PDFDocument();
+    const filename = `Facture-${commande.reference}.pdf`;
+    const filepath = path.join(__dirname, '../../public/factures', filename);
+    
+    // Ensure directory exists
+    if (!fs.existsSync(path.dirname(filepath))) {
+      fs.mkdirSync(path.dirname(filepath), { recursive: true });
+    }
+
+    const writeStream = fs.createWriteStream(filepath);
+    doc.pipe(writeStream);
+
+    // PDF Content
+    doc.fontSize(20).text(`Facture ${commande.reference}`, { align: 'center' });
+    doc.moveDown();
+    
+    // Client info
+    doc.fontSize(12)
+      .text(`Date: ${new Date().toLocaleDateString('fr-FR')}`)
+      .text(`Client: ${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`)
+      .text(`Email: ${commande.client.utilisateur.email}`)
+      .moveDown();
+
+    // Address
+    doc.text('Adresse de livraison:', { underline: true })
+      .moveDown(0.5)
+      .text(`${commande.adresse.adresse}`)
+      .text(`${commande.adresse.code_postal} ${commande.adresse.ville}`)
+      .text(`${commande.adresse.gouvernorat}`)
+      .moveDown();
+
+    // Delivery method and fees
+    const deliveryInfo = getDeliveryInfo(commande.methode_livraison);
+    doc.text(`Méthode de livraison: ${commande.methode_livraison === 'express' ? 'Express' : 'Standard'}`)
+      .text(`Frais de livraison: ${deliveryInfo.fee.toFixed(2)} DT`)
+      .moveDown();
+
+    // Items table
+    doc.text('Articles:', { underline: true }).moveDown(0.5);
+    
+    let yPosition = doc.y;
+    doc.font('Helvetica-Bold');
+    doc.text('Article', 50, yPosition);
+    doc.text('Qté', 250, yPosition);
+    doc.text('Prix', 350, yPosition, { width: 100, align: 'right' });
+    doc.font('Helvetica');
+    yPosition += 20;
+
+    commande.articles.forEach(article => {
+      const details = article.CommandeArticle;
+      doc.text(article.nom_produit, 50, yPosition);
+      doc.text(details.quantite.toString(), 250, yPosition);
+      doc.text(`${details.prix_unitaire.toFixed(2)} DT`, 350, yPosition, { width: 100, align: 'right' });
+      yPosition += 20;
+    });
+
+    // Totals
+    doc.moveDown();
+    doc.text(`Total: ${commande.prix_total.toFixed(2)} DT (inclut les frais de livraison)`);
+
+    doc.end();
+
+    await new Promise((resolve, reject) => {
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename=${filename}`);
+    fs.createReadStream(filepath).pipe(res);
+
+  } catch (error) {
+    const errorInfo = debugError('genererFacturePDF', error, { reference: req.params.reference });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur génération facture',
+      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+    });
+  }
+};
+
+// 2. List Orders
+const listerCommandes = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, statut, search } = req.query;
+    const offset = (page - 1) * limit;
+
+    const whereClause = {};
+    if (statut && statut !== 'tous') whereClause.statut = statut;
+    
+    if (search) {
+      whereClause[Op.or] = [
+        { reference: { [Op.iLike]: `%${search}%` }},
+        Sequelize.where(
+          Sequelize.fn('concat', Sequelize.col('client.utilisateur.prenom'), ' ', Sequelize.col('client.utilisateur.nom')),
+          { [Op.iLike]: `%${search}%` }
+        )
+      ];
+    }
+
+    const { count, rows } = await Commande.findAndCountAll({
+      where: whereClause,
+      include: [
+        { 
+          model: Client,
+          as: 'client',
+          include: [{ model: Utilisateur, as: 'utilisateur' }]
+        },
+        {
+          model: Livreur,
+          as: 'livreur',
+          include: [{ model: Utilisateur, as: 'utilisateur' }]
+        }
+      ],
+      order: [['created_at', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    // Add delivery info to each order
+    const commandes = rows.map(commande => ({
+      ...commande.toJSON(),
+      details_livraison: getDeliveryInfo(commande.methode_livraison)
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        commandes,
+        total: count,
+        page: parseInt(page),
+        pages: Math.ceil(count / limit)
+      }
+    });
+
+  } catch (error) {
+    const errorInfo = debugError('listerCommandes', error, { query: req.query });
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur récupération commandes',
+      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+    });
+  }
+};
+
+const obtenirDetailsCommande = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!isUUID(id, 4)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Format ID invalide'
+      });
+    }
+
+    const commande = await Commande.findByPk(id, {
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          include: [{ 
+            model: Utilisateur, 
+            as: 'utilisateur',
+            attributes: ['id', 'prenom', 'nom', 'email']
+          }]
+        },
+        { 
+          model: Adresse, 
+          as: 'adresse',
+          attributes: ['id', 'adresse', 'complement', 'code_postal', 'ville', 'gouvernorat']
+        },
+        { 
+          model: Livreur, 
+          as: 'livreur',
+          include: [{
+            model: Utilisateur,
+            as: 'utilisateur',
+            attributes: ['id', 'prenom', 'nom']
+          }]
+        },
+        {
+          model: CommandeArticle,
+          as: 'commande_articles',
+          include: [
+            {
+              model: Article,
+              as: 'article',
+              include: [
+                { 
+                  model: Marque, 
+                  as: 'marque',
+                  attributes: ['id', 'libelle']
+                },
+                {
+                  model: ArticleTaille,
+                  as: 'inventory',
+                  include: [
+                    {
+                      model: Taille,
+                      as: 'taille'
+                    },
+                    {
+                      model: Couleur,
+                      as: 'couleur'
+                    }
+                  ]
+                },
+                {
+                  model: ImageArticleCouleur,
+                  as: 'images_couleurs',
+                  on: {
+                    article_id: { [Op.col]: 'commande_articles->article.id' },
+                    couleur_id: { [Op.col]: 'commande_articles.couleur_id' }
+                  },
+                  required: false,
+                  attributes: ['id', 'image_url', 'ordre_affichage']
+                }
+              ]
+            }
+          ]
+        },
+        {
+          model: CommandeHistorique,
+          as: 'historique',
+          include: [{
+            model: Utilisateur,
+            as: 'utilisateur',
+            attributes: ['id', 'prenom', 'nom']
+          }],
+          order: [['created_at', 'DESC']],
+          limit: 10
+        }
+      ]
+    });
+
+    if (!commande) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande non trouvée'
+      });
+    }
+
+    // Transform the data structure
+    const transformedArticles = commande.commande_articles.map(ca => {
+      // Find the matching inventory item based on taille_id and couleur_id
+      const inventoryItem = ca.article.inventory?.find(
+        inv => inv.taille_id === ca.taille_id && inv.couleur_id === ca.couleur_id
+      ) || { taille: null, couleur: null };
+
+      // Get images for this specific color variant
+      const images = ca.article.images_couleurs?.map(img => ({
+        id: img.id,
+        url: img.image_url,
+        order: img.ordre_affichage
+      })) || [];
+
+      return {
+        id: ca.article.id,
+        nom_produit: ca.article.nom_produit,
+        description: ca.article.description,
+        conseils: ca.article.conseils,
+        prix: ca.article.prix,
+        prix_final: ca.article.prix_final,
+        sku: ca.article.sku,
+        seo_titre: ca.article.seo_titre,
+        mots_cles_seo: ca.article.mots_cles_seo,
+        categorie_id: ca.article.categorie_id,
+        marque_id: ca.article.marque_id,
+        genre_id: ca.article.genre_id,
+        created_at: ca.article.created_at,
+        updated_at: ca.article.updated_at,
+        marque: ca.article.marque,
+        tailles: inventoryItem.taille ? [inventoryItem.taille] : [],
+        couleurs: inventoryItem.couleur ? [inventoryItem.couleur] : [],
+        images: images.sort((a, b) => a.order - b.order),
+        CommandeArticle: {
+          quantite: ca.quantite,
+          prix_unitaire: ca.prix_unitaire,
+          taille_id: ca.taille_id,
+          couleur_id: ca.couleur_id
+        }
+      };
+    });
+
+    // Calculate correct total from items
+    const calculatedTotal = commande.commande_articles.reduce((total, ca) => {
+      return total + (ca.prix_unitaire * ca.quantite);
+    }, 0);
+
+    // Add delivery fee if not already included
+    const deliveryInfo = getDeliveryInfo(commande.methode_livraison);
+    const finalTotal = calculatedTotal + deliveryInfo.fee;
+
+    // Prepare response data
+    const responseData = {
+      ...commande.toJSON(),
+      articles: transformedArticles,
+      prix_total: finalTotal,
+      details_livraison: {
+        methode: commande.methode_livraison,
+        frais: deliveryInfo.fee,
+        description: deliveryInfo.description
+      }
+    };
+
+    // Remove intermediate data
+    delete responseData.commande_articles;
+
+    res.status(200).json({ 
+      success: true,
+      data: responseData
+    });
+
+  } catch (error) {
+    console.error('Error in obtenirDetailsCommande:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur récupération détails',
+      error: process.env.NODE_ENV === 'development' ? {
+        message: error.message,
+        stack: error.stack
+      } : undefined
+    });
+  }
+};
+
+
+// 8. Generate Invoice
+const genererFacture = async (req, res) => {
+  let transaction;
+  try {
+    transaction = await sequelize.transaction();
+    const { id } = req.params;
+
+    const commande = await Commande.findByPk(id, {
+      transaction,
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          include: [{ model: Utilisateur, as: 'utilisateur' }]
+        },
+        { model: Adresse, as: 'adresse' },
+        {
+          model: Article,
+          as: 'articles',
+          through: { 
+            model: CommandeArticle,
+            attributes: ['quantite', 'prix_unitaire', 'taille_id', 'couleur_id']
+          },
+          include: [
+            { model: Marque, as: 'marque' },
+            { 
+              model: Taille,
+              as: 'tailles',
+              through: { attributes: [] } 
+            },
+            { 
+              model: Couleur,
+              as: 'couleurs',
+              through: { attributes: [] } 
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande non trouvée' 
+      });
+    }
+
+    if (commande.statut === 'annulee') {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Impossible de générer une facture pour une commande annulée'
+      });
+    }
+
+    let facture = await Facture.findOne({ 
+      where: { commande_id: id },
+      transaction
+    });
+
+    if (!facture) {
+      const numeroFacture = `FAC-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+      
+      facture = await Facture.create({
+        commande_id: commande.id,
+        numero: numeroFacture,
+        date_emission: new Date(),
+        montant_ht: commande.prix_total / 1.2,
+        taux_tva: 20.0,
+        montant_ttc: commande.prix_total,
+        fichier_url: `/factures/${numeroFacture}.pdf`,
+        est_payee: commande.statut === 'livree'
+      }, { transaction });
+    }
+
+    // Create the factures directory if it doesn't exist
+    const facturesDir = path.join(__dirname, '../../public/factures');
+    if (!fs.existsSync(facturesDir)) {
+      fs.mkdirSync(facturesDir, { recursive: true });
+    }
+
+    // Generate PDF
+    const doc = new PDFDocument();
+    const pdfPath = path.join(facturesDir, `${facture.numero}.pdf`);
+    const writeStream = fs.createWriteStream(pdfPath);
+    doc.pipe(writeStream);
+
+    // Get delivery info
+    const deliveryInfo = getDeliveryInfo(commande.methode_livraison);
+
+    // PDF content
+    doc.fontSize(20).text(`Facture ${facture.numero}`, { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Date: ${new Date(facture.date_emission).toLocaleDateString('fr-FR')}`);
+    doc.text(`Client: ${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`);
+    
+    // Delivery info
+    doc.text(`Méthode de livraison: ${commande.methode_livraison === 'express' ? 'Express' : 'Standard'}`)
+      .text(`Frais de livraison: ${deliveryInfo.fee.toFixed(2)} DT`)
+      .moveDown();
+
+    // Items table
+    doc.text('Articles commandés:', { underline: true });
+    doc.moveDown(0.5);
+    
+    let yPosition = doc.y;
+    doc.font('Helvetica-Bold');
+    doc.text('Article', 50, yPosition);
+    doc.text('Quantité', 250, yPosition);
+    doc.text('Prix', 350, yPosition, { width: 100, align: 'right' });
+    doc.font('Helvetica');
+    yPosition += 20;
+
+    commande.articles.forEach(article => {
+      const commandeArticle = article.CommandeArticle;
+      doc.text(article.nom_produit, 50, yPosition);
+      doc.text(commandeArticle.quantite.toString(), 250, yPosition);
+      doc.text(`${commandeArticle.prix_unitaire.toFixed(2)} DT`, 350, yPosition, { width: 100, align: 'right' });
+      yPosition += 20;
+    });
+
+    doc.moveDown();
+    doc.text(`Total HT: ${(facture.montant_ht).toFixed(2)} DT`);
+    doc.text(`TVA (20%): ${(facture.montant_ttc - facture.montant_ht).toFixed(2)} DT`);
+    doc.fontSize(14).text(`Total TTC: ${facture.montant_ttc.toFixed(2)} DT`, { align: 'right' });
+
+    doc.end();
+
+    await new Promise((resolve, reject) => {
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+    });
+
+    await transaction.commit();
+
+    // Send the generated PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Facture-${facture.numero}.pdf`);
+    fs.createReadStream(pdfPath).pipe(res);
+
+  } catch (error) {
+    if (transaction) await transaction.rollback();
+    const errorInfo = debugError('genererFacture', error, { commandeId: req.params.id });
+    
+    // Handle specific file system errors
+    if (error.code === 'ENOENT') {
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur système: Impossible de créer le fichier PDF',
+        debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+      });
+    }
+
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur génération facture',
+      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+    });
+  }
+};
+
+
+// 3. Update Order Status
+const mettreAJourStatut = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { statut } = req.body;
+    const utilisateurId = req.utilisateur.id;
+
+    // Validate status
+    const statutsValides = ['en_attente', 'confirmee', 'en_preparation', 'expediee', 'livree', 'annulee'];
+    if (!statut || !statutsValides.includes(statut)) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: 'Statut invalide',
+        statutsValides
+      });
+    }
+
+    const commande = await Commande.findByPk(id, { transaction });
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande non trouvée'
+      });
+    }
+
+    // Validate status transition
+    const transitions = {
+      en_attente: ['confirmee', 'annulee'],
+      confirmee: ['en_preparation', 'annulee'],
+      en_preparation: ['expediee', 'annulee'],
+      expediee: ['livree'],
+      livree: [],
+      annulee: []
+    };
+
+    if (!transitions[commande.statut].includes(statut)) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: `Transition non autorisée de ${commande.statut} à ${statut}`,
+        allowedTransitions: transitions[commande.statut]
+      });
+    }
+
+    // Update status
+    const updateData = { statut };
+    if (statut === 'expediee') updateData.date_expedition = new Date();
+    if (statut === 'livree') updateData.date_livraison = new Date();
+
+    await commande.update(updateData, { transaction });
+
+    // Log history
+    await CommandeHistorique.create({
+      commande_id: commande.id,
+      utilisateur_id: utilisateurId,
+      action: 'changement_statut',
+      ancienne_valeur: commande.statut,
+      nouvelle_valeur: statut,
+      details: `Statut changé de ${commande.statut} à ${statut}`
+    }, { transaction });
+
+    // Generate QR code if shipped
+    if (statut === 'expediee') {
+      try {
+        const qrCodeData = await genererQRCodePourLivraison(commande.id);
+        await commande.update({ 
+          qr_token: qrCodeData.token,
+          qr_expires: qrCodeData.expires,
+          qr_code_data: qrCodeData.url 
+        }, { transaction });
+      } catch (qrError) {
+        console.error('Erreur génération QR code:', qrError);
+      }
+    }
+
+    await transaction.commit();
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Statut mis à jour',
+      data: { ancienStatut: commande.statut, nouveauStatut: statut }
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    const errorInfo = debugError('mettreAJourStatut', error, {
+      commandeId: req.params.id,
+      body: req.body
+    });
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur changement statut',
+      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+    });
+  }
+};
+
+
+
+// 5. Update Delivery Address
+const modifierAdresseLivraison = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { adresse_id } = req.body;
+    const utilisateurId = req.utilisateur.id;
+
+    const nouvelleAdresse = await Adresse.findByPk(adresse_id, { transaction });
+    if (!nouvelleAdresse) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Adresse non trouvée' 
+      });
+    }
+
+    const commande = await Commande.findByPk(id, { 
+      transaction,
+      lock: true 
+    });
+
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande non trouvée' 
+      });
+    }
+
+    if (['expediee', 'livree'].includes(commande.statut)) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: 'Impossible de modifier l\'adresse pour une commande déjà expédiée ou livrée'
+      });
+    }
+
+    const ancienneAdresseId = commande.adresse_id;
+    await commande.update({ adresse_id }, { transaction });
+
+    await CommandeHistorique.create({
+      commande_id: commande.id,
+      utilisateur_id: utilisateurId,
+      action: 'changement_adresse',
+      ancienne_valeur: ancienneAdresseId,
+      nouvelle_valeur: adresse_id,
+      details: `Adresse de livraison modifiée`
+    }, { transaction });
+
+    await transaction.commit();
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Adresse de livraison modifiée avec succès',
+      data: { adresse_id }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    const errorInfo = debugError('modifierAdresseLivraison', error, {
+      commandeId: req.params.id,
+      body: req.body
+    });
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur modification adresse',
+      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+    });
+  }
+};
+
+// 6. Cancel Order
+const annulerCommande = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { raison, rembourser = false } = req.body;
+    const utilisateurId = req.utilisateur.id;
+
+    const commande = await Commande.findByPk(id, { 
+      transaction,
+      lock: true 
+    });
+
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande non trouvée' 
+      });
+    }
+
+    if (['livree', 'annulee'].includes(commande.statut)) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: `Impossible d'annuler une commande ${commande.statut}`
+      });
+    }
+
+    const ancienStatut = commande.statut;
+    await commande.update({ statut: 'annulee' }, { transaction });
+
+    await CommandeHistorique.create({
+      commande_id: commande.id,
+      utilisateur_id: utilisateurId,
+      action: 'annulation_commande',
+      ancienne_valeur: ancienStatut,
+      nouvelle_valeur: 'annulee',
+      details: `Annulée: ${raison || 'Non spécifié'}. Remboursement: ${rembourser ? 'Oui' : 'Non'}`
+    }, { transaction });
+
+    if (rembourser) {
+      await CommandeHistorique.create({
+        commande_id: commande.id,
+        utilisateur_id: utilisateurId,
+        action: 'demande_remboursement',
+        details: 'Remboursement initié'
+      }, { transaction });
+    }
+
+    await transaction.commit();
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Commande annulée',
+      data: { 
+        statut: 'annulee',
+        remboursement_initie: rembourser 
+      }
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    const errorInfo = debugError('annulerCommande', error, {
+      commandeId: req.params.id,
+      body: req.body
+    });
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur annulation commande',
+      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+    });
+  }
+};
+
+// 7. Add Admin Note
+// In commandeController.js - update the ajouterNoteAdmin function
+const ajouterNoteAdmin = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { notes_admin } = req.body; // Changed from 'note' to 'notes_admin'
+    const utilisateurId = req.utilisateur.id;
+
+    if (!notes_admin || notes_admin.trim() === '') {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: 'La note ne peut pas être vide' 
+      });
+    }
+
+    const commande = await Commande.findByPk(id, { transaction });
+
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande non trouvée' 
+      });
+    }
+
+    await commande.update({ notes_admin }, { transaction });
+
+    await CommandeHistorique.create({
+      commande_id: commande.id,
+      utilisateur_id: utilisateurId,
+      action: 'ajout_note',
+      details: `Note administrative mise à jour`
+    }, { transaction });
+
+    await transaction.commit();
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Note administrative mise à jour avec succès',
+      data: { notes_admin }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    const errorInfo = debugError('ajouterNoteAdmin', error, {
+      commandeId: req.params.id,
+      body: req.body
+    });
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur lors de la mise à jour des notes',
+      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+    });
+  }
+};
+
+
+
+// 9. Get Order History
+const obtenirHistorique = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const historique = await CommandeHistorique.findAll({
+      where: { commande_id: id },
+      include: [
+        { 
+          model: Utilisateur, 
+          as: 'utilisateur',
+          attributes: ['id', 'nom', 'prenom', 'email']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.status(200).json({ 
+      success: true,
+      data: historique 
+    });
+  } catch (error) {
+    const errorInfo = debugError('obtenirHistorique', error, { commandeId: req.params.id });
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur récupération historique',
+      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+    });
+  }
+};
+
+
+
+// 11. Notify Client
+const envoyerNotificationClient = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { type } = req.body;
+
+    const commande = await Commande.findByPk(id, {
+      transaction,
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          include: [{ model: Utilisateur, as: 'utilisateur' }]
+        }
+      ]
+    });
+
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande non trouvée' 
+      });
+    }
+
+    const templates = {
+      expedition: {
+        subject: `Votre commande #${commande.reference} a été expédiée`,
+        template: 'commandeExpediee',
+        context: {
+          PRENOM: commande.client.utilisateur.prenom,
+          NOM: commande.client.utilisateur.nom,
+          ORDER_REF: commande.reference,
+          TRACKING_NUMBER: commande.numero_suivi || 'N/A',
+          CARRIER_NAME: commande.transporteur || 'Standard',
+          SHIPPING_DATE: new Date().toLocaleDateString('fr-FR'),
+          DELIVERY_ESTIMATE: '2-3 jours ouvrables'
+        }
+      },
+      livraison: {
+        subject: `Votre commande #${commande.reference} a été livrée`,
+        template: 'commandeLivree',
+        context: {
+          PRENOM: commande.client.utilisateur.prenom,
+          NOM: commande.client.utilisateur.nom,
+          ORDER_REF: commande.reference,
+          DELIVERY_DATE: new Date().toLocaleDateString('fr-FR')
+        }
+      }
+    };
+
+    const template = templates[type];
+    if (!template) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: 'Type de notification invalide'
+      });
+    }
+
+    await envoyerEmail({
+      to: commande.client.utilisateur.email,
+      subject: template.subject,
+      template: template.template,
+      context: template.context
+    });
+
+    await CommandeHistorique.create({
+      commande_id: commande.id,
+      utilisateur_id: req.utilisateur.id,
+      action: 'notification_client',
+      details: `Notification ${type} envoyée`
+    }, { transaction });
+
+    await transaction.commit();
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Notification envoyée avec succès'
+    });
+  } catch (error) {
+    await transaction.rollback();
+    const errorInfo = debugError('envoyerNotificationClient', error, {
+      commandeId: req.params.id,
+      body: req.body
+    });
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur envoi notification',
+      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+    });
+  }
+};
+
+// 12. Confirm Delivery with QR Code
+const confirmerLivraisonQR = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { token } = req.body;
+    const utilisateurId = req.utilisateur?.id;
+
+    const commande = await Commande.findByPk(id, { 
+      transaction,
+      lock: true 
+    });
+
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande non trouvée' 
+      });
+    }
+
+    if (commande.statut !== 'expediee') {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: 'La commande doit être en statut "expédiée" pour confirmation'
+      });
+    }
+
+    if (!commande.qr_token || commande.qr_token !== token) {
+      await transaction.rollback();
+      return res.status(401).json({ 
+        success: false,
+        message: 'Token de confirmation invalide' 
+      });
+    }
+
+    if (commande.qr_expires && new Date(commande.qr_expires) < new Date()) {
+      await transaction.rollback();
+      return res.status(401).json({ 
+        success: false,
+        message: 'Token de confirmation expiré' 
+      });
+    }
+
+    await commande.update({ 
+      statut: 'livree',
+      date_livraison: new Date(),
+      qr_token: null,
+      qr_expires: null,
+      qr_code_data: null
+    }, { transaction });
+
+    await CommandeHistorique.create({
+      commande_id: commande.id,
+      utilisateur_id: utilisateurId || null,
+      action: 'confirmation_livraison',
+      ancienne_valeur: 'expediee',
+      nouvelle_valeur: 'livree',
+      details: `Livraison confirmée via QR code`
+    }, { transaction });
+
+    await transaction.commit();
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Livraison confirmée avec succès'
+    });
+  } catch (error) {
+    await transaction.rollback();
+    const errorInfo = debugError('confirmerLivraisonQR', error, {
+      commandeId: req.params.id,
+      body: req.body
+    });
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur confirmation livraison',
+      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+    });
+  }
+};
+
+// 13. Notify Shipping
+const notifierExpEdition = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+
+    const commande = await Commande.findByPk(id, {
+      transaction,
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          include: [{ model: Utilisateur, as: 'utilisateur' }]
+        }
+      ]
+    });
+
+    if (!commande || commande.statut !== 'expediee') {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Commande non expédiée ou non trouvée'
+      });
+    }
+
+    // Generate QR code
+    const qrCodeDataURL = await QRCode.toDataURL(`delivery-confirmation:${commande.id}`);
+    const urlConfirmation = `${process.env.FRONTEND_URL}/confirmation-livraison?token=${commande.qr_token}`;
+
+    await commande.update({
+      qr_code_data: qrCodeDataURL
+    }, { transaction });
+
+    // Send email
+    await envoyerEmail({
+      to: commande.client.utilisateur.email,
+      subject: `Votre commande #${commande.reference} a été expédiée`,
+      template: 'commandeExpediee',
+      context: {
+        PRENOM: commande.client.utilisateur.prenom,
+        NOM: commande.client.utilisateur.nom,
+        ORDER_REF: commande.reference,
+        TRACKING_NUMBER: commande.numero_suivi || 'N/A',
+        CARRIER_NAME: commande.transporteur || 'Standard',
+        SHIPPING_DATE: new Date().toLocaleDateString('fr-FR'),
+        DELIVERY_ESTIMATE: '2-3 jours ouvrables',
+        TRACKING_LINK: urlConfirmation
+      }
+    });
+
+    await transaction.commit();
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Notification d\'expédition envoyée'
+    });
+  } catch (error) {
+    await transaction.rollback();
+    const errorInfo = debugError('notifierExpEdition', error, { commandeId: req.params.id });
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur notification expédition',
+      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+    });
+  }
+};
+
+// Helper function to generate QR code for delivery
+const genererQRCodePourLivraison = async (commandeId) => {
+  try {
+    const token = `qr-${commandeId}-${Date.now()}`;
+    const url = `${process.env.FRONTEND_URL}/confirmation-livraison?token=${token}`;
+    const qrCodeDataURL = await QRCode.toDataURL(url);
+    
+    return {
+      token,
+      expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
+      url,
+      qrCodeDataURL
+    };
+  } catch (error) {
+    debugError('genererQRCodePourLivraison', error, { commandeId });
+    throw error;
+  }
+};
+
+/**
+ * @desc Get orders ready for delivery (en_attente + delivery method + no livreur assigned)
+ * @access Admin/SuperAdmin
+ */
+const obtenirCommandesALivrer = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const { count, rows } = await Commande.findAndCountAll({
+      where: {
+        statut: 'en_attente',
+        methode_livraison: { [Op.in]: ['standard', 'express'] },
+        livreur_id: null
+      },
+      include: [
+        { 
+          model: Client,
+          as: 'client',
+          include: [{ model: Utilisateur, as: 'utilisateur' }]
+        },
+        { model: Adresse, as: 'adresse' }
+      ],
+      order: [['created_at', 'ASC']], // Oldest first
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        commandes: rows,
+        total: count,
+        page: parseInt(page),
+        pages: Math.ceil(count / limit)
+      }
+    });
+  } catch (error) {
+    const errorInfo = debugError('obtenirCommandesALivrer', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur récupération commandes à livrer',
+      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+    });
+  }
+};
+
+
+
+module.exports = {
+  genererFacturePDF,
+  listerCommandes,
+  obtenirDetailsCommande,
+  mettreAJourStatut,
+  modifierAdresseLivraison,
+  annulerCommande,
+  ajouterNoteAdmin,
+  genererFacture,
+  obtenirHistorique,
+  envoyerNotificationClient,
+  confirmerLivraisonQR,
+  notifierExpEdition,
+  obtenirCommandesALivrer,
+  
+};

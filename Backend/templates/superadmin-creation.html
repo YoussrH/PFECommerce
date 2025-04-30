@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compte Super Administrateur</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: #e74c3c;
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+        .content {
+            padding: 30px;
+        }
+        .credentials {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border: 1px dashed #e74c3c;
+        }
+        .password {
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            letter-spacing: 1px;
+            background-color: #ffebee;
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 5px 0;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #7f8c8d;
+            background-color: #ecf0f1;
+        }
+        .high-alert {
+            background-color: #ffebee;
+            padding: 15px;
+            border-left: 4px solid #e74c3c;
+            margin: 20px 0;
+        }
+        .login-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #e74c3c;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Compte Super Administrateur</h1>
+        </div>
+        <div class="content">
+            <p>Bonjour {{PRENOM}} {{NOM}},</p>
+            
+            <div class="high-alert">
+                <p><strong>ALERTE SÉCURITÉ :</strong> Votre compte Super Administrateur a été créé par {{CREATOR_NAME}}.</p>
+                <p>Ce compte dispose de privilèges élevés sur l'ensemble de la plateforme.</p>
+            </div>
+            
+            <div class="credentials">
+                <p><strong>Email :</strong> {{EMAIL}}</p>
+                <p><strong>Mot de passe temporaire :</strong></p>
+                <div class="password">{{TEMPORARY_PASSWORD}}</div>
+                <p><strong>Rôle :</strong> Super Administrateur</p>
+                <p><strong>Date de création :</strong> {{CREATION_DATE}}</p>
+            </div>
+            
+            <div class="high-alert">
+                <p><strong>MESURES DE SÉCURITÉ OBLIGATOIRES :</strong></p>
+                <ul>
+                    <li>Changez ce mot de passe IMMÉDIATEMENT après votre première connexion</li>
+                    <li>Activez l'authentification à deux facteurs</li>
+                    <li>Ne partagez jamais ces informations</li>
+                    <li>Ce lien expire dans 12 heures</li>
+                </ul>
+            </div>
+            
+            <p>Accédez à votre compte ici :</p>
+            <a href="{{LOGIN_URL}}" class="login-button">Accéder au tableau de bord</a>
+            
+            <p>Pour toute question concernant la sécurité, contactez immédiatement {{CREATOR_NAME}}.</p>
+            
+            <p>Cordialement,<br>L'équipe de sécurité MGM</p>
+        </div>
+        <div class="footer">
+            <p>© {{CURRENT_YEAR}} MGM. Tous droits réservés.</p>
+            <p style="color: #e74c3c;">CLASSIFICATION : CONFIDENTIEL - À DESTRUCTION IMMÉDIATE APRÈS UTILISATION</p>
+        </div>
+    </div>
+</body>
+</html>

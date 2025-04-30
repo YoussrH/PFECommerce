@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commande annulée</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .bg-red-500 { background-color: #ef4444; }
+        .text-red-500 { color: #ef4444; }
+        .border-red-500 { border-color: #ef4444; }
+        .header { background-color: #ef4444; color: white; }
+        .footer { background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid p-0">
+        <div class="header p-4 text-center">
+            <h1 class="mb-0">Commande annulée</h1>
+        </div>
+        
+        <div class="container py-4">
+            <p>Bonjour {{PRENOM}} {{NOM}},</p>
+            <p>Nous vous informons que votre commande #{{ORDER_REF}} a été annulée.</p>
+            
+            <div class="card border-red-500 my-4">
+                <div class="card-header bg-red-500 text-white">
+                    <h5 class="mb-0">Détails de l'annulation</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2"><strong>Raison:</strong> {{CANCEL_REASON}}</p>
+                    <p class="mb-2"><strong>Date d'annulation:</strong> {{CANCEL_DATE}}</p>
+                    {{#REFUND_AMOUNT}}
+                    <p class="mb-0"><strong>Remboursement:</strong> {{REFUND_AMOUNT}} DT ({{REFUND_METHOD}})</p>
+                    {{/REFUND_AMOUNT}}
+                </div>
+            </div>
+            
+            {{#REFUND_AMOUNT}}
+            <div class="alert alert-info">
+                <p class="mb-0">Le remboursement a été initié et devrait être traité sous 5 à 10 jours ouvrés.</p>
+            </div>
+            {{/REFUND_AMOUNT}}
+            
+            <p>Si vous pensez qu'il s'agit d'une erreur ou si vous avez des questions, n'hésitez pas à nous contacter.</p>
+            
+            <div class="text-center mt-4">
+                <a href="{{CONTACT_LINK}}" class="btn btn-outline-danger">Nous contacter</a>
+            </div>
+            
+            <p class="mt-4">Cordialement,<br>L'équipe MGM</p>
+        </div>
+        
+        <div class="footer p-4 text-center">
+            <p class="mb-1">© {{CURRENT_YEAR}} MGM. Tous droits réservés.</p>
+            <p class="mb-0 small text-muted">Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
+        </div>
+    </div>
+</body>
+</html>

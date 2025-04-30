@@ -1,0 +1,26 @@
+.hover-boundary {
+    padding: 2px; 
+  }
+
+.zondex{
+  z-index: 1000;
+
+}
+  .sticky-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background-color: white; 
+    transition: opacity 0.3s ease-in-out;
+  }
+  
+  .sticky-nav.visible {
+    opacity: 1;
+  }
+  
+  .sticky-nav.hidden {
+    opacity: 0;
+    pointer-events: none; 
+  }
