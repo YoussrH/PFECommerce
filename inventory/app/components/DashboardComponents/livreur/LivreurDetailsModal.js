@@ -1,4 +1,3 @@
-// app/components/DashboardComponents/livreur/LivreurDetailsModal.js
 'use client'
 import {
   Dialog,
@@ -18,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -29,6 +28,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Truck } from 'lucide-react'
+import { useUtilisateur } from '@/hooks/useUtilisateur'
+import { useLivraison } from '@/hooks/useLivraison'
 
 export default function LivreurDetailsModal({
   livreur,
@@ -40,11 +41,24 @@ export default function LivreurDetailsModal({
   onAssignDelivery
 }) {
   const [formData, setFormData] = useState({
-    telephone: livreur?.telephone || '',
-    type_vehicule: livreur?.type_vehicule || 'voiture',
-    plaque_immatriculation: livreur?.plaque_immatriculation || '',
-    statut: livreur?.statut || 'actif'
+    telephone: '',
+    type_vehicule: 'voiture',
+    plaque_immatriculation: '',
+    statut: 'actif'
   })
+
+  const { loading: updateLoading, error: updateError, clearError } = useUtilisateur()
+
+  useEffect(() => {
+    if (livreur) {
+      setFormData({
+        telephone: livreur.telephone || '',
+        type_vehicule: livreur.type_vehicule || 'voiture',
+        plaque_immatriculation: livreur.plaque_immatriculation || '',
+        statut: livreur.statut || 'actif'
+      })
+    }
+  }, [livreur])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -64,6 +78,7 @@ export default function LivreurDetailsModal({
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
+      clearError()
       await onUpdate(livreur.utilisateur_id, formData)
       toast.success('Livreur mis à jour avec succès')
       onClose()
@@ -211,8 +226,8 @@ export default function LivreurDetailsModal({
             <Button type="button" variant="outline" onClick={onClose}>
               Annuler
             </Button>
-            <Button type="submit">
-              Enregistrer les modifications
+            <Button type="submit" disabled={updateLoading}>
+              {updateLoading ? 'Enregistrement...' : 'Enregistrer les modifications'}
             </Button>
           </div>
         </form>

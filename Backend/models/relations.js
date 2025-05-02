@@ -8,7 +8,7 @@ module.exports = function(models) {
       'Marque', 'Couleur', 'Commande', 'Panier', 'RemiseArticle', 'AjustementStock', 'Livreur',
       'RemiseCategorie', 'RemiseUtilisateur', 'RemiseTaille', 'RemiseGenre', 'LivreurLocalisation',
       'CommandeArticle', 'ArticlePanier', 'Adresse', 'ArticleCouleur', 'ArticleTaille', 'Utilisateur',
-      'Facture', 'CommandeHistorique'
+      'Facture', 'CommandeHistorique', 'Colis', 'Retour', 'HistoriqueAction'
     ];
 
     // Check model availability
@@ -47,12 +47,14 @@ module.exports = function(models) {
       Evenement,
       HistoriqueAction,
       Facture,
-      CommandeHistorique
+      CommandeHistorique,
+      Colis,
+      Retour
     } = models;
 
-    // ==============================================
-    // 1. DISCOUNT/REMISE RELATIONS
-    // ==============================================
+    /* ==============================================
+     * 1. DISCOUNT/REMISE RELATIONS
+     * ============================================== */
     Remise.belongsToMany(Article, {
       through: RemiseArticle,
       foreignKey: 'remise_id',
@@ -98,7 +100,6 @@ module.exports = function(models) {
     Remise.belongsToMany(Genre, {
       through: RemiseGenre,
       foreignKey: 'remise_id',
-      otherKey: 'genre_id',
       as: 'genres',
       onDelete: 'CASCADE'
     });
@@ -106,7 +107,6 @@ module.exports = function(models) {
     Genre.belongsToMany(Remise, {
       through: RemiseGenre,
       foreignKey: 'genre_id',
-      otherKey: 'remise_id',
       as: 'remises',
       onDelete: 'CASCADE'
     });
@@ -114,7 +114,6 @@ module.exports = function(models) {
     Remise.belongsToMany(Taille, {
       through: RemiseTaille,
       foreignKey: 'remise_id',
-      otherKey: 'taille_id',
       as: 'tailles',
       onDelete: 'CASCADE'
     });
@@ -122,14 +121,13 @@ module.exports = function(models) {
     Taille.belongsToMany(Remise, {
       through: RemiseTaille,
       foreignKey: 'taille_id',
-      otherKey: 'remise_id',
       as: 'remises',
       onDelete: 'CASCADE'
     });
 
-    // ==============================================
-    // 2. CATEGORY RELATIONS
-    // ==============================================
+    /* ==============================================
+     * 2. CATEGORY RELATIONS
+     * ============================================== */
     Categorie.hasMany(Categorie, {
       as: 'sous_categories',
       foreignKey: 'parent_id',
@@ -147,9 +145,9 @@ module.exports = function(models) {
       onDelete: 'CASCADE'
     });
 
-    // ==============================================
-    // 3. ARTICLE RELATIONS (UPDATED)
-    // ==============================================
+    /* ==============================================
+     * 3. ARTICLE RELATIONS
+     * ============================================== */
     Article.belongsTo(Categorie, {
       foreignKey: 'categorie_id',
       as: 'categorie',
@@ -168,7 +166,6 @@ module.exports = function(models) {
       onDelete: 'CASCADE'
     });
 
-    // INVENTORY MANAGEMENT RELATIONS (UPDATED)
     Article.hasMany(ArticleTaille, {
       foreignKey: 'article_id',
       as: 'inventory',
@@ -189,9 +186,9 @@ module.exports = function(models) {
       onDelete: 'CASCADE'
     });
 
-    // ==============================================
-    // 4. ARTICLE-TAILLE RELATIONS (UPDATED)
-    // ==============================================
+    /* ==============================================
+     * 4. ARTICLE-TAILLE RELATIONS
+     * ============================================== */
     ArticleTaille.belongsTo(Article, {
       foreignKey: 'article_id',
       as: 'article',
@@ -229,9 +226,9 @@ module.exports = function(models) {
       onDelete: 'CASCADE'
     });
 
-    // ==============================================
-    // 5. ARTICLE-COULEUR RELATIONS
-    // ==============================================
+    /* ==============================================
+     * 5. ARTICLE-COULEUR RELATIONS
+     * ============================================== */
     ArticleCouleur.belongsTo(Article, {
       foreignKey: 'article_id',
       as: 'article'
@@ -248,9 +245,9 @@ module.exports = function(models) {
       onDelete: 'CASCADE'
     });
 
-    // ==============================================
-    // 6. MARQUE & GENRE RELATIONS
-    // ==============================================
+    /* ==============================================
+     * 6. MARQUE & GENRE RELATIONS
+     * ============================================== */
     Marque.hasMany(Article, {
       foreignKey: 'marque_id',
       as: 'articles',
@@ -263,9 +260,9 @@ module.exports = function(models) {
       onDelete: 'CASCADE'
     });
 
-    // ==============================================
-    // 7. TAILLE RELATIONS
-    // ==============================================
+    /* ==============================================
+     * 7. TAILLE RELATIONS
+     * ============================================== */
     Taille.belongsTo(Categorie, {
       foreignKey: 'categorie_id',
       as: 'categorie',
@@ -278,9 +275,9 @@ module.exports = function(models) {
       onDelete: 'CASCADE'
     });
 
-    // ==============================================
-    // 8. PANIER RELATIONS
-    // ==============================================
+    /* ==============================================
+     * 8. PANIER RELATIONS
+     * ============================================== */
     Panier.belongsTo(Utilisateur, {
       foreignKey: 'utilisateur_id',
       as: 'utilisateur',
@@ -296,7 +293,6 @@ module.exports = function(models) {
     Panier.belongsToMany(Article, {
       through: ArticlePanier,
       foreignKey: 'panier_id',
-      otherKey: 'article_id',
       as: 'articles',
       onDelete: 'CASCADE'
     });
@@ -304,7 +300,6 @@ module.exports = function(models) {
     Article.belongsToMany(Panier, {
       through: ArticlePanier,
       foreignKey: 'article_id',
-      otherKey: 'panier_id',
       as: 'paniers',
       onDelete: 'CASCADE'
     });
@@ -330,92 +325,93 @@ module.exports = function(models) {
       as: 'panier_articles',
       onDelete: 'CASCADE'
     });
-      ArticlePanier.belongsTo(Couleur, {
-        foreignKey: 'couleur_id',
-        as: 'couleur'
-      });
 
-      ArticlePanier.belongsTo(Taille, {
-        foreignKey: 'taille_id',
-        as: 'taille'
-      });
+    ArticlePanier.belongsTo(Couleur, {
+      foreignKey: 'couleur_id',
+      as: 'couleur'
+    });
 
-      // ==============================================
-      // 9. COMMANDE RELATIONS (UPDATED WITH LIVREUR)
-      // ==============================================
-      Commande.belongsTo(Client, {
-        foreignKey: 'client_id',
-        as: 'client',
-        onDelete: 'CASCADE'
-      });
-  
-      Client.hasMany(Commande, {
-        foreignKey: 'client_id',
-        as: 'commandes',
-        onDelete: 'CASCADE'
-      });
-  
-      Commande.belongsTo(Livreur, {
-        foreignKey: 'livreur_id',
-        as: 'livreur',
-        onDelete: 'SET NULL'
-      });
-  
-      Livreur.hasMany(Commande, {
-        foreignKey: 'livreur_id',
-        as: 'livreur_commandes',
-        onDelete: 'SET NULL'
-      });
-  
-      // This is the crucial fix - add these associations
-      Commande.hasMany(CommandeArticle, {
-        foreignKey: 'commande_id',
-        as: 'commande_articles',
-        onDelete: 'CASCADE'
-      });
-  
-      CommandeArticle.belongsTo(Commande, {
-        foreignKey: 'commande_id',
-        as: 'commande',
-        onDelete: 'CASCADE'
-      });
-  
-      // Keep the many-to-many relationship if needed
-      Commande.belongsToMany(Article, {
-        through: CommandeArticle,
-        foreignKey: 'commande_id',
-        otherKey: 'article_id',
-        as: 'articles',
-        onDelete: 'CASCADE'
-      });
-  
-      Article.belongsToMany(Commande, {
-        through: CommandeArticle,
-        foreignKey: 'article_id',
-        otherKey: 'commande_id',
-        as: 'commandes',
-        onDelete: 'CASCADE'
-      });
-  
-      CommandeArticle.belongsTo(Article, {
-        foreignKey: 'article_id',
-        as: 'article'
-      });
-  
-      Commande.hasMany(CommandeHistorique, {
-        foreignKey: 'commande_id',
-        as: 'historique',
-        onDelete: 'CASCADE'
-      });
-  
-      CommandeHistorique.belongsTo(Commande, {
-        foreignKey: 'commande_id',
-        as: 'commande_historique'
-      });
+    ArticlePanier.belongsTo(Taille, {
+      foreignKey: 'taille_id',
+      as: 'taille'
+    });
 
-    // ==============================================
-    // 10. CLIENT-UTILISATEUR RELATIONS
-    // ==============================================
+    /* ==============================================
+     * 9. COMMANDE RELATIONS
+     * ============================================== */
+    Commande.belongsTo(Client, {
+      foreignKey: 'client_id',
+      as: 'client',
+      onDelete: 'CASCADE'
+    });
+  
+    Client.hasMany(Commande, {
+      foreignKey: 'client_id',
+      as: 'commandes',
+      onDelete: 'CASCADE'
+    });
+  
+    Commande.belongsTo(Livreur, {
+      foreignKey: 'livreur_id',
+      as: 'livreur',
+      onDelete: 'SET NULL'
+    });
+  
+    Livreur.hasMany(Commande, {
+      foreignKey: 'livreur_id',
+      as: 'commandes',
+      onDelete: 'SET NULL'
+    });
+  
+    Commande.hasMany(CommandeArticle, {
+      foreignKey: 'commande_id',
+      as: 'commande_articles',
+      onDelete: 'CASCADE'
+    });
+  
+    CommandeArticle.belongsTo(Commande, {
+      foreignKey: 'commande_id',
+      as: 'commande',
+      onDelete: 'CASCADE'
+    });
+  
+    Commande.belongsToMany(Article, {
+      through: CommandeArticle,
+      foreignKey: 'commande_id',
+      as: 'articles',
+      onDelete: 'CASCADE'
+    });
+  
+    Article.belongsToMany(Commande, {
+      through: CommandeArticle,
+      foreignKey: 'article_id',
+      as: 'commandes',
+      onDelete: 'CASCADE'
+    });
+  
+    CommandeArticle.belongsTo(Article, {
+      foreignKey: 'article_id',
+      as: 'article'
+    });
+
+    /* ==============================================
+     * 10. COMMANDE HISTORY RELATIONS
+     * ============================================== */
+    Commande.hasMany(CommandeHistorique, {
+      foreignKey: 'commande_id',
+      as: 'historique',
+      onDelete: 'CASCADE'
+    });
+  
+    CommandeHistorique.belongsTo(Commande, {
+      foreignKey: 'commande_id',
+      as: 'commande',
+      onDelete: 'CASCADE'
+    });
+
+    /* ==============================================
+     * 11. CLIENT-UTILISATEUR RELATIONS
+     * ============================================== */
     Utilisateur.hasOne(Client, {
       foreignKey: 'utilisateur_id',
       as: 'client',
@@ -428,9 +424,9 @@ module.exports = function(models) {
       onDelete: 'CASCADE'
     });
 
-    // ==============================================
-    // 11. IMAGE RELATIONS
-    // ==============================================
+    /* ==============================================
+     * 12. IMAGE RELATIONS
+     * ============================================== */
     ImageArticleCouleur.belongsTo(Article, {
       foreignKey: 'article_id',
       as: 'article'
@@ -453,9 +449,9 @@ module.exports = function(models) {
       onDelete: 'CASCADE'
     });
 
-    // ==============================================
-    // 12. AJUSTEMENT STOCK RELATIONS
-    // ==============================================
+    /* ==============================================
+     * 13. AJUSTEMENT STOCK RELATIONS
+     * ============================================== */
     AjustementStock.belongsTo(Article, {
       foreignKey: 'article_id',
       as: 'article',
@@ -492,9 +488,9 @@ module.exports = function(models) {
       onDelete: 'CASCADE'
     });
 
-    // ==============================================
-    // 13. REMISE ↔ ÉVÉNEMENT
-    // ==============================================
+    /* ==============================================
+     * 14. REMISE ↔ ÉVÉNEMENT
+     * ============================================== */
     Evenement.hasMany(Remise, {
       foreignKey: 'evenement_id',
       as: 'remises',
@@ -507,9 +503,9 @@ module.exports = function(models) {
       onDelete: 'SET NULL'
     });
 
-    // ==============================================
-    // 14. UTILISATEUR & HISTORIQUE
-    // ==============================================
+    /* ==============================================
+     * 15. UTILISATEUR & HISTORIQUE
+     * ============================================== */
     Utilisateur.belongsTo(Utilisateur, {
       foreignKey: 'created_by',
       as: 'creator'
@@ -532,37 +528,39 @@ module.exports = function(models) {
 
     Utilisateur.hasMany(CommandeHistorique, {
       foreignKey: 'utilisateur_id',
-      as: 'modifications'
+      as: 'modifications_commandes'
     });
-    // ==============================================
-    // 15. ADDRESS RELATIONS
-    // ==============================================
-    Adresse.belongsTo(models.Client, {
+
+    /* ==============================================
+     * 16. ADDRESS RELATIONS
+     * ============================================== */
+    Adresse.belongsTo(Client, {
       foreignKey: 'client_id',
       as: 'client',
       onDelete: 'CASCADE'
     });
 
-    Client.hasMany(models.Adresse, {
+    Client.hasMany(Adresse, {
       foreignKey: 'client_id',
       as: 'adresses',
       onDelete: 'CASCADE'
     });
 
-    Commande.belongsTo(models.Adresse, {
+    Commande.belongsTo(Adresse, {
       foreignKey: 'adresse_id',
       as: 'adresse',
-      onDelete: 'RESTRICT' // Prevent deletion if used in orders
+      onDelete: 'RESTRICT'
     });
 
-    Adresse.hasMany(models.Commande, {
+    Adresse.hasMany(Commande, {
       foreignKey: 'adresse_id',
       as: 'commandes',
       onDelete: 'SET NULL'
     });
-    // ==============================================
-    // 16. LIVREUR RELATIONS (NEW)
-    // ==============================================
+
+    /* ==============================================
+     * 17. LIVREUR RELATIONS
+     * ============================================== */
     Livreur.belongsTo(Utilisateur, {
       foreignKey: 'utilisateur_id',
       as: 'utilisateur',
@@ -595,20 +593,72 @@ module.exports = function(models) {
       foreignKey: 'commande_id',
       as: 'livraison_tracking'
     });
-// ==============================================
-// 17. FACTURE RELATIONS (UPDATED)
-// ==============================================
-Facture.belongsTo(Commande, {
-  foreignKey: 'commande_id',
-  as: 'commande_facture', // Changed from 'commande' to avoid conflict
-  onDelete: 'CASCADE'
-});
 
-Commande.hasOne(Facture, {
-  foreignKey: 'commande_id',
-  as: 'facture',
-  onDelete: 'CASCADE'
-});
+    /* ==============================================
+     * 18. FACTURE RELATIONS
+     * ============================================== */
+    Facture.belongsTo(Commande, {
+      foreignKey: 'commande_id',
+      as: 'commande',
+      onDelete: 'CASCADE'
+    });
+
+    Commande.hasOne(Facture, {
+      foreignKey: 'commande_id',
+      as: 'facture',
+      onDelete: 'CASCADE'
+    });
+
+    /* ==============================================
+     * 19. EXPEDITION & SHIPPING RELATIONS
+     * ============================================== */
+    Commande.hasMany(Colis, {
+      foreignKey: 'commande_id',
+      as: 'colis',
+      onDelete: 'CASCADE'
+    });
+
+    Colis.belongsTo(Commande, {
+      foreignKey: 'commande_id',
+      as: 'commande',
+      onDelete: 'CASCADE'
+    });
+
+    Commande.hasMany(Retour, {
+      foreignKey: 'commande_id',
+      as: 'retours',
+      onDelete: 'CASCADE'
+    });
+
+    Retour.belongsTo(Commande, {
+      foreignKey: 'commande_id',
+      as: 'commande',
+      onDelete: 'CASCADE'
+    });
+
+    Livreur.hasMany(Colis, {
+      foreignKey: 'livreur_id',
+      as: 'colis_livres',
+      onDelete: 'SET NULL'
+    });
+
+    Colis.belongsTo(Livreur, {
+      foreignKey: 'livreur_id',
+      as: 'livreur',
+      onDelete: 'SET NULL'
+    });
+
+    Utilisateur.hasMany(Retour, {
+      foreignKey: 'traite_par',
+      as: 'retours_traites',
+      onDelete: 'SET NULL'
+    });
+
+    Retour.belongsTo(Utilisateur, {
+      foreignKey: 'traite_par',
+      as: 'traite_par_utilisateur',
+      onDelete: 'SET NULL'
+    });
 
     console.log('✅ All model associations set up successfully');
   } catch (error) {

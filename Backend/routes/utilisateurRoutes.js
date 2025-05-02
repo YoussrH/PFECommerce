@@ -4,8 +4,6 @@ const utilisateurController = require('../controllers/utilisateurController');
 const { 
   authentifier, 
   verifierAdmin, 
-  verifierSuperAdmin,
-  requireAuth
 } = require('../middleware/authMiddleware');
 
 // Admin/SuperAdmin protected routes
@@ -27,23 +25,6 @@ router.put('/mettreAJourClient/:id', authentifier, verifierAdmin, utilisateurCon
 // In routes/livreur.js or similar
 
 router.get("/livreurs-disponibles", authentifier, verifierAdmin, utilisateurController.obtenirLivreursDisponibles);
-// Self-service user route
-router.get('/moi', authentifier, requireAuth, (req, res) => {
-  const user = req.utilisateur;
-  return res.json({
-    success: true,
-    data: {
-      id: user.id,
-      nom: user.nom,
-      prenom: user.prenom,
-      email: user.email,
-      role: user.role,
-      est_verifie: user.est_verifie,
-      prefix: user.prefix,
-      newsletter: user.newsletter,
-      createdAt: user.createdAt
-    }
-  });
-});
+
 
 module.exports = router;

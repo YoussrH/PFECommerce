@@ -1,4 +1,3 @@
-// app/(back-office)/admin/utilisateurs/livreur/page.js
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -25,7 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, Plus, Trash2, Edit, Truck } from 'lucide-react'
+import { MoreHorizontal, Plus, Trash2, Edit, Truck, Loader2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
@@ -33,8 +32,8 @@ import { useAuth } from '@/app/contexts/AuthContext'
 import AjouterLivreurModal from '@/app/components/DashboardComponents/livreur/AjouterLivreurModal'
 import LivreurDetailsModal from '@/app/components/DashboardComponents/livreur/LivreurDetailsModal'
 import AssignerLivreurModal from '@/app/components/DashboardComponents/livreur/AssignerLivreurModal'
-import { useLivraisonsByLivreur } from '@/hooks/useLivraison'
-import { useAjouterLivreur, useUpdateLivreur, useDeleteLivreur } from '@/hooks/useLivreur'
+import { useUtilisateur } from '@/hooks/useUtilisateur'
+import { useLivraison } from '@/hooks/useLivraison'
 
 export default function LivreursPage() {
   const { user, token, isAdmin } = useAuth()
@@ -47,39 +46,42 @@ export default function LivreursPage() {
   const [selectedLivreur, setSelectedLivreur] = useState(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
+  const [livreurLivraisons, setLivreurLivraisons] = useState([])
+  const [isDeliveryLoading, setIsDeliveryLoading] = useState(false)
+  const [updatingStatus, setUpdatingStatus] = useState({})
+  const [refreshTrigger, setRefreshTrigger] = useState(0) // Add refresh trigger state
   const router = useRouter()
 
-  const { mutateAsync: ajouterLivreur, isLoading: isAdding } = useAjouterLivreur()
-  const { mutateAsync: updateLivreur, isLoading: isUpdating } = useUpdateLivreur()
-  const { mutateAsync: deleteLivreur, isLoading: isDeleting } = useDeleteLivreur()
-
-  // Use the livraison hook
   const { 
-    data: livreurLivraisons, 
-    isLoading: isDeliveryLoading, 
-    refetch: refetchLivraisons 
-  } = useLivraisonsByLivreur(selectedLivreur?.utilisateur_id)
+    creeLivreur,
+    mettreAJourLivreur,
+    supprimerLivreur,
+    obtenirTousLivreurs,
+    loading: apiLoading,
+    error: apiError,
+    clearError
+  } = useUtilisateur()
+
+  const { 
+    getLivraisonsParLivreur,
+    loading: deliveryLoading,
+    error: deliveryError,
+    clearError: clearDeliveryError
+  } = useLivraison()
 
   const fetchLivreurs = async () => {
     try {
       setLoading(true)
-      const response = await fetch(
-        `http://localhost:5000/utilisateurs/obtenirTousLivreurs?page=${currentPage}&search=${searchTerm}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      )
+      clearError()
+      const response = await obtenirTousLivreurs({ 
+        page: currentPage, 
+        limit: 10,
+        search: searchTerm 
+      }, token)
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch livreurs')
-      }
-      
-      const data = await response.json()
-      if (data.success) {
-        setLivreurs(data.data)
-        setTotalPages(data.pagination?.totalPages || 1)
+      if (response) {
+        setLivreurs(response.data || [])
+        setTotalPages(response.pagination?.totalPages || 1)
       }
     } catch (error) {
       console.error('Error fetching livreurs:', error)
@@ -89,12 +91,33 @@ export default function LivreursPage() {
     }
   }
 
+  const fetchLivraisonsByLivreur = async (livreurId) => {
+    try {
+      setIsDeliveryLoading(true)
+      clearDeliveryError()
+      const data = await getLivraisonsParLivreur(livreurId, token)
+      setLivreurLivraisons(data || [])
+    } catch (error) {
+      console.error('Error fetching deliveries:', error)
+      toast.error(error.message || 'Failed to fetch deliveries')
+    } finally {
+      setIsDeliveryLoading(false)
+    }
+  }
+
+  // Auto-refresh when dependencies change
+  useEffect(() => {
+    if (isAdmin) {
+      fetchLivreurs()
+    }
+  }, [isAdmin, token, currentPage, searchTerm, refreshTrigger]) // Add refreshTrigger to dependencies
+
   const handleAddLivreur = async (livreurData) => {
     try {
-      await ajouterLivreur(livreurData)
+      const newLivreur = await creeLivreur(livreurData, token)
       toast.success('Livreur créé avec succès')
       setIsAddModalOpen(false)
-      fetchLivreurs()
+      setRefreshTrigger(prev => prev + 1) // Trigger refresh
     } catch (error) {
       toast.error(error.message || 'Erreur lors de la création du livreur')
     }
@@ -102,23 +125,38 @@ export default function LivreursPage() {
 
   const handleUpdateLivreur = async (id, updates) => {
     try {
-      await updateLivreur({ id, updates })
+      // Optimistic update
+      setLivreurs(prev => prev.map(l => 
+        l.utilisateur_id === id ? { ...l, ...updates } : l
+      ))
+      
+      await mettreAJourLivreur(id, updates, token)
       toast.success('Livreur mis à jour avec succès')
-      fetchLivreurs()
+      setRefreshTrigger(prev => prev + 1) // Trigger refresh
+      
       if (selectedLivreur?.utilisateur_id === id) {
-        refetchLivraisons()
+        fetchLivraisonsByLivreur(id)
       }
     } catch (error) {
+      // Revert on error
+      setLivreurs(prev => prev.map(l => 
+        l.utilisateur_id === id ? { ...l, ...updates } : l
+      ))
       toast.error(error.message || 'Erreur lors de la mise à jour du livreur')
     }
   }
 
   const handleDeleteLivreur = async (id) => {
     try {
-      await deleteLivreur(id)
+      // Optimistic update
+      setLivreurs(prev => prev.filter(l => l.utilisateur_id !== id))
+      
+      await supprimerLivreur(id, token)
       toast.success('Livreur supprimé avec succès')
-      fetchLivreurs()
+      setRefreshTrigger(prev => prev + 1) // Trigger refresh
     } catch (error) {
+      // Revert on error
+      setRefreshTrigger(prev => prev + 1)
       toast.error(error.message || 'Erreur lors de la suppression du livreur')
     }
   }
@@ -126,16 +164,34 @@ export default function LivreursPage() {
   const handleToggleStatus = async (livreur) => {
     const newStatus = livreur.statut === 'actif' ? 'inactif' : 'actif'
     try {
+      setUpdatingStatus(prev => ({ ...prev, [livreur.utilisateur_id]: true }))
+      
+      // Optimistic update
+      setLivreurs(prev => prev.map(l => 
+        l.utilisateur_id === livreur.utilisateur_id 
+          ? { ...l, statut: newStatus } 
+          : l
+      ))
+      
       await handleUpdateLivreur(livreur.utilisateur_id, { statut: newStatus })
       toast.success(`Statut changé à ${newStatus}`)
     } catch (error) {
+      // Revert on error
+      setLivreurs(prev => prev.map(l => 
+        l.utilisateur_id === livreur.utilisateur_id 
+          ? { ...l, statut: livreur.statut } 
+          : l
+      ))
       toast.error('Erreur lors du changement de statut')
+    } finally {
+      setUpdatingStatus(prev => ({ ...prev, [livreur.utilisateur_id]: false }))
     }
   }
 
   const handleViewDetails = async (livreur) => {
     setSelectedLivreur(livreur)
     setIsDetailsModalOpen(true)
+    fetchLivraisonsByLivreur(livreur.utilisateur_id)
   }
 
   const handleAssignLivreur = (livreur) => {
@@ -145,16 +201,10 @@ export default function LivreursPage() {
 
   const handleDeliveryAssigned = () => {
     if (selectedLivreur) {
-      refetchLivraisons()
+      fetchLivraisonsByLivreur(selectedLivreur.utilisateur_id)
+      setRefreshTrigger(prev => prev + 1) // Trigger refresh after assignment
     }
-    fetchLivreurs()
   }
-
-  useEffect(() => {
-    if (isAdmin) {
-      fetchLivreurs()
-    }
-  }, [currentPage, searchTerm, isAdmin, token])
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value)
@@ -173,7 +223,10 @@ export default function LivreursPage() {
     <div className="container mx-auto px-6 py-6">
       <AjouterLivreurModal 
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => {
+          setIsAddModalOpen(false)
+          setRefreshTrigger(prev => prev + 1) // Refresh when closing modal
+        }}
         onLivreurAdded={handleAddLivreur}
       />
 
@@ -182,9 +235,13 @@ export default function LivreursPage() {
           <LivreurDetailsModal
             livreur={selectedLivreur}
             isOpen={isDetailsModalOpen}
-            onClose={() => setIsDetailsModalOpen(false)}
+            onClose={() => {
+              setIsDetailsModalOpen(false)
+              setSelectedLivreur(null)
+              setRefreshTrigger(prev => prev + 1) // Refresh when closing modal
+            }}
             onUpdate={handleUpdateLivreur}
-            deliveries={livreurLivraisons || []}
+            deliveries={livreurLivraisons}
             isLoading={isDeliveryLoading}
             onAssignDelivery={handleAssignLivreur}
           />
@@ -192,12 +249,17 @@ export default function LivreursPage() {
           <AssignerLivreurModal
             livreur={selectedLivreur}
             isOpen={isAssignModalOpen}
-            onClose={() => setIsAssignModalOpen(false)}
+            onClose={() => {
+              setIsAssignModalOpen(false)
+              setSelectedLivreur(null)
+              setRefreshTrigger(prev => prev + 1) // Refresh when closing modal
+            }}
             onAssign={handleDeliveryAssigned}
           />
         </>
       )}
 
+      {/* Rest of your component remains the same */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold mb-6">Gestion des Livreurs</h1>
@@ -260,7 +322,11 @@ export default function LivreursPage() {
                             : 'secondary'
                         }
                       >
-                        {livreur.statut}
+                        {updatingStatus[livreur.utilisateur_id] ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          livreur.statut
+                        )}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -290,8 +356,11 @@ export default function LivreursPage() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleToggleStatus(livreur)}
+                            disabled={updatingStatus[livreur.utilisateur_id]}
                           >
-                            {livreur.statut === 'actif' ? (
+                            {updatingStatus[livreur.utilisateur_id] ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : livreur.statut === 'actif' ? (
                               <>
                                 <span className="text-yellow-500 mr-2">🚫</span>
                                 Désactiver

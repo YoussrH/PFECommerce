@@ -36,9 +36,19 @@ module.exports = (sequelize) => {
         'en_preparation',
         'expediee',
         'livree',
-        'annulee'
+        'annulee',
+        'remplacee'
       ),
       defaultValue: 'en_attente',
+    },
+    statut_expedition: {
+      type: DataTypes.ENUM(
+        'Préparée',
+        'En route',
+        'Livrée',
+        'Échec de livraison'
+      ),
+      allowNull: true
     },
     methode_livraison: DataTypes.STRING,
     methode_paiement: DataTypes.STRING,
@@ -76,16 +86,10 @@ module.exports = (sequelize) => {
     },
   });
 
-  // Add associations directly in the model
   Commande.associate = function(models) {
     Commande.belongsTo(models.Client, {
       foreignKey: 'client_id',
       as: 'client',
-      onDelete: 'CASCADE'
-    });
-    Commande.hasMany(models.CommandeArticle, {
-      foreignKey: 'commande_id',
-      as: 'commande_articles',
       onDelete: 'CASCADE'
     });
     
@@ -116,6 +120,19 @@ module.exports = (sequelize) => {
     Commande.hasOne(models.Facture, {
       foreignKey: 'commande_id',
       as: 'facture',
+      onDelete: 'CASCADE'
+    });
+    
+    // Add associations for Colis and Retour
+    Commande.hasMany(models.Colis, {
+      foreignKey: 'commande_id',
+      as: 'colis',
+      onDelete: 'CASCADE'
+    });
+    
+    Commande.hasMany(models.Retour, {
+      foreignKey: 'commande_id',
+      as: 'retours',
       onDelete: 'CASCADE'
     });
   };

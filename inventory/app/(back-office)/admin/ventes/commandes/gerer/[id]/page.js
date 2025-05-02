@@ -56,9 +56,10 @@ import {
   useUpdateCommandeStatus,
   useCancelCommande,
   useGenerateInvoice,
-  useAssignLivreur,
 } from "@/hooks/useCommandes";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useLivraison } from "@/hooks/useLivraison";
+import { useUtilisateur } from "@/hooks/useUtilisateur";
 
 const statusOptions = [
   { value: "en_attente", label: "En attente", color: "bg-yellow-500" },
@@ -80,7 +81,17 @@ export default function GereCommandePage() {
   const [notesAdmin, setNotesAdmin] = useState("");
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [selectedLivreur, setSelectedLivreur] = useState("");
-  const [livreurs, setLivreurs] = useState([]);
+
+  // Use the stores
+  const { 
+    livreurs,
+    obtenirTousLivreurs,
+    loading: loadingLivreurs
+  } = useUtilisateur();
+  const {
+    assignerLivraison,
+    loading: loadingLivraison
+  } = useLivraison();
 
   const {
     data: commande,
@@ -107,29 +118,22 @@ export default function GereCommandePage() {
       setNotesAdmin(commande.notes_admin);
     }
 
+    // Fetch livreurs using the store
     const fetchLivreurs = async () => {
       try {
-        const response = await fetch('http://localhost:5000/utilisateurs/obtenirTousLivreurs', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        const data = await response.json();
-        if (data.success) {
-          setLivreurs(data.data);
-        }
+        await obtenirTousLivreurs({}, token);
       } catch (error) {
-        console.error('Error fetching livreurs:', error);
+        console.error("Error fetching livreurs:", error);
+        toast.error("Erreur lors du chargement des livreurs");
       }
     };
 
     fetchLivreurs();
-  }, [id, commande, isLoading, isError, router, token]);
+  }, [id, commande, isLoading, isError, router, token, obtenirTousLivreurs]);
 
   const updateStatusMutation = useUpdateCommandeStatus();
   const cancelCommandeMutation = useCancelCommande();
   const generateInvoiceMutation = useGenerateInvoice();
-  const assignLivreurMutation = useAssignLivreur();
 
   const handleStatusChange = async (newStatus) => {
     try {
@@ -137,21 +141,18 @@ export default function GereCommandePage() {
       toast.success("Statut de commande mis à jour");
       refetch();
     } catch (error) {
-      toast.error("Erreur lors de la mise à jour du statut");
+      toast.error(error.message || "Erreur lors de la mise à jour du statut");
     }
   };
 
   const handleAssignLivreur = async () => {
     try {
-      await assignLivreurMutation.mutateAsync({
-        commandeId: id,
-        livreurId: selectedLivreur
-      });
+      await assignerLivraison(commande.id, selectedLivreur, token);
       toast.success("Livreur assigné avec succès");
       setShowAssignDialog(false);
       refetch();
     } catch (error) {
-      toast.error("Erreur lors de l'assignation du livreur");
+      toast.error(error.message || "Erreur lors de l'assignation du livreur");
     }
   };
 
@@ -160,7 +161,7 @@ export default function GereCommandePage() {
       await generateInvoiceMutation.mutateAsync(id);
       toast.success("Facture générée avec succès");
     } catch (error) {
-      toast.error("Erreur lors de la génération de la facture");
+      toast.error(error.message || "Erreur lors de la génération de la facture");
     }
   };
 
@@ -175,36 +176,35 @@ export default function GereCommandePage() {
       setShowCancelDialog(false);
       refetch();
     } catch (error) {
-      toast.error("Erreur lors de l'annulation de la commande");
+      toast.error(error.message || "Erreur lors de l'annulation de la commande");
     }
   };
 
-  // In GereCommandePage.js - update the handleSaveNotes function
-const handleSaveNotes = async () => {
-  try {
-    const response = await fetch(`http://localhost:5000/commandes/ajouterNoteAdmin/${id}/notes`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ notes_admin: notesAdmin })
-    });
+  const handleSaveNotes = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/commandes/ajouterNoteAdmin/${id}/notes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ notes_admin: notesAdmin })
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to save notes');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save notes');
+      }
+
+      toast.success("Notes enregistrées avec succès");
+      refetch();
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      toast.error(error.message || "Erreur lors de l'enregistrement des notes");
     }
+  };
 
-    toast.success("Notes enregistrées avec succès");
-    refetch();
-  } catch (error) {
-    console.error('Error saving notes:', error);
-    toast.error(error.message || "Erreur lors de l'enregistrement des notes");
-  }
-};
-
-  if (isLoading) {
+  if (isLoading || loadingLivreurs) {
     return (
       <div className="space-y-4 p-4">
         <Skeleton className="h-10 w-1/3" />
@@ -304,9 +304,9 @@ const handleSaveNotes = async () => {
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleAssignLivreur}
-              disabled={!selectedLivreur}
+              disabled={!selectedLivreur || loadingLivraison}
             >
-              Assigner
+              {loadingLivraison ? "Assignation..." : "Assigner"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

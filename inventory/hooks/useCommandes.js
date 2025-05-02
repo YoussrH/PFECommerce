@@ -2,7 +2,6 @@
 'use client';
 import { useEffect, useMemo } from 'react';
 import { useCommandesStore } from './useCommandesStore';
-import { useLivraisonStore } from './useLivraison';
 
 export const useCommandes = (params = {}) => {
   const { commandes, total, loading, error, fetchCommandes } = useCommandesStore();
@@ -95,18 +94,3 @@ export const useGenerateInvoice = () => {
   return { mutateAsync };
 };
 
-export const useAssignLivreur = () => {
-  const { assignLivreur } = useLivraisonStore();
-  
-  const mutateAsync = async ({ commandeId, livreurId }) => {
-    try {
-      await assignLivreur(commandeId, livreurId);
-      return true;
-    } catch (error) {
-      console.error('Assign delivery person error:', error);
-      throw error;
-    }
-  };
-
-  return { mutateAsync };
-};

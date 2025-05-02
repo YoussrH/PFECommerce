@@ -1,4 +1,3 @@
-// app/components/DashboardComponents/livreur/AssignerLivreurModal.js
 'use client'
 import {
   Dialog,
@@ -18,9 +17,8 @@ import {
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { useState, useEffect } from 'react'
-import { useAuth } from '@/app/contexts/AuthContext'
 import { Badge } from '@/components/ui/badge'
-import { useLivraisonsDisponibles, useLivraisonStore } from '@/hooks/useLivraison'
+import { useLivraison } from '@/hooks/useLivraison'
 
 export default function AssignerLivreurModal({
   livreur,
@@ -28,15 +26,16 @@ export default function AssignerLivreurModal({
   onClose,
   onAssign
 }) {
-  const { token } = useAuth()
   const [selectedLivraison, setSelectedLivraison] = useState('')
-  const { assignLivreur, isLoading: loading } = useLivraisonStore()
-  
   const { 
-    data: livraisonsDisponibles = [], 
-    isLoading: fetching, 
-    refetch: refetchLivraisons 
-  } = useLivraisonsDisponibles()
+    loading, 
+    error,
+    getLivraisonsDisponibles,
+    assignerLivraison,
+    clearError
+  } = useLivraison()
+  const [livraisonsDisponibles, setLivraisonsDisponibles] = useState([])
+  const [fetching, setFetching] = useState(false)
 
   const handleAssign = async () => {
     if (!selectedLivraison) {
@@ -45,21 +44,36 @@ export default function AssignerLivreurModal({
     }
 
     try {
-      await assignLivreur(selectedLivraison, livreur.utilisateur_id)
+      await assignerLivraison(selectedLivraison, livreur.utilisateur_id)
       toast.success('Livraison assignée avec succès')
       onAssign()
       onClose()
+      setSelectedLivraison('')
     } catch (error) {
       console.error('Error assigning delivery:', error)
       toast.error(error.message || 'Erreur lors de l\'assignation')
     }
   }
 
+  const fetchLivraisonsDisponibles = async () => {
+    try {
+      setFetching(true)
+      clearError()
+      const data = await getLivraisonsDisponibles()
+      setLivraisonsDisponibles(data || [])
+    } catch (error) {
+      console.error('Error fetching available deliveries:', error)
+      toast.error(error.message || 'Erreur lors de la récupération des livraisons')
+    } finally {
+      setFetching(false)
+    }
+  }
+
   useEffect(() => {
     if (isOpen) {
-      refetchLivraisons()
+      fetchLivraisonsDisponibles()
     }
-  }, [isOpen, refetchLivraisons])
+  }, [isOpen])
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

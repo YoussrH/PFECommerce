@@ -440,13 +440,22 @@ const obtenirDetailsCommande = async (req, res) => {
 };
 
 
-// 8. Generate Invoice
+// 8. Generate Invoice - FIXED VERSION
 const genererFacture = async (req, res) => {
   let transaction;
   try {
-    transaction = await sequelize.transaction();
     const { id } = req.params;
 
+    // Validate UUID first
+    if (!isUUID(id, 4)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Format ID de commande invalide'
+      });
+    }
+
+    transaction = await sequelize.transaction();
+    
     const commande = await Commande.findByPk(id, {
       transaction,
       include: [
@@ -508,11 +517,19 @@ const genererFacture = async (req, res) => {
         commande_id: commande.id,
         numero: numeroFacture,
         date_emission: new Date(),
-        montant_ht: commande.prix_total / 1.2,
+        montant_ht: commande.prix_total / 1.2, // Assuming 20% VAT
         taux_tva: 20.0,
         montant_ttc: commande.prix_total,
         fichier_url: `/factures/${numeroFacture}.pdf`,
         est_payee: commande.statut === 'livree'
+      }, { transaction });
+
+      // Add invoice generation to history
+      await CommandeHistorique.create({
+        commande_id: commande.id,
+        utilisateur_id: req.utilisateur?.id || null,
+        action: 'generation_facture',
+        details: `Facture ${numeroFacture} générée`
       }, { transaction });
     }
 
@@ -531,41 +548,74 @@ const genererFacture = async (req, res) => {
     // Get delivery info
     const deliveryInfo = getDeliveryInfo(commande.methode_livraison);
 
-    // PDF content
-    doc.fontSize(20).text(`Facture ${facture.numero}`, { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(12).text(`Date: ${new Date(facture.date_emission).toLocaleDateString('fr-FR')}`);
-    doc.text(`Client: ${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`);
-    
-    // Delivery info
-    doc.text(`Méthode de livraison: ${commande.methode_livraison === 'express' ? 'Express' : 'Standard'}`)
-      .text(`Frais de livraison: ${deliveryInfo.fee.toFixed(2)} DT`)
-      .moveDown();
+    // PDF Header
+    doc.image(path.join(__dirname, '../../public/logo.png'), 50, 45, { width: 50 })
+       .fillColor('#444444')
+       .fontSize(20)
+       .text('Facture', 200, 50, { align: 'right' })
+       .fontSize(10)
+       .text(`Numéro: ${facture.numero}`, 200, 65, { align: 'right' })
+       .text(`Date: ${new Date(facture.date_emission).toLocaleDateString('fr-FR')}`, 200, 80, { align: 'right' })
+       .moveDown();
 
-    // Items table
-    doc.text('Articles commandés:', { underline: true });
-    doc.moveDown(0.5);
-    
-    let yPosition = doc.y;
-    doc.font('Helvetica-Bold');
-    doc.text('Article', 50, yPosition);
-    doc.text('Quantité', 250, yPosition);
-    doc.text('Prix', 350, yPosition, { width: 100, align: 'right' });
-    doc.font('Helvetica');
-    yPosition += 20;
+    // Customer Information
+    doc.fillColor('#444444')
+       .fontSize(14)
+       .text('Facturé à:', 50, 120)
+       .fontSize(10)
+       .text(`${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`, 50, 140)
+       .text(`${commande.adresse.adresse}`, 50, 155)
+       .text(`${commande.adresse.code_postal} ${commande.adresse.ville}`, 50, 170)
+       .text(`${commande.adresse.gouvernorat}`, 50, 185)
+       .moveDown();
+
+    // Invoice Items Table Header
+    doc.fontSize(12)
+       .fillColor('#ffffff')
+       .rect(50, 220, 500, 20)
+       .fill('#009966')
+       .text('Description', 50, 222)
+       .text('Quantité', 300, 222)
+       .text('Prix', 400, 222, { width: 100, align: 'right' })
+       .text('Total', 500, 222, { width: 50, align: 'right' });
+
+    // Invoice Items
+    let yPosition = 250;
+    doc.fillColor('#444444')
+       .fontSize(10);
 
     commande.articles.forEach(article => {
       const commandeArticle = article.CommandeArticle;
-      doc.text(article.nom_produit, 50, yPosition);
-      doc.text(commandeArticle.quantite.toString(), 250, yPosition);
-      doc.text(`${commandeArticle.prix_unitaire.toFixed(2)} DT`, 350, yPosition, { width: 100, align: 'right' });
-      yPosition += 20;
+      const lineTotal = commandeArticle.prix_unitaire * commandeArticle.quantite;
+      
+      doc.text(article.nom_produit, 50, yPosition)
+         .text(commandeArticle.quantite.toString(), 300, yPosition)
+         .text(`${commandeArticle.prix_unitaire.toFixed(2)} DT`, 400, yPosition, { width: 100, align: 'right' })
+         .text(`${lineTotal.toFixed(2)} DT`, 500, yPosition, { width: 50, align: 'right' });
+      
+      yPosition += 25;
     });
 
-    doc.moveDown();
-    doc.text(`Total HT: ${(facture.montant_ht).toFixed(2)} DT`);
-    doc.text(`TVA (20%): ${(facture.montant_ttc - facture.montant_ht).toFixed(2)} DT`);
-    doc.fontSize(14).text(`Total TTC: ${facture.montant_ttc.toFixed(2)} DT`, { align: 'right' });
+    // Delivery Fee
+    doc.text(deliveryInfo.description, 50, yPosition)
+       .text('1', 300, yPosition)
+       .text(`${deliveryInfo.fee.toFixed(2)} DT`, 400, yPosition, { width: 100, align: 'right' })
+       .text(`${deliveryInfo.fee.toFixed(2)} DT`, 500, yPosition, { width: 50, align: 'right' });
+    
+    yPosition += 30;
+
+    // Totals
+    doc.fontSize(12)
+       .text(`Sous-total: ${(facture.montant_ttc - deliveryInfo.fee).toFixed(2)} DT`, 400, yPosition, { width: 150, align: 'right' })
+       .text(`Frais de livraison: ${deliveryInfo.fee.toFixed(2)} DT`, 400, yPosition + 20, { width: 150, align: 'right' })
+       .fontSize(14)
+       .text(`Total TTC: ${facture.montant_ttc.toFixed(2)} DT`, 400, yPosition + 40, { width: 150, align: 'right' })
+       .moveDown();
+
+    // Footer
+    doc.fontSize(10)
+       .text('Merci pour votre achat!', 50, 700, { align: 'center' })
+       .text('Pour toute question, contactez notre service client au +216 XX XXX XXX', 50, 720, { align: 'center' });
 
     doc.end();
 
@@ -583,17 +633,24 @@ const genererFacture = async (req, res) => {
 
   } catch (error) {
     if (transaction) await transaction.rollback();
-    const errorInfo = debugError('genererFacture', error, { commandeId: req.params.id });
     
-    // Handle specific file system errors
+    // Handle specific errors
     if (error.code === 'ENOENT') {
       return res.status(500).json({
         success: false,
-        message: 'Erreur système: Impossible de créer le fichier PDF',
-        debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+        message: 'Erreur système: Impossible de créer le fichier PDF'
       });
     }
 
+    if (error.name === 'SequelizeDatabaseError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Erreur de base de données',
+        details: error.message
+      });
+    }
+
+    const errorInfo = debugError('genererFacture', error, { commandeId: req.params.id });
     res.status(500).json({ 
       success: false,
       message: 'Erreur génération facture',
@@ -603,13 +660,23 @@ const genererFacture = async (req, res) => {
 };
 
 
-// 3. Update Order Status
+// 3. Update Order Status - FIXED VERSION
 const mettreAJourStatut = async (req, res) => {
-  const transaction = await sequelize.transaction();
+  let transaction;
   try {
     const { id } = req.params;
     const { statut } = req.body;
-    const utilisateurId = req.utilisateur.id;
+    const utilisateurId = req.utilisateur?.id;
+
+    // Validate UUID format first
+    if (!isUUID(id, 4)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Format ID de commande invalide'
+      });
+    }
+
+    transaction = await sequelize.transaction();
 
     // Validate status
     const statutsValides = ['en_attente', 'confirmee', 'en_preparation', 'expediee', 'livree', 'annulee'];
@@ -622,7 +689,11 @@ const mettreAJourStatut = async (req, res) => {
       });
     }
 
-    const commande = await Commande.findByPk(id, { transaction });
+    const commande = await Commande.findByPk(id, { 
+      transaction,
+      lock: true 
+    });
+    
     if (!commande) {
       await transaction.rollback();
       return res.status(404).json({ 
@@ -652,15 +723,25 @@ const mettreAJourStatut = async (req, res) => {
 
     // Update status
     const updateData = { statut };
-    if (statut === 'expediee') updateData.date_expedition = new Date();
+    if (statut === 'expediee') {
+      updateData.date_expedition = new Date();
+      // Generate tracking number if not exists
+      if (!commande.numero_suivi) {
+        updateData.numero_suivi = `TRACK-${Date.now().toString(36).toUpperCase()}`;
+      }
+    }
     if (statut === 'livree') updateData.date_livraison = new Date();
 
     await commande.update(updateData, { transaction });
 
-    // Log history
+    // Log history - ensure utilisateurId is valid UUID if present
+    if (utilisateurId && !isUUID(utilisateurId, 4)) {
+      console.warn('Invalid utilisateurId format:', utilisateurId);
+    }
+
     await CommandeHistorique.create({
       commande_id: commande.id,
-      utilisateur_id: utilisateurId,
+      utilisateur_id: utilisateurId || null, // Handle null case
       action: 'changement_statut',
       ancienne_valeur: commande.statut,
       nouvelle_valeur: statut,
@@ -676,25 +757,64 @@ const mettreAJourStatut = async (req, res) => {
           qr_expires: qrCodeData.expires,
           qr_code_data: qrCodeData.url 
         }, { transaction });
+
+        // Add QR generation to history
+        await CommandeHistorique.create({
+          commande_id: commande.id,
+          utilisateur_id: utilisateurId || null,
+          action: 'generation_qr',
+          details: 'QR code généré pour confirmation livraison'
+        }, { transaction });
       } catch (qrError) {
         console.error('Erreur génération QR code:', qrError);
+        // Don't fail the whole operation for QR code generation
+        await CommandeHistorique.create({
+          commande_id: commande.id,
+          utilisateur_id: utilisateurId || null,
+          action: 'erreur_generation_qr',
+          details: 'Échec génération QR code'
+        }, { transaction });
       }
     }
 
     await transaction.commit();
 
+    // Send notification if status is expediee
+    if (statut === 'expediee') {
+      try {
+        await notifierExpEdition(req, res, false); // Pass false to prevent double response
+      } catch (notificationError) {
+        console.error('Erreur notification expédition:', notificationError);
+      }
+    }
+
     res.status(200).json({ 
       success: true,
       message: 'Statut mis à jour',
-      data: { ancienStatut: commande.statut, nouveauStatut: statut }
+      data: { 
+        ancienStatut: commande.statut, 
+        nouveauStatut: statut,
+        numero_suivi: commande.numero_suivi,
+        qr_code: statut === 'expediee' ? commande.qr_code_data : undefined
+      }
     });
 
   } catch (error) {
-    await transaction.rollback();
+    if (transaction) await transaction.rollback();
     const errorInfo = debugError('mettreAJourStatut', error, {
       commandeId: req.params.id,
       body: req.body
     });
+    
+    // Handle specific Sequelize errors
+    if (error.name === 'SequelizeDatabaseError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Erreur de base de données',
+        details: error.message
+      });
+    }
+
     res.status(500).json({ 
       success: false,
       message: 'Erreur changement statut',

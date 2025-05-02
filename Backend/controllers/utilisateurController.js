@@ -175,10 +175,20 @@ const transporter = nodemailer.createTransport({
  */
 
 
-
 const creeLivreur = async (req, res) => {
   try {
     const { email, nom, prenom, mot_de_passe, telephone, type_vehicule, plaque_immatriculation } = req.body;
+
+    // Validate required fields
+    const requiredFields = ['email', 'nom', 'prenom', 'mot_de_passe', 'telephone', 'type_vehicule', 'plaque_immatriculation'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    
+    if (missingFields.length > 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: `Champs manquants: ${missingFields.join(', ')}`
+      });
+    }
 
     // Check if user already exists
     const existingUser = await Utilisateur.findOne({ where: { email } });
@@ -189,7 +199,7 @@ const creeLivreur = async (req, res) => {
       });
     }
 
-    // Create the user with livreur role
+    // Create the user
     const newUser = await Utilisateur.create({
       email,
       nom,
@@ -197,24 +207,28 @@ const creeLivreur = async (req, res) => {
       mot_de_passe,
       role: 'livreur',
       est_verifie: true,
-      created_by: req.utilisateur.id
+      created_by: req.utilisateur?.id || null
     });
 
-    // Create the livreur profile
+    // Create livreur profile
     const newLivreur = await Livreur.create({
       utilisateur_id: newUser.id,
       telephone,
       type_vehicule,
       plaque_immatriculation,
-      statut: 'actif'
+      statut: 'actif',
+      capacite_max: req.body.capacite_max || 10,
+      note_moyenne: req.body.note_moyenne || 5,
+      est_certifie: req.body.est_certifie || false
     });
 
-    // Send welcome email
+    // Try to send email but don't fail if it doesn't work
     try {
       const templatePath = path.join(__dirname, '../templates/assigner-livreur.html');
       let htmlTemplate = fs.readFileSync(templatePath, 'utf8');
       
-      htmlTemplate = htmlTemplate
+        // Replace template variables
+        htmlTemplate = htmlTemplate
         .replace(/{{PRENOM}}/g, prenom)
         .replace(/{{NOM}}/g, nom)
         .replace(/{{EMAIL}}/g, email)
@@ -222,24 +236,25 @@ const creeLivreur = async (req, res) => {
         .replace(/{{TELEPHONE}}/g, telephone)
         .replace(/{{TYPE_VEHICULE}}/g, type_vehicule)
         .replace(/{{PLAQUE_IMMATRICULATION}}/g, plaque_immatriculation)
-        .replace(/{{STATUT}}/g, 'actif')
+        .replace(/{{STATUT}}/g, 'actif') // or use newLivreur.statut if different
         .replace(/{{LOGIN_URL}}/g, `${process.env.FRONTEND_URL}/login`)
         .replace(/{{CURRENT_YEAR}}/g, new Date().getFullYear())
-        .replace(/{{APP_NAME}}/g, process.env.APP_NAME || 'Notre Application');
+        .replace(/{{APP_NAME}}/g, process.env.APP_NAME || 'Votre Application');
 
       await transporter.sendMail({
         from: process.env.EMAIL_FROM,
         to: email,
-        subject: 'Bienvenue en tant que livreur chez nous',
+        subject: 'Bienvenue en tant que livreur',
         html: htmlTemplate
       });
     } catch (emailError) {
-      console.error('Error sending welcome email:', emailError);
+      console.error('Email sending failed:', emailError);
+      // Continue even if email fails
     }
 
     return res.status(201).json({
       success: true,
-      message: "Compte livreur créé avec succès",
+      message: "Livreur créé avec succès",
       data: {
         utilisateur: {
           id: newUser.id,
@@ -251,11 +266,12 @@ const creeLivreur = async (req, res) => {
         livreur: newLivreur
       }
     });
+
   } catch (error) {
-    console.error('Error creating delivery person:', error);
+    console.error('Error creating livreur:', error);
     return res.status(500).json({ 
       success: false,
-      error: "Erreur lors de la création du compte livreur" 
+      message: error.message || "Erreur serveur lors de la création du livreur"
     });
   }
 };

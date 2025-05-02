@@ -1,8 +1,6 @@
-"use client";
-
-import { useState, useEffect } from 'react';
-import axios from 'axios';
-import { toast } from 'sonner';
+'use client'
+import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import {
   Table,
   TableBody,
@@ -10,81 +8,75 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { useAuth } from '@/app/contexts/AuthContext';
+} from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
+import { useAuth } from '@/app/contexts/AuthContext'
+import { useUtilisateur } from '@/hooks/useUtilisateur'
 
 const ClientsPage = () => {
-  const { user, token, isAdmin } = useAuth();
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [pagination, setPagination] = useState({
-    page: 1,
-    total: 0,
-    totalPages: 1,
-  });
+  const { user, token, isAdmin } = useAuth()
+  const [clients, setClients] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
-  const fetchClients = async (page = 1, search = '') => {
+  const { 
+    obtenirTousClients,
+    loading: apiLoading,
+    error: apiError,
+    clearError
+  } = useUtilisateur()
+
+  const fetchClients = async () => {
     try {
-      setLoading(true);
+      setLoading(true)
+      clearError()
       
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        params: {
-          page,
-          search,
-        },
-      };
+      const response = await obtenirTousClients({ 
+        page: currentPage,
+        limit: 10,
+        search: searchTerm
+      }, token)
 
-      const response = await axios.get(
-        'http://localhost:5000/utilisateurs/obtenirTousClients',
-        config
-      );
-
-      if (response.data.success) {
-        setClients(response.data.data);
-        setPagination({
-          page: response.data.pagination.page,
-          total: response.data.pagination.total,
-          totalPages: response.data.pagination.totalPages,
-        });
+      if (response) {
+        setClients(response.data || [])
+        setTotalPages(response.pagination?.totalPages || 1)
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération des clients :', error);
-      toast.error('Échec de la récupération des clients');
+      console.error('Erreur lors de la récupération des clients :', error)
+      toast.error(error.message || 'Échec de la récupération des clients')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
+  // Auto-refresh when dependencies change
   useEffect(() => {
     if (isAdmin) {
-      fetchClients();
+      fetchClients()
     }
-  }, [isAdmin, token]);
+  }, [isAdmin, token, currentPage, searchTerm])
 
   const handleSearch = (e) => {
-    e.preventDefault();
-    fetchClients(1, searchTerm);
-  };
+    e.preventDefault()
+    setCurrentPage(1) // Reset to first page when searching
+  }
 
   const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= pagination.totalPages) {
-      fetchClients(newPage, searchTerm);
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage)
     }
-  };
+  }
 
   if (!isAdmin) {
     return (
       <div className="flex items-center justify-center h-full">
         <p>Accès non autorisé. Privilèges administrateur requis.</p>
       </div>
-    );
+    )
   }
 
   return (
@@ -125,13 +117,12 @@ const ClientsPage = () => {
               <TableBody>
                 {clients.map((client) => (
                   <TableRow key={client.utilisateur_id}>
-                   
                     <TableCell>
-                      {client.utilisateur.prenom} {client.utilisateur.nom}
+                      {client.utilisateur?.prenom} {client.utilisateur?.nom}
                     </TableCell>
-                    <TableCell>{client.utilisateur.email}</TableCell>
+                    <TableCell>{client.utilisateur?.email}</TableCell>
                     <TableCell>{client.telephone}</TableCell>
-                    <TableCell>{client.points_fidelite}</TableCell>
+                    <TableCell>{client.points_fidelite || 0}</TableCell>
                     <TableCell>
                       {client.newsletter ? 'Abonné' : 'Non abonné'}
                     </TableCell>
@@ -144,25 +135,25 @@ const ClientsPage = () => {
             </Table>
           </div>
 
-          {pagination.totalPages > 1 && (
+          {totalPages > 1 && (
             <div className="mt-4">
               <Pagination>
                 <PaginationContent>
                   <PaginationItem>
                     <PaginationPrevious
-                      onClick={() => handlePageChange(pagination.page - 1)}
-                      disabled={pagination.page === 1}
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
                     />
                   </PaginationItem>
                   <PaginationItem>
                     <span className="px-4">
-                      Page {pagination.page} sur {pagination.totalPages}
+                      Page {currentPage} sur {totalPages}
                     </span>
                   </PaginationItem>
                   <PaginationItem>
                     <PaginationNext
-                      onClick={() => handlePageChange(pagination.page + 1)}
-                      disabled={pagination.page === pagination.totalPages}
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
                     />
                   </PaginationItem>
                 </PaginationContent>
@@ -172,7 +163,7 @@ const ClientsPage = () => {
         </>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default ClientsPage;
+export default ClientsPage
