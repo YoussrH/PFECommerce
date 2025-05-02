@@ -1,5 +1,4 @@
 const { Op, Sequelize } = require('sequelize');
-const { isUUID } = require('validator');
 const QRCode = require('qrcode');
 const db = require('../models');
 const sequelize = db.sequelize;
@@ -38,6 +37,23 @@ const STATUTS_EXPEDITION = {
   ECHEC: 'Échec de livraison'
 };
 
+const STATUTS_COLIS = {
+  PREPARATION: 'preparation',
+  EXPEDIE: 'expedie',
+  LIVRE: 'livre'
+};
+
+// Generate QR Code for package
+const generateQRCode = async (data) => {
+  try {
+    return await QRCode.toDataURL(data);
+  } catch (err) {
+    console.error('QR Code generation error:', err);
+    return null;
+  }
+};
+
+// Expedition tracking
 const suivreExpeditions = async (req, res) => {
   try {
     const { page = 1, limit = 10, statut, livreur_id, date_debut, date_fin } = req.query;
@@ -74,7 +90,12 @@ const suivreExpeditions = async (req, res) => {
           as: 'livreur',
           include: [{ model: Utilisateur, as: 'utilisateur' }]
         },
-        { model: Adresse, as: 'adresse' }
+        { model: Adresse, as: 'adresse' },
+        {
+          model: Colis,
+          as: 'colis',
+          attributes: ['id', 'numero_suivi', 'statut', 'date_expedition', 'date_livraison']
+        }
       ],
       order: [['date_expedition', 'DESC']],
       limit: parseInt(limit),
@@ -101,6 +122,7 @@ const suivreExpeditions = async (req, res) => {
   }
 };
 
+// Update expedition status
 const mettreAJourStatutExpedition = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
@@ -124,6 +146,10 @@ const mettreAJourStatutExpedition = async (req, res) => {
           model: Livreur,
           as: 'livreur',
           include: [{ model: Utilisateur, as: 'utilisateur' }]
+        },
+        {
+          model: Colis,
+          as: 'colis'
         }
       ]
     });
@@ -146,6 +172,20 @@ const mettreAJourStatutExpedition = async (req, res) => {
 
     const ancienStatut = commande.statut_expedition;
     await commande.update({ statut_expedition }, { transaction });
+
+    // Update related packages if delivered
+    if (statut_expedition === STATUTS_EXPEDITION.LIVREE) {
+      await Colis.update(
+        { 
+          statut: STATUTS_COLIS.LIVRE,
+          date_livraison: new Date() 
+        },
+        { 
+          where: { commande_id: commande.id },
+          transaction 
+        }
+      );
+    }
 
     await CommandeHistorique.create({
       commande_id: commande.id,
@@ -181,6 +221,7 @@ const mettreAJourStatutExpedition = async (req, res) => {
   }
 };
 
+// List packages
 const listerColis = async (req, res) => {
   try {
     const { page = 1, limit = 10, statut, commande_id } = req.query;
@@ -210,7 +251,7 @@ const listerColis = async (req, res) => {
           include: [{ model: Utilisateur, as: 'utilisateur' }]
         }
       ],
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
       limit: parseInt(limit),
       offset: parseInt(offset)
     });
@@ -234,14 +275,19 @@ const listerColis = async (req, res) => {
   }
 };
 
+// Create/update package
 const gererColis = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
-    const { commande_id, poids, dimensions, contenu, livreur_id } = req.body;
+    const { commande_id, livreur_id } = req.body;
     const utilisateurId = req.utilisateur.id;
 
-    const commande = await Commande.findByPk(commande_id, { transaction });
+    const commande = await Commande.findByPk(commande_id, { 
+      transaction,
+      include: [{ model: Colis, as: 'colis' }]
+    });
+    
     if (!commande) {
       await transaction.rollback();
       return res.status(404).json({ 
@@ -252,6 +298,7 @@ const gererColis = async (req, res) => {
 
     let colis;
     if (id) {
+      // Update existing package
       colis = await Colis.findByPk(id, { transaction });
       if (!colis) {
         await transaction.rollback();
@@ -262,20 +309,41 @@ const gererColis = async (req, res) => {
       }
 
       await colis.update({
-        poids,
-        dimensions,
-        contenu,
-        livreur_id
+        livreur_id,
+        statut: req.body.statut || colis.statut
       }, { transaction });
+
+      // Generate new QR code if needed
+      if (req.body.regenerate_qr) {
+        const qrData = JSON.stringify({
+          colisId: colis.id,
+          token: colis.qr_token
+        });
+        const qrCodeData = await generateQRCode(qrData);
+        
+        await colis.update({
+          qr_code_data: qrCodeData,
+          qr_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 days
+        }, { transaction });
+      }
     } else {
+      // Create new package
       colis = await Colis.create({
         commande_id,
-        poids,
-        dimensions,
-        contenu,
         livreur_id,
-        statut: 'En préparation',
-        code_colis: `COL-${Date.now().toString(36).toUpperCase()}`
+        statut: STATUTS_COLIS.PREPARATION
+      }, { transaction });
+
+      // Generate QR code for new package
+      const qrData = JSON.stringify({
+        colisId: colis.id,
+        token: colis.qr_token
+      });
+      const qrCodeData = await generateQRCode(qrData);
+      
+      await colis.update({
+        qr_code_data: qrCodeData,
+        qr_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 days
       }, { transaction });
     }
 
@@ -283,7 +351,8 @@ const gererColis = async (req, res) => {
       commande_id: commande.id,
       utilisateur_id: utilisateurId,
       action: id ? 'modification_colis' : 'creation_colis',
-      details: id ? 'Colis modifié' : 'Colis créé'
+      details: id ? 'Colis modifié' : 'Colis créé',
+      nouvelle_valeur: JSON.stringify(colis.get({ plain: true }))
     }, { transaction });
 
     await transaction.commit();
@@ -307,6 +376,7 @@ const gererColis = async (req, res) => {
   }
 };
 
+// List returns
 const listerRetours = async (req, res) => {
   try {
     const { page = 1, limit = 10, statut, type } = req.query;
@@ -327,6 +397,11 @@ const listerRetours = async (req, res) => {
               model: Client,
               as: 'client',
               include: [{ model: Utilisateur, as: 'utilisateur' }]
+            },
+            {
+              model: Colis,
+              as: 'colis',
+              attributes: ['id', 'numero_suivi']
             }
           ]
         },
@@ -360,6 +435,7 @@ const listerRetours = async (req, res) => {
   }
 };
 
+// Process return
 const traiterRetour = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {

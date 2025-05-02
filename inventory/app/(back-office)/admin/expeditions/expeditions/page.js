@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { formatDate } from '@/lib/utils'
 
 export default function ExpeditionsPage() {
   const { expeditions, loading, fetchExpeditions, updateExpeditionStatus } = useExpeditionsStore()
@@ -30,6 +29,19 @@ export default function ExpeditionsPage() {
     statut: 'all',
     livreur_id: '',
   })
+
+  // Date formatting function directly in the component
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A'
+    const date = new Date(dateString)
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
 
   useEffect(() => {
     fetchExpeditions(filters)

@@ -63,7 +63,6 @@ import { useUtilisateur } from "@/hooks/useUtilisateur";
 
 const statusOptions = [
   { value: "en_attente", label: "En attente", color: "bg-yellow-500" },
-  { value: "confirmee", label: "Confirmée", color: "bg-blue-500" },
   { value: "en_preparation", label: "En préparation", color: "bg-purple-500" },
   { value: "expediee", label: "Expédiée", color: "bg-orange-500" },
   { value: "livree", label: "Livrée", color: "bg-green-500" },
@@ -81,6 +80,7 @@ export default function GereCommandePage() {
   const [notesAdmin, setNotesAdmin] = useState("");
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [selectedLivreur, setSelectedLivreur] = useState("");
+  const [refreshTrigger, setRefreshTrigger] = useState(false);
 
   // Use the stores
   const { 
@@ -129,7 +129,7 @@ export default function GereCommandePage() {
     };
 
     fetchLivreurs();
-  }, [id, commande, isLoading, isError, router, token, obtenirTousLivreurs]);
+  }, [id, commande, isLoading, isError, router, token, obtenirTousLivreurs, refreshTrigger]);
 
   const updateStatusMutation = useUpdateCommandeStatus();
   const cancelCommandeMutation = useCancelCommande();
@@ -139,7 +139,7 @@ export default function GereCommandePage() {
     try {
       await updateStatusMutation.mutateAsync({ id, statut: newStatus });
       toast.success("Statut de commande mis à jour");
-      refetch();
+      setRefreshTrigger(prev => !prev);
     } catch (error) {
       toast.error(error.message || "Erreur lors de la mise à jour du statut");
     }
@@ -150,7 +150,7 @@ export default function GereCommandePage() {
       await assignerLivraison(commande.id, selectedLivreur, token);
       toast.success("Livreur assigné avec succès");
       setShowAssignDialog(false);
-      refetch();
+      setRefreshTrigger(prev => !prev);
     } catch (error) {
       toast.error(error.message || "Erreur lors de l'assignation du livreur");
     }
@@ -174,7 +174,7 @@ export default function GereCommandePage() {
       });
       toast.success("Commande annulée avec succès");
       setShowCancelDialog(false);
-      refetch();
+      setRefreshTrigger(prev => !prev);
     } catch (error) {
       toast.error(error.message || "Erreur lors de l'annulation de la commande");
     }
@@ -197,14 +197,14 @@ export default function GereCommandePage() {
       }
 
       toast.success("Notes enregistrées avec succès");
-      refetch();
+      setRefreshTrigger(prev => !prev);
     } catch (error) {
       console.error('Error saving notes:', error);
       toast.error(error.message || "Erreur lors de l'enregistrement des notes");
     }
   };
 
-  if (isLoading || loadingLivreurs) {
+  if (isLoading || loadingLivreurs || updateStatusMutation.isLoading || cancelCommandeMutation.isLoading || loadingLivraison) {
     return (
       <div className="space-y-4 p-4">
         <Skeleton className="h-10 w-1/3" />

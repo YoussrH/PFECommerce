@@ -32,7 +32,6 @@ module.exports = (sequelize) => {
     statut: {
       type: DataTypes.ENUM(
         'en_attente',
-        'confirmee',
         'en_preparation',
         'expediee',
         'livree',
@@ -41,15 +40,6 @@ module.exports = (sequelize) => {
       ),
       defaultValue: 'en_attente',
     },
-    statut_expedition: {
-      type: DataTypes.ENUM(
-        'Préparée',
-        'En route',
-        'Livrée',
-        'Échec de livraison'
-      ),
-      allowNull: true
-    },
     methode_livraison: DataTypes.STRING,
     methode_paiement: DataTypes.STRING,
     frais_livraison: {
@@ -57,30 +47,12 @@ module.exports = (sequelize) => {
       defaultValue: 0,
     },
     notes_admin: DataTypes.TEXT,
-    date_expedition: DataTypes.DATE,
-    date_livraison: DataTypes.DATE,
-    qr_token: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      unique: true
-    },
-    qr_expires: {
-      type: DataTypes.DATE,
-      allowNull: true
-    }
-  }, {
+   
     tableName: 'commande',
     hooks: {
       beforeValidate: async (commande) => {
         if (!commande.reference) {
           commande.reference = await generateOrderReference(sequelize);
-        }
-      },
-      afterUpdate: async (commande) => {
-        if (commande.changed('statut') && commande.statut === 'expediee') {
-          commande.qr_token = DataTypes.UUIDV4();
-          commande.qr_expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-          await commande.save({ silent: true });
         }
       }
     },

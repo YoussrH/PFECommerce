@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const authController = require("../controllers/authController");
-const { authentifier } = require("../Middleware/authMiddleware");
+const { authentifier } = require("../middleware/authMiddleware");
 
 router.post("/inscription", authController.inscrireUtilisateur);
 router.post("/verifier-otp", authController.verifierOTP);

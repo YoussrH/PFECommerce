@@ -660,7 +660,6 @@ const genererFacture = async (req, res) => {
 };
 
 
-// 3. Update Order Status - FIXED VERSION
 const mettreAJourStatut = async (req, res) => {
   let transaction;
   try {
@@ -668,7 +667,7 @@ const mettreAJourStatut = async (req, res) => {
     const { statut } = req.body;
     const utilisateurId = req.utilisateur?.id;
 
-    // Validate UUID format first
+    // Validate UUID format
     if (!isUUID(id, 4)) {
       return res.status(400).json({ 
         success: false,
@@ -676,10 +675,11 @@ const mettreAJourStatut = async (req, res) => {
       });
     }
 
+    // Start transaction
     transaction = await sequelize.transaction();
 
     // Validate status
-    const statutsValides = ['en_attente', 'confirmee', 'en_preparation', 'expediee', 'livree', 'annulee'];
+    const statutsValides = ['en_attente', 'en_preparation', 'expediee', 'livree', 'annulee'];
     if (!statut || !statutsValides.includes(statut)) {
       await transaction.rollback();
       return res.status(400).json({ 
@@ -689,9 +689,10 @@ const mettreAJourStatut = async (req, res) => {
       });
     }
 
+    // First get just the commande with lock (no joins)
     const commande = await Commande.findByPk(id, { 
       transaction,
-      lock: true 
+      lock: true
     });
     
     if (!commande) {
@@ -704,8 +705,7 @@ const mettreAJourStatut = async (req, res) => {
 
     // Validate status transition
     const transitions = {
-      en_attente: ['confirmee', 'annulee'],
-      confirmee: ['en_preparation', 'annulee'],
+      en_attente: ['en_preparation', 'annulee'],
       en_preparation: ['expediee', 'annulee'],
       expediee: ['livree'],
       livree: [],
@@ -721,107 +721,168 @@ const mettreAJourStatut = async (req, res) => {
       });
     }
 
-    // Update status
-    const updateData = { statut };
+    // Prepare update data
+    const updateData = { 
+      statut,
+      updated_at: new Date() 
+    };
+    
+    // Handle specific status transitions
     if (statut === 'expediee') {
       updateData.date_expedition = new Date();
+      
       // Generate tracking number if not exists
       if (!commande.numero_suivi) {
         updateData.numero_suivi = `TRACK-${Date.now().toString(36).toUpperCase()}`;
       }
-    }
-    if (statut === 'livree') updateData.date_livraison = new Date();
 
+      // Generate QR code data
+      try {
+        const qrToken = require('uuid').v4();
+        const qrExpires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days
+        
+        updateData.qr_token = qrToken;
+        updateData.qr_expires = qrExpires;
+        
+        // Generate QR code asynchronously after the transaction
+        process.nextTick(async () => {
+          try {
+            const qrCodeData = await QRCode.toDataURL(`delivery-confirmation:${commande.id}:${qrToken}`);
+            await commande.update({ qr_code_data: qrCodeData });
+            
+            await CommandeHistorique.create({
+              commande_id: commande.id,
+              utilisateur_id: utilisateurId || null,
+              action: 'generation_qr',
+              details: 'QR code généré pour confirmation livraison'
+            });
+          } catch (qrError) {
+            console.error('Erreur génération QR code:', qrError);
+          }
+        });
+      } catch (qrError) {
+        console.error('Erreur préparation QR code:', qrError);
+      }
+    } else if (statut === 'livree') {
+      updateData.date_livraison = new Date();
+      updateData.qr_token = null;
+      updateData.qr_expires = null;
+      updateData.qr_code_data = null;
+    }
+
+    // Perform the main update
     await commande.update(updateData, { transaction });
 
-    // Log history - ensure utilisateurId is valid UUID if present
-    if (utilisateurId && !isUUID(utilisateurId, 4)) {
-      console.warn('Invalid utilisateurId format:', utilisateurId);
-    }
-
+    // Log history
     await CommandeHistorique.create({
       commande_id: commande.id,
-      utilisateur_id: utilisateurId || null, // Handle null case
+      utilisateur_id: utilisateurId || null,
       action: 'changement_statut',
       ancienne_valeur: commande.statut,
       nouvelle_valeur: statut,
       details: `Statut changé de ${commande.statut} à ${statut}`
     }, { transaction });
 
-    // Generate QR code if shipped
-    if (statut === 'expediee') {
-      try {
-        const qrCodeData = await genererQRCodePourLivraison(commande.id);
-        await commande.update({ 
-          qr_token: qrCodeData.token,
-          qr_expires: qrCodeData.expires,
-          qr_code_data: qrCodeData.url 
-        }, { transaction });
-
-        // Add QR generation to history
-        await CommandeHistorique.create({
-          commande_id: commande.id,
-          utilisateur_id: utilisateurId || null,
-          action: 'generation_qr',
-          details: 'QR code généré pour confirmation livraison'
-        }, { transaction });
-      } catch (qrError) {
-        console.error('Erreur génération QR code:', qrError);
-        // Don't fail the whole operation for QR code generation
-        await CommandeHistorique.create({
-          commande_id: commande.id,
-          utilisateur_id: utilisateurId || null,
-          action: 'erreur_generation_qr',
-          details: 'Échec génération QR code'
-        }, { transaction });
-      }
-    }
-
+    // Commit the transaction
     await transaction.commit();
 
-    // Send notification if status is expediee
+    // Now get the full commande details for notification (outside transaction)
     if (statut === 'expediee') {
       try {
-        await notifierExpEdition(req, res, false); // Pass false to prevent double response
+        const fullCommande = await Commande.findByPk(id, {
+          include: [
+            {
+              model: Client,
+              as: 'client',
+              include: [{ model: Utilisateur, as: 'utilisateur' }]
+            }
+          ]
+        });
+        
+        if (fullCommande) {
+          await sendShippingNotification(fullCommande, utilisateurId);
+        }
       } catch (notificationError) {
         console.error('Erreur notification expédition:', notificationError);
       }
     }
 
+    // Prepare response data
+    const responseData = { 
+      ancienStatut: commande.statut, 
+      nouveauStatut: statut,
+      numero_suivi: commande.numero_suivi
+    };
+
+    // Only include QR code if status is expediee and it exists
+    if (statut === 'expediee' && commande.qr_code_data) {
+      responseData.qr_code = commande.qr_code_data;
+    }
+
     res.status(200).json({ 
       success: true,
       message: 'Statut mis à jour',
-      data: { 
-        ancienStatut: commande.statut, 
-        nouveauStatut: statut,
-        numero_suivi: commande.numero_suivi,
-        qr_code: statut === 'expediee' ? commande.qr_code_data : undefined
-      }
+      data: responseData
     });
 
   } catch (error) {
-    if (transaction) await transaction.rollback();
-    const errorInfo = debugError('mettreAJourStatut', error, {
-      commandeId: req.params.id,
-      body: req.body
-    });
+    // Safe rollback check
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+    }
     
-    // Handle specific Sequelize errors
+    console.error('Error in mettreAJourStatut:', error);
+    
+    // Handle specific errors
     if (error.name === 'SequelizeDatabaseError') {
       return res.status(400).json({
         success: false,
         message: 'Erreur de base de données',
-        details: error.message
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
 
     res.status(500).json({ 
       success: false,
       message: 'Erreur changement statut',
-      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
+
+// Updated notification function to accept full commande object
+async function sendShippingNotification(commande, utilisateurId) {
+  if (!commande || commande.statut !== 'expediee') {
+    throw new Error('Commande non expédiée ou non trouvée');
+  }
+
+  const urlConfirmation = `${process.env.FRONTEND_URL}/confirmation-livraison?token=${commande.qr_token}`;
+
+  // Send email
+  await envoyerEmail({
+    to: commande.client.utilisateur.email,
+    subject: `Votre commande #${commande.reference} a été expédiée`,
+    template: 'commandeExpediee',
+    context: {
+      PRENOM: commande.client.utilisateur.prenom,
+      NOM: commande.client.utilisateur.nom,
+      ORDER_REF: commande.reference,
+      TRACKING_NUMBER: commande.numero_suivi || 'N/A',
+      CARRIER_NAME: commande.transporteur || 'Standard',
+      SHIPPING_DATE: new Date().toLocaleDateString('fr-FR'),
+      DELIVERY_ESTIMATE: '2-3 jours ouvrables',
+      TRACKING_LINK: urlConfirmation
+    }
+  });
+
+  // Log notification
+  await CommandeHistorique.create({
+    commande_id: commande.id,
+    utilisateur_id: utilisateurId || null,
+    action: 'notification_expedition',
+    details: 'Notification d\'expédition envoyée'
+  });
+}
 
 
 
