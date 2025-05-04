@@ -380,7 +380,72 @@ const obtenirUtilisateur = async (req, res) => {
     });
   }
 };
+const connecterLivreur = async (req, res) => {
+  try {
+    const { email, mot_de_passe } = req.body;
 
+    if (!email || !mot_de_passe) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Email et mot de passe sont obligatoires." 
+      });
+    }
+
+    const utilisateur = await Utilisateur.findOne({ where: { email } });
+    if (!utilisateur) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Livreur non trouvé." 
+      });
+    }
+
+    if (utilisateur.role !== 'livreur') {
+      return res.status(403).json({ 
+        success: false,
+        message: "Accès réservé aux livreurs." 
+      });
+    }
+
+    const motDePasseValide = await bcrypt.compare(mot_de_passe, utilisateur.mot_de_passe);
+    if (!motDePasseValide) {
+      return res.status(401).json({ 
+        success: false,
+        message: "Identifiants invalides." 
+      });
+    }
+
+    if (!utilisateur.est_verifie) {
+      return res.status(403).json({ 
+        success: false,
+        message: "Compte non vérifié." 
+      });
+    }
+
+    req.session.utilisateur = {
+      id: utilisateur.id,
+      email: utilisateur.email,
+      role: utilisateur.role,
+      nom: utilisateur.nom,
+      prenom: utilisateur.prenom,
+      est_verifie: utilisateur.est_verifie,
+    };
+
+    req.session.cookie.expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 1 week
+    req.session.save();
+
+    res.json({
+      success: true,
+      message: "Connexion livreur réussie",
+      utilisateur: req.session.utilisateur,
+    });
+  } catch (err) {
+    console.error('Livreur login error:', err);
+    res.status(500).json({ 
+      success: false,
+      error: "Échec de la connexion livreur." 
+    });
+  }
+};
 module.exports = {
   inscrireUtilisateur,
   verifierOTP,
@@ -388,4 +453,5 @@ module.exports = {
   connecterAdmin,
   deconnecterUtilisateur,
   obtenirUtilisateur,
+  connecterLivreur,
 };

@@ -19,7 +19,73 @@ export const useExpeditionsStore = create((set, get) => ({
   loading: false,
   error: null,
 
-  // Suivi des expéditions
+  // Helper to map package status to display text
+  mapColisStatus: (status) => {
+    switch(status) {
+      case 'preparation': return 'Préparée';
+      case 'expedie': return 'En route';
+      case 'livre': return 'Livrée';
+      case 'retourne': return 'Retourné';
+      case 'echec': return 'Échec de livraison';
+      default: return status;
+    }
+  },
+
+  // Fetch packages with QR code data
+  fetchColis: async (params = {}) => {
+    if (get().loading) return;
+    
+    set({ loading: true, error: null });
+    try {
+      const { page = 1, limit = 10, statut, commande_id } = params;
+      
+      const res = await api.get('/colis', { 
+        params: { 
+          page, 
+          limit, 
+          statut: statut === 'Préparée' ? 'preparation' :
+                 statut === 'En route' ? 'expedie' :
+                 statut === 'Livrée' ? 'livre' :
+                 statut === 'Retourné' ? 'retourne' :
+                 statut === 'Échec de livraison' ? 'echec' : statut,
+          commande_id 
+        }
+      });
+      
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || 'Invalid response format');
+      }
+      
+      // Transform data to include mapped status and ensure QR code data is included
+      const colis = res.data.data?.colis?.map(colis => ({
+        ...colis,
+        display_status: get().mapColisStatus(colis.statut),
+        qr_code_data: colis.qr_code_data || null,
+        commande_reference: colis.commande?.reference || 'N/A',
+        client_nom: colis.commande?.client?.utilisateur?.nom || 'N/A',
+        client_prenom: colis.commande?.client?.utilisateur?.prenom || 'N/A'
+      })) || [];
+      
+      set({ 
+        colis,
+        total: res.data.data?.total || 0,
+        pages: res.data.data?.pages || 1
+      });
+      
+      return res.data.data;
+    } catch (error) {
+      const message = error.response?.data?.message || 
+                     error.message || 
+                     'Failed to fetch packages';
+      set({ error: message });
+      toast.error(message);
+      throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  // Fetch expeditions (now based on Colis)
   fetchExpeditions: async (params = {}) => {
     if (get().loading) return;
     
@@ -28,15 +94,32 @@ export const useExpeditionsStore = create((set, get) => ({
       const { page = 1, limit = 10, statut, livreur_id, date_debut, date_fin } = params;
       
       const res = await api.get('/expeditions', { 
-        params: { page, limit, statut, livreur_id, date_debut, date_fin }
+        params: { 
+          page, 
+          limit, 
+          statut: statut === 'Préparée' ? 'preparation' :
+                 statut === 'En route' ? 'expedie' :
+                 statut === 'Livrée' ? 'livre' :
+                 statut === 'Échec de livraison' ? 'echec' : statut,
+          livreur_id, 
+          date_debut, 
+          date_fin 
+        }
       });
       
       if (!res.data?.success) {
         throw new Error(res.data?.message || 'Invalid response format');
       }
       
+      // Transform data to include mapped status
+      const expeditions = res.data.data?.expeditions?.map(exp => ({
+        ...exp,
+        statut_expedition: get().mapColisStatus(exp.statut),
+        display_status: get().mapColisStatus(exp.statut)
+      })) || [];
+      
       set({ 
-        expeditions: res.data.data?.expeditions || [],
+        expeditions,
         total: res.data.data?.total || 0
       });
       return res.data.data;
@@ -52,13 +135,20 @@ export const useExpeditionsStore = create((set, get) => ({
     }
   },
 
+  // Update package status (now works with colis ID)
   updateExpeditionStatus: async ({ id, statut_expedition, notes }) => {
     if (get().loading) return;
     
     set({ loading: true });
     try {
+      // Map display status to colis status
+      const colisStatut = statut_expedition === 'Préparée' ? 'preparation' :
+                         statut_expedition === 'En route' ? 'expedie' :
+                         statut_expedition === 'Livrée' ? 'livre' :
+                         statut_expedition === 'Échec de livraison' ? 'echec' : statut_expedition;
+
       const res = await api.put(`/expeditions/${id}/statut`, { 
-        statut_expedition, 
+        statut_expedition: colisStatut,
         notes 
       });
       
@@ -66,13 +156,19 @@ export const useExpeditionsStore = create((set, get) => ({
         throw new Error(res.data?.message || 'Failed to update status');
       }
       
-      toast.success(res.data.message || "Statut d'expédition mis à jour");
-      await get().fetchExpeditions();
+      toast.success(res.data.message || "Statut du colis mis à jour");
+      
+      // Refresh both expeditions and packages lists
+      await Promise.all([
+        get().fetchExpeditions(),
+        get().fetchColis()
+      ]);
+      
       return res.data.data;
     } catch (error) {
       const message = error.response?.data?.message || 
                      error.message || 
-                     'Failed to update expedition status';
+                     'Failed to update package status';
       toast.error(message);
       throw error;
     } finally {
@@ -80,40 +176,8 @@ export const useExpeditionsStore = create((set, get) => ({
     }
   },
 
-  // Gestion des colis
-  fetchColis: async (params = {}) => {
-    if (get().loading) return;
-    
-    set({ loading: true, error: null });
-    try {
-      const { page = 1, limit = 10, statut, commande_id } = params;
-      
-      const res = await api.get('/colis', { 
-        params: { page, limit, statut, commande_id }
-      });
-      
-      if (!res.data?.success) {
-        throw new Error(res.data?.message || 'Invalid response format');
-      }
-      
-      set({ 
-        colis: res.data.data?.colis || [],
-        total: res.data.data?.total || 0
-      });
-      return res.data.data;
-    } catch (error) {
-      const message = error.response?.data?.message || 
-                     error.message || 
-                     'Failed to fetch packages';
-      set({ error: message });
-      toast.error(message);
-      throw error;
-    } finally {
-      set({ loading: false });
-    }
-  },
-
-  manageColis: async ({ id, commande_id, poids, dimensions, contenu, livreur_id }) => {
+  // Create/update package
+  manageColis: async ({ id, commande_id, livreur_id }) => {
     if (get().loading) return;
     
     set({ loading: true });
@@ -123,9 +187,6 @@ export const useExpeditionsStore = create((set, get) => ({
       
       const res = await api[method](url, { 
         commande_id, 
-        poids, 
-        dimensions, 
-        contenu, 
         livreur_id 
       });
       
@@ -147,7 +208,7 @@ export const useExpeditionsStore = create((set, get) => ({
     }
   },
 
-  // Gestion des retours
+  // List returns
   fetchRetours: async (params = {}) => {
     if (get().loading) return;
     
@@ -180,6 +241,7 @@ export const useExpeditionsStore = create((set, get) => ({
     }
   },
 
+  // Process return
   processReturn: async ({ id, decision, motif_refus, notes }) => {
     if (get().loading) return;
     
@@ -208,4 +270,4 @@ export const useExpeditionsStore = create((set, get) => ({
       set({ loading: false });
     }
   }
-}));
+}))

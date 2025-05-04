@@ -11,7 +11,6 @@ router.put('/expeditions/:id/statut', authentifier, verifierAdmin, expeditionCon
 router.get('/colis', authentifier, expeditionController.listerColis);
 router.post('/colis', authentifier, verifierAdmin, expeditionController.gererColis);
 router.put('/colis/:id', authentifier, verifierAdmin, expeditionController.gererColis);
-
 // Returns management
 router.get('/retours', authentifier, expeditionController.listerRetours);
 router.put('/retours/:id/traiter', authentifier, verifierAdmin, expeditionController.traiterRetour);

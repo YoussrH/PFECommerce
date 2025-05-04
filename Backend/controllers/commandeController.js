@@ -7,6 +7,7 @@ const QRCode = require('qrcode');
 const { envoyerEmail } = require('../services/emailService');
 const db = require('../models');
 const sequelize = db.sequelize;
+const Colis = require('../models/Colis');
 
 
 
@@ -659,7 +660,6 @@ const genererFacture = async (req, res) => {
   }
 };
 
-
 const mettreAJourStatut = async (req, res) => {
   let transaction;
   try {
@@ -667,34 +667,26 @@ const mettreAJourStatut = async (req, res) => {
     const { statut } = req.body;
     const utilisateurId = req.utilisateur?.id;
 
-    // Validate UUID format
-    if (!isUUID(id, 4)) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Format ID de commande invalide'
-      });
-    }
-
-    // Start transaction
-    transaction = await sequelize.transaction();
-
-    // Validate status
-    const statutsValides = ['en_attente', 'en_preparation', 'expediee', 'livree', 'annulee'];
-    if (!statut || !statutsValides.includes(statut)) {
-      await transaction.rollback();
-      return res.status(400).json({ 
-        success: false,
-        message: 'Statut invalide',
-        statutsValides
-      });
-    }
-
-    // First get just the commande with lock (no joins)
-    const commande = await Commande.findByPk(id, { 
-      transaction,
-      lock: true
+    // Start transaction with isolation level to prevent deadlocks
+    transaction = await sequelize.transaction({
+      isolationLevel: Sequelize.Transaction.ISOLATION_LEVELS.READ_COMMITTED
     });
-    
+
+    // First get basic commande info without locking
+    const commande = await Commande.findByPk(id, {
+      include: [{
+        model: Client,
+        as: 'client',
+        attributes: ['utilisateur_id', 'telephone'],
+        include: [{
+          model: Utilisateur,
+          as: 'utilisateur',
+          attributes: ['id', 'prenom', 'nom', 'email']
+        }]
+      }],
+      transaction
+    });
+
     if (!commande) {
       await transaction.rollback();
       return res.status(404).json({ 
@@ -703,145 +695,93 @@ const mettreAJourStatut = async (req, res) => {
       });
     }
 
-    // Validate status transition
-    const transitions = {
-      en_attente: ['en_preparation', 'annulee'],
-      en_preparation: ['expediee', 'annulee'],
-      expediee: ['livree'],
-      livree: [],
-      annulee: []
-    };
+    // Now lock ONLY the commande row
+    const [updatedCount] = await Commande.update(
+      { statut },
+      { 
+        where: { id },
+        transaction,
+        lock: true,
+        skip: ['updated_at'] // Skip timestamp auto-update to prevent deadlock
+      }
+    );
 
-    if (!transitions[commande.statut].includes(statut)) {
+    if (updatedCount === 0) {
       await transaction.rollback();
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: `Transition non autorisée de ${commande.statut} à ${statut}`,
-        allowedTransitions: transitions[commande.statut]
+        message: 'Aucune commande mise à jour'
       });
     }
 
-    // Prepare update data
-    const updateData = { 
-      statut,
-      updated_at: new Date() 
-    };
-    
-    // Handle specific status transitions
+    // Handle package creation
     if (statut === 'expediee') {
-      updateData.date_expedition = new Date();
+      const [colis] = await db.Colis.findOrCreate({
+        where: { commande_id: id },
+        defaults: {
+          numero_suivi: `TRK${Date.now().toString(36).toUpperCase()}`,
+          statut: 'expedie',
+          date_expedition: new Date(),
+          transporteur: commande.methode_livraison === 'express' ? 'Express' : 'Standard',
+          url_suivi: `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`
+        },
+        transaction
+      });
+
+      // Generate QR code
+      const qrToken = require('uuid').v4();
+      const qrData = JSON.stringify({
+        colisId: colis.id,
+        commandeId: commande.id,
+        token: qrToken
+      });
+      const qrCodeData = await QRCode.toDataURL(qrData);
       
-      // Generate tracking number if not exists
-      if (!commande.numero_suivi) {
-        updateData.numero_suivi = `TRACK-${Date.now().toString(36).toUpperCase()}`;
-      }
-
-      // Generate QR code data
-      try {
-        const qrToken = require('uuid').v4();
-        const qrExpires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days
-        
-        updateData.qr_token = qrToken;
-        updateData.qr_expires = qrExpires;
-        
-        // Generate QR code asynchronously after the transaction
-        process.nextTick(async () => {
-          try {
-            const qrCodeData = await QRCode.toDataURL(`delivery-confirmation:${commande.id}:${qrToken}`);
-            await commande.update({ qr_code_data: qrCodeData });
-            
-            await CommandeHistorique.create({
-              commande_id: commande.id,
-              utilisateur_id: utilisateurId || null,
-              action: 'generation_qr',
-              details: 'QR code généré pour confirmation livraison'
-            });
-          } catch (qrError) {
-            console.error('Erreur génération QR code:', qrError);
-          }
-        });
-      } catch (qrError) {
-        console.error('Erreur préparation QR code:', qrError);
-      }
-    } else if (statut === 'livree') {
-      updateData.date_livraison = new Date();
-      updateData.qr_token = null;
-      updateData.qr_expires = null;
-      updateData.qr_code_data = null;
+      await colis.update({
+        qr_token: qrToken,
+        qr_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        qr_code_data: qrCodeData
+      }, { transaction });
     }
-
-    // Perform the main update
-    await commande.update(updateData, { transaction });
 
     // Log history
     await CommandeHistorique.create({
       commande_id: commande.id,
-      utilisateur_id: utilisateurId || null,
+      utilisateur_id: utilisateurId,
       action: 'changement_statut',
       ancienne_valeur: commande.statut,
       nouvelle_valeur: statut,
       details: `Statut changé de ${commande.statut} à ${statut}`
     }, { transaction });
 
-    // Commit the transaction
+    // Commit transaction FIRST
     await transaction.commit();
 
-    // Now get the full commande details for notification (outside transaction)
+    // Send notification AFTER successful commit
     if (statut === 'expediee') {
-      try {
-        const fullCommande = await Commande.findByPk(id, {
-          include: [
-            {
-              model: Client,
-              as: 'client',
-              include: [{ model: Utilisateur, as: 'utilisateur' }]
-            }
-          ]
-        });
-        
-        if (fullCommande) {
-          await sendShippingNotification(fullCommande, utilisateurId);
-        }
-      } catch (notificationError) {
-        console.error('Erreur notification expédition:', notificationError);
-      }
-    }
-
-    // Prepare response data
-    const responseData = { 
-      ancienStatut: commande.statut, 
-      nouveauStatut: statut,
-      numero_suivi: commande.numero_suivi
-    };
-
-    // Only include QR code if status is expediee and it exists
-    if (statut === 'expediee' && commande.qr_code_data) {
-      responseData.qr_code = commande.qr_code_data;
+      const colis = await db.Colis.findOne({ where: { commande_id: id } });
+      await sendShippingNotification(commande, colis, utilisateurId);
     }
 
     res.status(200).json({ 
       success: true,
       message: 'Statut mis à jour',
-      data: responseData
+      data: { 
+        ancienStatut: commande.statut, 
+        nouveauStatut: statut 
+      }
     });
 
   } catch (error) {
-    // Safe rollback check
-    if (transaction && !transaction.finished) {
-      await transaction.rollback();
+    if (transaction) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error('Rollback error:', rollbackError);
+      }
     }
     
-    console.error('Error in mettreAJourStatut:', error);
-    
-    // Handle specific errors
-    if (error.name === 'SequelizeDatabaseError') {
-      return res.status(400).json({
-        success: false,
-        message: 'Erreur de base de données',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-
+    console.error('Status update error:', error);
     res.status(500).json({ 
       success: false,
       message: 'Erreur changement statut',
@@ -850,38 +790,82 @@ const mettreAJourStatut = async (req, res) => {
   }
 };
 
-// Updated notification function to accept full commande object
-async function sendShippingNotification(commande, utilisateurId) {
-  if (!commande || commande.statut !== 'expediee') {
-    throw new Error('Commande non expédiée ou non trouvée');
-  }
-
-  const urlConfirmation = `${process.env.FRONTEND_URL}/confirmation-livraison?token=${commande.qr_token}`;
-
-  // Send email
-  await envoyerEmail({
-    to: commande.client.utilisateur.email,
-    subject: `Votre commande #${commande.reference} a été expédiée`,
-    template: 'commandeExpediee',
-    context: {
-      PRENOM: commande.client.utilisateur.prenom,
-      NOM: commande.client.utilisateur.nom,
-      ORDER_REF: commande.reference,
-      TRACKING_NUMBER: commande.numero_suivi || 'N/A',
-      CARRIER_NAME: commande.transporteur || 'Standard',
-      SHIPPING_DATE: new Date().toLocaleDateString('fr-FR'),
-      DELIVERY_ESTIMATE: '2-3 jours ouvrables',
-      TRACKING_LINK: urlConfirmation
+async function sendShippingNotification(commande, colis, utilisateurId) {
+  try {
+    if (!commande || !colis) {
+      throw new Error('Commande and package information required for shipping notification');
     }
-  });
 
-  // Log notification
-  await CommandeHistorique.create({
-    commande_id: commande.id,
-    utilisateur_id: utilisateurId || null,
-    action: 'notification_expedition',
-    details: 'Notification d\'expédition envoyée'
-  });
+    const urlConfirmation = `${process.env.FRONTEND_URL}/confirmation-livraison?token=${colis.qr_token}`;
+
+    // Send email
+    await envoyerEmail({
+      to: commande.client.utilisateur.email,
+      subject: `Votre commande #${commande.reference} a été expédiée`,
+      template: 'commandeExpediee',
+      context: {
+        PRENOM: commande.client.utilisateur.prenom,
+        NOM: commande.client.utilisateur.nom,
+        ORDER_REF: commande.reference,
+        TRACKING_NUMBER: colis.numero_suivi,
+        CARRIER_NAME: colis.transporteur || 'Standard',
+        SHIPPING_DATE: new Date().toLocaleDateString('fr-FR'),
+        DELIVERY_ESTIMATE: '2-3 jours ouvrables',
+        TRACKING_LINK: urlConfirmation,
+        QR_CODE_URL: colis.qr_code_data
+      }
+    });
+
+    // Log notification
+    await CommandeHistorique.create({
+      commande_id: commande.id,
+      utilisateur_id: utilisateurId || null,
+      action: 'notification_expedition',
+      details: 'Notification d\'expédition envoyée'
+    });
+  } catch (error) {
+    console.error('Error sending shipping notification:', error);
+    throw error;
+  }
+}
+
+async function sendShippingNotification(commande, colis, utilisateurId) {
+  try {
+    if (!colis) {
+      throw new Error('Package information is required for shipping notification');
+    }
+
+    const urlConfirmation = `${process.env.FRONTEND_URL}/confirmation-livraison?token=${colis.qr_token}`;
+
+    // Send email
+    await envoyerEmail({
+      to: commande.client.utilisateur.email,
+      subject: `Votre commande #${commande.reference} a été expédiée`,
+      template: 'commandeExpediee',
+      context: {
+        PRENOM: commande.client.utilisateur.prenom,
+        NOM: commande.client.utilisateur.nom,
+        ORDER_REF: commande.reference,
+        TRACKING_NUMBER: colis.numero_suivi,
+        CARRIER_NAME: colis.transporteur || 'Standard',
+        SHIPPING_DATE: new Date().toLocaleDateString('fr-FR'),
+        DELIVERY_ESTIMATE: '2-3 jours ouvrables',
+        TRACKING_LINK: urlConfirmation,
+        QR_CODE_URL: colis.qr_code_data
+      }
+    });
+
+    // Log notification
+    await CommandeHistorique.create({
+      commande_id: commande.id,
+      utilisateur_id: utilisateurId || null,
+      action: 'notification_expedition',
+      details: 'Notification d\'expédition envoyée'
+    });
+  } catch (error) {
+    console.error('Error sending shipping notification:', error);
+    throw error;
+  }
 }
 
 

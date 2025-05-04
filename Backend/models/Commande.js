@@ -46,8 +46,8 @@ module.exports = (sequelize) => {
       type: DataTypes.FLOAT,
       defaultValue: 0,
     },
-    notes_admin: DataTypes.TEXT,
-   
+    notes_admin: DataTypes.TEXT
+  }, {  // This is the options object
     tableName: 'commande',
     hooks: {
       beforeValidate: async (commande) => {
@@ -55,7 +55,7 @@ module.exports = (sequelize) => {
           commande.reference = await generateOrderReference(sequelize);
         }
       }
-    },
+    }
   });
 
   Commande.associate = function(models) {
@@ -95,7 +95,6 @@ module.exports = (sequelize) => {
       onDelete: 'CASCADE'
     });
     
-    // Add associations for Colis and Retour
     Commande.hasMany(models.Colis, {
       foreignKey: 'commande_id',
       as: 'colis',

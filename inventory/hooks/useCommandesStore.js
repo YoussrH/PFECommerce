@@ -1,4 +1,3 @@
-// useCommandesStore.js
 'use client'
 import { create } from 'zustand'
 import axios from 'axios'
@@ -109,28 +108,39 @@ export const useCommandesStore = create((set, get) => ({
   },
 
   updateStatus: async (id, statut) => {
-    if (!id || !statut || get().loading) return;
+    if (get().loading) throw new Error('Operation already in progress');
     
-    set({ loading: true });
+    set({ loading: true, error: null });
     try {
-      const res = await api.put(`/mettreAJourStatut/${id}/statut`, { statut });
+      const res = await api.put(`/mettreAJourStatut/${id}/statut`, { statut }, {
+        timeout: 10000 // 10 second timeout
+      });
       
       if (!res.data?.success) {
         throw new Error(res.data?.message || 'Failed to update status');
       }
       
-      toast.success(res.data.message || "Order status updated successfully");
+      toast.success(res.data.message || "Statut mis à jour avec succès");
       
-      await Promise.all([
-        get().fetchCommandes(),
-        id === get().commande?.id && get().fetchCommandeDetails(id)
-      ].filter(Boolean));
+      // Optimized refresh
+      const refreshCommands = get().fetchCommandes();
+      const refreshDetails = id === get().commande?.id ? get().fetchCommandeDetails(id) : Promise.resolve();
+      
+      await Promise.all([refreshCommands, refreshDetails]);
       
       return res.data.data;
     } catch (error) {
-      const message = error.response?.data?.message || 
-                     error.message || 
-                     'Failed to update status';
+      let message = 'Erreur de mise à jour';
+      
+      if (error.code === 'ECONNABORTED') {
+        message = 'La requête a expiré - vérifiez si la mise à jour a été appliquée';
+      } else {
+        message = error.response?.data?.message || 
+                 error.message || 
+                 message;
+      }
+      
+      set({ error: message });
       toast.error(message);
       throw error;
     } finally {
@@ -220,6 +230,4 @@ export const useCommandesStore = create((set, get) => ({
       set({ loading: false });
     }
   },
-
-
 }));

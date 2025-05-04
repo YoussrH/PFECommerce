@@ -1,14 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useExpeditionsStore } from '@/hooks/useExpeditionsStore'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -20,7 +12,6 @@ import {
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { formatDate } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -28,129 +19,51 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+    
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'N/A';
+  }
+};
+
+const statusVariant = {
+  preparation: 'secondary',
+  expedie: 'default',
+  livre: 'success',
+  retourne: 'destructive'
+}
 
 export default function ColisPage() {
-  const { colis, loading, fetchColis, manageColis } = useExpeditionsStore()
+  const { colis, loading, fetchColis } = useExpeditionsStore()
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
     statut: 'all',
     commande_id: ''
   })
-  const [openDialog, setOpenDialog] = useState(false)
-  const [currentColis, setCurrentColis] = useState(null)
-  const [formData, setFormData] = useState({
-    commande_id: '',
-    poids: '',
-    dimensions: '',
-    contenu: '',
-    livreur_id: ''
-  })
 
   useEffect(() => {
     fetchColis(filters)
   }, [filters])
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    try {
-      await manageColis({
-        id: currentColis?.id,
-        ...formData
-      })
-      setOpenDialog(false)
-      setCurrentColis(null)
-      setFormData({
-        commande_id: '',
-        poids: '',
-        dimensions: '',
-        contenu: '',
-        livreur_id: ''
-      })
-    } catch (error) {
-      console.error('Failed to manage package:', error)
-    }
-  }
-
-  const statusBadgeVariant = {
-    'En préparation': 'secondary',
-    'Prêt à expédier': 'default',
-    'Expédié': 'success'
-  }
-
   return (
-    <div className="container mx-auto py-4">
-      <Card>
+    <div className="container mx-auto p-6">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Gestion des Colis</CardTitle>
-          <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setCurrentColis(null)}>
-                Nouveau Colis
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {currentColis ? 'Modifier le colis' : 'Créer un nouveau colis'}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <Label>N° Commande</Label>
-                  <Input
-                    value={formData.commande_id}
-                    onChange={(e) => setFormData({...formData, commande_id: e.target.value})}
-                    placeholder="Référence de la commande"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Poids (kg)</Label>
-                  <Input
-                    type="number"
-                    value={formData.poids}
-                    onChange={(e) => setFormData({...formData, poids: e.target.value})}
-                    placeholder="Poids en kilogrammes"
-                    required
-                    min="0.1"
-                    step="0.1"
-                  />
-                </div>
-                <div>
-                  <Label>Dimensions (L x l x H)</Label>
-                  <Input
-                    value={formData.dimensions}
-                    onChange={(e) => setFormData({...formData, dimensions: e.target.value})}
-                    placeholder="Ex: 30x20x15 cm"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Contenu</Label>
-                  <Input
-                    value={formData.contenu}
-                    onChange={(e) => setFormData({...formData, contenu: e.target.value})}
-                    placeholder="Description du contenu"
-                    required
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setOpenDialog(false)}
-                  >
-                    Annuler
-                  </Button>
-                  <Button type="submit">
-                    {currentColis ? 'Modifier' : 'Créer'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4 mb-4">
@@ -163,9 +76,10 @@ export default function ColisPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="En préparation">En préparation</SelectItem>
-                <SelectItem value="Prêt à expédier">Prêt à expédier</SelectItem>
-                <SelectItem value="Expédié">Expédié</SelectItem>
+                <SelectItem value="preparation">En préparation</SelectItem>
+                <SelectItem value="expedie">Expédié</SelectItem>
+                <SelectItem value="livre">Livré</SelectItem>
+                <SelectItem value="retourne">Retourné</SelectItem>
               </SelectContent>
             </Select>
 
@@ -177,70 +91,80 @@ export default function ColisPage() {
             />
           </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Code Colis</TableHead>
-                  <TableHead>Commande</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead>Poids (kg)</TableHead>
-                  <TableHead>Date Expédition</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center">
-                      Chargement...
-                    </TableCell>
-                  </TableRow>
-                ) : colis.length > 0 ? (
-                  colis.map((colis) => (
-                    <TableRow key={colis.id}>
-                      <TableCell>{colis.code_colis}</TableCell>
-                      <TableCell>{colis.commande?.reference}</TableCell>
-                      <TableCell>
-                        <Badge variant={statusBadgeVariant[colis.statut]}>
-                          {colis.statut}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{colis.poids}</TableCell>
-                      <TableCell>{formatDate(colis.date_expedition)}</TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setCurrentColis(colis)
-                            setFormData({
-                              commande_id: colis.commande_id,
-                              poids: colis.poids,
-                              dimensions: colis.dimensions,
-                              contenu: colis.contenu,
-                              livreur_id: colis.livreur_id
-                            })
-                            setOpenDialog(true)
-                          }}
-                        >
-                          Modifier
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center">
-                      Aucun colis trouvé
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+          <div className="space-y-4">
+            {loading ? (
+              <div className="text-center">Chargement...</div>
+            ) : colis.length > 0 ? (
+              colis.map((colis) => (
+                <Card key={colis.id}>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <h3 className="font-medium">Colis #{colis.numero_suivi}</h3>
+                      <p className="text-sm text-gray-500">
+                        Commande: {colis.commande?.reference || 'N/A'}
+                      </p>
+                    </div>
+                    <Badge variant={statusVariant[colis.statut]}>
+                      {colis.statut}
+                    </Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm font-medium">Client</p>
+                        <p className="text-sm">
+                          {colis.commande?.client?.utilisateur?.prenom || 'N/A'} {colis.commande?.client?.utilisateur?.nom || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Transporteur</p>
+                        <p className="text-sm">
+                          {colis.transporteur || 'Non spécifié'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Date création</p>
+                        <p className="text-sm">
+                          {formatDate(colis.created_at)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* QR Code Display */}
+                    {colis.qr_code_data && (
+                      <div className="mt-4">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              Voir QR Code
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>QR Code du Colis #{colis.numero_suivi}</DialogTitle>
+                            </DialogHeader>
+                            <div className="flex flex-col items-center">
+                              <img 
+                                src={colis.qr_code_data} 
+                                alt={`QR Code for package ${colis.numero_suivi}`}
+                                className="w-64 h-64 border rounded"
+                              />
+                              <p className="mt-4 text-sm">
+                                Numéro de suivi: <strong>{colis.numero_suivi}</strong>
+                              </p>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="text-center">Aucun colis trouvé</div>
+            )}
           </div>
         </CardContent>
-      </Card>
     </div>
   )
 }

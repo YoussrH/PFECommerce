@@ -9,5 +9,5 @@ router.post("/connexion", authController.connecterUtilisateur);
 router.post("/connexion-admin", authController.connecterAdmin);
 router.post("/deconnexion", authentifier, authController.deconnecterUtilisateur);
 router.get("/utilisateur", authentifier, authController.obtenirUtilisateur);
-
+router.post("/connexion-livreur", authController.connecterLivreur);
 module.exports = router;

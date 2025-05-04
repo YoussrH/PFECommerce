@@ -609,9 +609,9 @@ module.exports = function(models) {
       onDelete: 'CASCADE'
     });
 
-    /* ==============================================
+/*     /* ==============================================
      * 19. EXPEDITION & SHIPPING RELATIONS
-     * ============================================== */
+     * ============================================== *
     Commande.hasMany(Colis, {
       foreignKey: 'commande_id',
       as: 'colis',
@@ -658,8 +658,76 @@ module.exports = function(models) {
       foreignKey: 'traite_par',
       as: 'traite_par_utilisateur',
       onDelete: 'SET NULL'
-    });
+    }); */
+      /* ==============================================
+      * 19. SHIPPING & RETURNS RELATIONS (Optimized)
+      * ============================================== */
 
+      // Command -> Packages (1:N)
+      Commande.hasMany(Colis, {
+        foreignKey: 'commande_id',
+        as: 'colis',
+        onDelete: 'CASCADE',
+        hooks: true // Ensure hooks run on cascade
+      });
+
+      Colis.belongsTo(Commande, { // Fixed typo: 'Commande' was misspelled
+        foreignKey: 'commande_id',
+        as: 'commande',
+        onDelete: 'CASCADE'
+      });
+
+      // Command -> Returns (1:N)
+      Commande.hasMany(Retour, {
+        foreignKey: 'commande_id',
+        as: 'retours',
+        onDelete: 'CASCADE'
+      });
+
+      Retour.belongsTo(Commande, {
+        foreignKey: 'commande_id',
+        as: 'commande',
+        onDelete: 'CASCADE'
+      });
+
+      // Deliveryman -> Packages (1:N)
+      Livreur.hasMany(Colis, {
+        foreignKey: 'livreur_id',
+        as: 'colis', // Changed from 'colis_livres' for consistency
+        onDelete: 'SET NULL'
+      });
+
+      Colis.belongsTo(Livreur, {
+        foreignKey: 'livreur_id',
+        as: 'livreur',
+        onDelete: 'SET NULL'
+      });
+
+      // User -> Processed Returns (1:N)
+      Utilisateur.hasMany(Retour, {
+        foreignKey: 'traite_par',
+        as: 'retours_traites',
+        onDelete: 'SET NULL'
+      });
+
+      Retour.belongsTo(Utilisateur, {
+        foreignKey: 'traite_par',
+        as: 'traite_par_admin', // More explicit naming
+        onDelete: 'SET NULL'
+      });
+
+      // Additional recommended relations:
+      Colis.hasOne(Retour, { // Each package can have one return
+        foreignKey: 'colis_id',
+        as: 'retour',
+        onDelete: 'SET NULL'
+      });
+
+      Retour.belongsTo(Colis, {
+        foreignKey: 'colis_id',
+        as: 'colis',
+        onDelete: 'SET NULL'
+      });
     console.log('✅ All model associations set up successfully');
   } catch (error) {
     console.error('❌ Error setting up model relations:', error);

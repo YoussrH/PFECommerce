@@ -80,7 +80,7 @@ export default function GereCommandePage() {
   const [notesAdmin, setNotesAdmin] = useState("");
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [selectedLivreur, setSelectedLivreur] = useState("");
-  const [refreshTrigger, setRefreshTrigger] = useState(false);
+  const [localLoading, setLocalLoading] = useState(false);
 
   // Use the stores
   const { 
@@ -103,6 +103,22 @@ export default function GereCommandePage() {
   const fraisLivraison = commande?.methode_livraison === "express" ? 15 : 7;
   const sousTotal = commande?.prix_total ? (commande.prix_total - fraisLivraison).toFixed(2) : 0;
 
+  // Auto-refresh system
+  useEffect(() => {
+    const handleRefresh = () => {
+      refetch();
+      // Force re-render of dependent components
+      setLocalLoading(false);
+    };
+
+    window.addEventListener('commande-updated', handleRefresh);
+    return () => window.removeEventListener('commande-updated', handleRefresh);
+  }, [refetch]);
+
+  const dispatchRefresh = () => {
+    window.dispatchEvent(new Event('commande-updated'));
+  };
+
   useEffect(() => {
     if (!id) {
       router.push("/admin/ventes/commandes");
@@ -118,7 +134,7 @@ export default function GereCommandePage() {
       setNotesAdmin(commande.notes_admin);
     }
 
-    // Fetch livreurs using the store
+    // Fetch livreurs
     const fetchLivreurs = async () => {
       try {
         await obtenirTousLivreurs({}, token);
@@ -129,30 +145,36 @@ export default function GereCommandePage() {
     };
 
     fetchLivreurs();
-  }, [id, commande, isLoading, isError, router, token, obtenirTousLivreurs, refreshTrigger]);
+  }, [id, commande, isLoading, isError, router, token, obtenirTousLivreurs]);
 
   const updateStatusMutation = useUpdateCommandeStatus();
   const cancelCommandeMutation = useCancelCommande();
   const generateInvoiceMutation = useGenerateInvoice();
 
   const handleStatusChange = async (newStatus) => {
+    setLocalLoading(true);
     try {
       await updateStatusMutation.mutateAsync({ id, statut: newStatus });
       toast.success("Statut de commande mis à jour");
-      setRefreshTrigger(prev => !prev);
+      dispatchRefresh();
     } catch (error) {
       toast.error(error.message || "Erreur lors de la mise à jour du statut");
+    } finally {
+      setLocalLoading(false);
     }
   };
 
   const handleAssignLivreur = async () => {
+    setLocalLoading(true);
     try {
       await assignerLivraison(commande.id, selectedLivreur, token);
       toast.success("Livreur assigné avec succès");
       setShowAssignDialog(false);
-      setRefreshTrigger(prev => !prev);
+      dispatchRefresh();
     } catch (error) {
       toast.error(error.message || "Erreur lors de l'assignation du livreur");
+    } finally {
+      setLocalLoading(false);
     }
   };
 
@@ -166,6 +188,7 @@ export default function GereCommandePage() {
   };
 
   const handleCancelCommande = async () => {
+    setLocalLoading(true);
     try {
       await cancelCommandeMutation.mutateAsync({
         id,
@@ -174,13 +197,16 @@ export default function GereCommandePage() {
       });
       toast.success("Commande annulée avec succès");
       setShowCancelDialog(false);
-      setRefreshTrigger(prev => !prev);
+      dispatchRefresh();
     } catch (error) {
       toast.error(error.message || "Erreur lors de l'annulation de la commande");
+    } finally {
+      setLocalLoading(false);
     }
   };
 
   const handleSaveNotes = async () => {
+    setLocalLoading(true);
     try {
       const response = await fetch(`http://localhost:5000/commandes/ajouterNoteAdmin/${id}/notes`, {
         method: 'POST',
@@ -197,14 +223,16 @@ export default function GereCommandePage() {
       }
 
       toast.success("Notes enregistrées avec succès");
-      setRefreshTrigger(prev => !prev);
+      dispatchRefresh();
     } catch (error) {
       console.error('Error saving notes:', error);
       toast.error(error.message || "Erreur lors de l'enregistrement des notes");
+    } finally {
+      setLocalLoading(false);
     }
   };
 
-  if (isLoading || loadingLivreurs || updateStatusMutation.isLoading || cancelCommandeMutation.isLoading || loadingLivraison) {
+  if (isLoading || loadingLivreurs || updateStatusMutation.isLoading || cancelCommandeMutation.isLoading || loadingLivraison || localLoading) {
     return (
       <div className="space-y-4 p-4">
         <Skeleton className="h-10 w-1/3" />
@@ -267,8 +295,9 @@ export default function GereCommandePage() {
             <AlertDialogAction
               onClick={handleCancelCommande}
               className="bg-red-600 hover:bg-red-700"
+              disabled={localLoading}
             >
-              Confirmer l&apos;annulation
+              {localLoading ? "Traitement..." : "Confirmer l'annulation"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -304,9 +333,9 @@ export default function GereCommandePage() {
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleAssignLivreur}
-              disabled={!selectedLivreur || loadingLivraison}
+              disabled={!selectedLivreur || localLoading}
             >
-              {loadingLivraison ? "Assignation..." : "Assigner"}
+              {localLoading ? "Assignation..." : "Assigner"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -329,6 +358,7 @@ export default function GereCommandePage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Client, Delivery, Payment Info */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
@@ -426,6 +456,7 @@ export default function GereCommandePage() {
           </Card>
         </div>
 
+        {/* Right Column - Order Management */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
@@ -437,7 +468,7 @@ export default function GereCommandePage() {
                 <Select
                   value={commande.statut}
                   onValueChange={handleStatusChange}
-                  disabled={commande.statut === "annulee"}
+                  disabled={commande.statut === "annulee" || localLoading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un statut" />
@@ -449,7 +480,8 @@ export default function GereCommandePage() {
                         value={status.value}
                         disabled={
                           commande.statut === "annulee" ||
-                          (status.value === "en_attente" && commande.statut !== "en_attente")
+                          (status.value === "en_attente" && commande.statut !== "en_attente") ||
+                          localLoading
                         }
                       >
                         {status.label}
@@ -465,10 +497,15 @@ export default function GereCommandePage() {
                   className="min-h-[100px]"
                   value={notesAdmin}
                   onChange={(e) => setNotesAdmin(e.target.value)}
+                  disabled={localLoading}
                 />
                 <div className="flex justify-end mt-2">
-                  <Button onClick={handleSaveNotes} size="sm">
-                    Enregistrer
+                  <Button 
+                    onClick={handleSaveNotes} 
+                    size="sm"
+                    disabled={localLoading}
+                  >
+                    {localLoading ? "Enregistrement..." : "Enregistrer"}
                   </Button>
                 </div>
               </div>
@@ -477,12 +514,12 @@ export default function GereCommandePage() {
               <Button
                 variant="outline"
                 onClick={handleGenerateInvoice}
-                disabled={commande.statut === "annulee"}
+                disabled={commande.statut === "annulee" || localLoading}
               >
                 <DownloadIcon className="mr-2 h-4 w-4" />
                 Télécharger la facture
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" disabled={localLoading}>
                 <MailIcon className="mr-2 h-4 w-4" />
                 Envoyer un email
               </Button>
@@ -490,7 +527,7 @@ export default function GereCommandePage() {
                 variant="destructive"
                 className="ml-auto"
                 onClick={() => setShowCancelDialog(true)}
-                disabled={commande.statut === "annulee" || commande.statut === "livree"}
+                disabled={commande.statut === "annulee" || commande.statut === "livree" || localLoading}
               >
                 Annuler la commande
               </Button>

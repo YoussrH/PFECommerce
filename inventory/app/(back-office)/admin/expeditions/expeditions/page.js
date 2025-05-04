@@ -67,8 +67,7 @@ export default function ExpeditionsPage() {
   }
 
   return (
-    <div className="container mx-auto py-4">
-      <Card>
+    <div className="container mx-auto p-6">
         <CardHeader>
           <CardTitle>Suivi des Expéditions</CardTitle>
         </CardHeader>
@@ -157,7 +156,6 @@ export default function ExpeditionsPage() {
             </Table>
           </div>
         </CardContent>
-      </Card>
     </div>
   )
 }

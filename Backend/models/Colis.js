@@ -1,3 +1,4 @@
+// models/Colis.js
 const { DataTypes } = require('sequelize');
 const QRCode = require('qrcode');
 
@@ -11,18 +12,10 @@ module.exports = (sequelize) => {
     commande_id: {
       type: DataTypes.UUID,
       allowNull: false,
-      references: {
-        model: 'commandes',
-        key: 'id'
-      }
     },
     livreur_id: {
       type: DataTypes.UUID,
       allowNull: true,
-      references: {
-        model: 'livreurs',
-        key: 'id'
-      }
     },
     numero_suivi: {
       type: DataTypes.STRING,
@@ -33,61 +26,73 @@ module.exports = (sequelize) => {
       type: DataTypes.ENUM(
         'preparation',
         'expedie',
-        'livre'
+        'livre',
+        'retourne'
       ),
       defaultValue: 'preparation'
     },
-    date_expedition: {
-      type: DataTypes.DATE,
-      allowNull: true
-    },
-    date_livraison: {
-      type: DataTypes.DATE,
-      allowNull: true
-    },
+    date_expedition: DataTypes.DATE,
+    date_livraison: DataTypes.DATE,
+    date_retour: DataTypes.DATE,
     qr_token: {
       type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      allowNull: true
+      defaultValue: DataTypes.UUIDV4
     },
-    qr_expires: {
-      type: DataTypes.DATE,
-      allowNull: true
-    },
-    qr_code_data: {
-      type: DataTypes.TEXT,
-      allowNull: true
-    }
+    qr_expires: DataTypes.DATE,
+    qr_code_data: DataTypes.TEXT,
+    transporteur: DataTypes.STRING,
+    url_suivi: DataTypes.STRING,
+    notes: DataTypes.TEXT
   }, {
     tableName: 'colis',
     timestamps: true,
-    paranoid: true
+    paranoid: true,
+    hooks: {
+      beforeValidate: async (colis) => {
+        if (!colis.numero_suivi) {
+          // Generate tracking number if not provided
+          colis.numero_suivi = `TRK${Date.now().toString(36).toUpperCase()}`;
+        }
+      },
+      beforeCreate: async (colis) => {
+        if (!colis.numero_suivi) {
+          colis.numero_suivi = `TRK${Date.now().toString(36).toUpperCase()}`;
+        }
+      },
+      afterUpdate: async (colis) => {
+        if (colis.changed('statut')) {
+          if (colis.statut === 'expedie' && !colis.date_expedition) {
+            colis.date_expedition = new Date();
+          }
+          if (colis.statut === 'livre' && !colis.date_livraison) {
+            colis.date_livraison = new Date();
+          }
+        }
+      }
+    }
   });
 
-  // Instance method to generate QR code
   Colis.prototype.generateQRCode = async function() {
-    try {
-      const qrData = JSON.stringify({
-        colisId: this.id,
-        token: this.qr_token
-      });
-      this.qr_code_data = await QRCode.toDataURL(qrData);
-      this.qr_expires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days
-      return this.qr_code_data;
-    } catch (err) {
-      console.error('QR Code generation error:', err);
-      throw err;
-    }
+    const qrData = JSON.stringify({
+      colisId: this.id,
+      token: this.qr_token,
+      commandeId: this.commande_id
+    });
+    this.qr_code_data = await QRCode.toDataURL(qrData);
+    this.qr_expires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days
+    return this.save();
   };
 
-  // Generate tracking number hook
-  Colis.beforeCreate(async (colis) => {
-    if (!colis.numero_suivi) {
-      const prefix = 'TRK';
-      const random = Math.floor(1000000000 + Math.random() * 9000000000);
-      colis.numero_suivi = `${prefix}${random}`;
-    }
-  });
+  Colis.associate = function(models) {
+    Colis.belongsTo(models.Commande, {
+      foreignKey: 'commande_id',
+      as: 'commande'
+    });
+    Colis.belongsTo(models.Livreur, {
+      foreignKey: 'livreur_id',
+      as: 'livreur'
+    });
+  };
 
   return Colis;
 };
