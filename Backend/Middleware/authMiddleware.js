@@ -1,6 +1,7 @@
 const { Utilisateur,Livreur } = require("../models");
 const jwt = require('jsonwebtoken');
 
+
 const authentifierLivreur = async (req, res, next) => {
   try {
     // First try session
@@ -13,7 +14,7 @@ const authentifierLivreur = async (req, res, next) => {
         }]
       });
 
-      if (utilisateur) {
+      if (utilisateur && utilisateur.livreur) {
         req.utilisateur = utilisateur;
         req.livreur = utilisateur.livreur;
         return next();
@@ -31,7 +32,7 @@ const authentifierLivreur = async (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
+
     const utilisateur = await Utilisateur.findByPk(decoded.id, {
       include: [{
         model: Livreur,
@@ -41,7 +42,7 @@ const authentifierLivreur = async (req, res, next) => {
       attributes: { exclude: ['mot_de_passe'] }
     });
 
-    if (!utilisateur) {
+    if (!utilisateur || !utilisateur.livreur) {
       return res.status(401).json({
         success: false,
         message: 'Authentification livreur requise'
@@ -59,18 +60,18 @@ const authentifierLivreur = async (req, res, next) => {
     req.utilisateur = utilisateur;
     req.livreur = utilisateur.livreur;
     req.token = token;
-    
+
     next();
   } catch (error) {
     console.error('Erreur authentification livreur:', error);
-    
+
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({
         success: false,
         message: 'Token invalide'
       });
     }
-    
+
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
@@ -84,6 +85,7 @@ const authentifierLivreur = async (req, res, next) => {
     });
   }
 };
+
 const authentifier = async (req, res, next) => {
   try {
     if (req.session.utilisateur) {

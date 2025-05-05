@@ -18,7 +18,6 @@ export default function Header({ isFilterBarPresent }) {
   const [petitPrixOpen, setPetitPrixOpen] = useState(false);
   const [filleOpen, setFilleOpen] = useState(false);
   const [garconOpen, setGarconOpen] = useState(false);
-  const [bebeOpen, setBebeOpen] = useState(false);
   const [chaussuresOpen, setChaussuresOpen] = useState(false);
   const [marquesOpen, setMarquesOpen] = useState(false);
   const [tendancesOpen, setTendancesOpen] = useState(false);
@@ -71,9 +70,6 @@ export default function Header({ isFilterBarPresent }) {
       case "Garçon":
         setGarconOpen(true);
         break;
-      case "Bébé":
-        setBebeOpen(true);
-        break;
       case "Chaussures":
         setChaussuresOpen(true);
         break;
@@ -107,9 +103,6 @@ export default function Header({ isFilterBarPresent }) {
         break;
       case "Garçon":
         setGarconOpen(false);
-        break;
-      case "Bébé":
-        setBebeOpen(false);
         break;
       case "Chaussures":
         setChaussuresOpen(false);
@@ -146,7 +139,7 @@ export default function Header({ isFilterBarPresent }) {
                   "PETITS PRIX",
                   "Fille",
                   "Garçon",
-                  "Bébé",
+                 
                   "Chaussures",
                   "Marques",
                   "Tendances",
@@ -177,9 +170,9 @@ export default function Header({ isFilterBarPresent }) {
                     >
                       {item}
                     </h6>
-                    {["Fille", "Garçon", "Bébé"].includes(item) && (
+                    {["Fille", "Garçon"].includes(item) && (
                       <span className="whitespace-nowrap absolute bottom-full left-1/2 -translate-x-1/2 mb-1 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition">
-                        {item === "Bébé" ? "1-36 mois" : "2-16 ans"}
+                       2-16 ans
                       </span>
                     )}
                   </div>
@@ -203,7 +196,6 @@ export default function Header({ isFilterBarPresent }) {
                   "PETITS PRIX",
                   "Fille",
                   "Garçon",
-                  "Bébé",
                   "Chaussures",
                   "Marques",
                   "Tendances",
@@ -283,7 +275,7 @@ export default function Header({ isFilterBarPresent }) {
           petitPrixOpen={petitPrixOpen}
           filleOpen={filleOpen}
           garconOpen={garconOpen}
-          bebeOpen={bebeOpen}
+        
           chaussuresOpen={chaussuresOpen}
           marquesOpen={marquesOpen}
           tendancesOpen={tendancesOpen}

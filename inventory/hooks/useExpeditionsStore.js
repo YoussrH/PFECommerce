@@ -93,7 +93,7 @@ export const useExpeditionsStore = create((set, get) => ({
     try {
       const { page = 1, limit = 10, statut, livreur_id, date_debut, date_fin } = params;
       
-      const res = await api.get('/expeditions', { 
+      const res = await api.get('/', { 
         params: { 
           page, 
           limit, 

@@ -1,9 +1,12 @@
 const { Livreur, Utilisateur } = require('../models');
 
-const obtenirLivreur = async (req, res) => {
+
+
+/* const obtenirLivreur = async (req, res) => {
   try {
+    // Changed from req.params.id to req.utilisateur.id since we're using auth middleware
     const livreur = await Livreur.findOne({
-      where: { utilisateur_id: req.params.id },
+      where: { utilisateur_id: req.utilisateur.id },
       include: [{
         model: Utilisateur,
         as: 'utilisateur',
@@ -38,8 +41,51 @@ const obtenirLivreur = async (req, res) => {
     });
   }
 };
+ */
 
+const obtenirLivreur = async (req, res) => {
+  try {
+    if (!req.livreur) {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès non autorisé'
+      });
+    }
 
+    const livreur = await Livreur.findOne({
+      where: { id: req.livreur.id },
+      include: [{
+        model: Utilisateur,
+        as: 'utilisateur',
+        attributes: ['id', 'nom', 'prenom', 'email', 'est_verifie']
+      }]
+    });
+
+    res.json({
+      success: true,
+      livreur: {
+        id: livreur.id,
+        telephone: livreur.telephone,
+        statut: livreur.statut,
+        type_vehicule: livreur.type_vehicule,
+        plaque_immatriculation: livreur.plaque_immatriculation,
+        utilisateur: {
+          id: livreur.utilisateur.id,
+          nom: livreur.utilisateur.nom,
+          prenom: livreur.utilisateur.prenom,
+          email: livreur.utilisateur.email,
+          est_verifie: livreur.utilisateur.est_verifie
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Erreur:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur serveur'
+    });
+  }
+};
 const mettreAJourLivreur = async (req, res) => {
     try {
       // We can now access req.livreur from the middleware

@@ -420,7 +420,7 @@ const connecterLivreur = async (req, res) => {
     if (!utilisateur) {
       return res.status(404).json({ 
         success: false,
-        message: "Admin not found" 
+        message: "Livreur not found" 
       });
     }
 
@@ -469,16 +469,16 @@ const connecterLivreur = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Admin login successful",
+      message: "Livreur login successful",
       token, 
       utilisateur: req.session.utilisateur,
     });
 
   } catch (err) {
-    console.error('Admin login error:', err);
+    console.error('Livreur login error:', err);
     res.status(500).json({ 
       success: false,
-      error: "Admin login failed" 
+      error: "Livreur login failed" 
     });
   }
 };

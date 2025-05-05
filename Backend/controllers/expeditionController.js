@@ -534,7 +534,7 @@ const traiterRetour = async (req, res) => {
     }
   };
 
-
+/* 
   
   const mettreAJourStatutColis = async (req, res) => {
     let transaction;
@@ -606,8 +606,84 @@ const traiterRetour = async (req, res) => {
         debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
       });
     }
-  };
+  }; */
   
+  const mettreAJourStatutColis = async (req, res) => {
+    let transaction;
+    try {
+      const { id } = req.params;
+      const { statut } = req.body;
+      const utilisateurId = req.utilisateur.id;
+  
+      transaction = await sequelize.transaction();
+  
+      const colis = await Colis.findByPk(id, { 
+        transaction,
+        include: [Commande]
+      });
+  
+      if (!colis) {
+        await transaction.rollback();
+        return res.status(404).json({ 
+          success: false,
+          message: 'Colis non trouvé'
+        });
+      }
+  
+      const ancienStatut = colis.statut;
+      const updateData = { statut };
+  
+      // Handle status-specific updates
+      if (statut === 'expedie') {
+        updateData.date_expedition = new Date();
+        
+        // If no livreur assigned, use the one from the commande
+        if (!colis.livreur_id && colis.commande.livreur_id) {
+          updateData.livreur_id = colis.commande.livreur_id;
+        }
+        
+        // Update order status if not already expediee
+        if (colis.commande.statut !== 'expediee') {
+          await colis.commande.update({ statut: 'expediee' }, { transaction });
+        }
+      } else if (statut === 'livree') {
+        updateData.date_livraison = new Date();
+      }
+  
+      await colis.update(updateData, { transaction });
+  
+      // Log history
+      await CommandeHistorique.create({
+        commande_id: colis.commande_id,
+        utilisateur_id: utilisateurId,
+        action: 'maj_statut_colis',
+        ancienne_valeur: ancienStatut,
+        nouvelle_valeur: statut,
+        details: `Statut colis changé de ${ancienStatut} à ${statut}`
+      }, { transaction });
+  
+      await transaction.commit();
+  
+      res.status(200).json({
+        success: true,
+        message: 'Statut colis mis à jour',
+        data: colis
+      });
+  
+    } catch (error) {
+      if (transaction) await transaction.rollback();
+      
+      const errorInfo = debugError('mettreAJourStatutColis', error, {
+        colisId: req.params.id,
+        body: req.body
+      });
+      res.status(500).json({ 
+        success: false,
+        message: 'Erreur mise à jour statut colis',
+        debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+      });
+    }
+  };
   const scannerQRCodeColis = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
@@ -726,5 +802,5 @@ const traiterRetour = async (req, res) => {
   listerRetours,
   traiterRetour,
 mettreAJourStatutColis,
-    scannerQRCodeColis
+scannerQRCodeColis
 };

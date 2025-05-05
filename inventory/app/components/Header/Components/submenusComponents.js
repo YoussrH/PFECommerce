@@ -4,7 +4,6 @@ import SubmenuNouveautes from "../Submenu/SubmenuNouveautes";
 import SubmenuPetitPrix from "../Submenu/SubmenuPetitPrix";
 import SubmenuFille from "../Submenu/SubmenuFille";
 import SubmenuGarçon from "../Submenu/SubmenuGarçon";
-import SubmenuBebe from "../Submenu/SubmenuBebe";
 import SubmenuChaussures from "../Submenu/SubmenuChaussures";
 import SubmenuMarque from "../Submenu/SubmenuMarque";
 import SubmenuOutlet from "../Submenu/SubmenuOutlet";
@@ -15,7 +14,6 @@ export default function SubmenusComponents({
   petitPrixOpen,
   filleOpen,
   garconOpen,
-  bebeOpen,
   chaussuresOpen,
   marquesOpen,
   tendancesOpen,
@@ -51,12 +49,7 @@ export default function SubmenusComponents({
         onMouseLeave={() => handleMouseLeave("Garçon")}
         isScrolled={isScrolled}
       />
-      <SubmenuBebe
-        isOpen={bebeOpen}
-        onMouseEnter={() => handleMouseEnter("Bébé")}
-        onMouseLeave={() => handleMouseLeave("Bébé")}
-        isScrolled={isScrolled}
-      />
+
       <SubmenuChaussures
         isOpen={chaussuresOpen}
         onMouseEnter={() => handleMouseEnter("Chaussures")}

@@ -8,18 +8,17 @@ router.get('/:reference/facture', commandeController.genererFacturePDF);
 
 
 // Routes pour l'administration des commandes
-router.get("/", authentifier, commandeController.listerCommandes);
-router.get("/obtenirDetailsCommande/:id", authentifier, commandeController.obtenirDetailsCommande);
-router.put("/mettreAJourStatut/:id/statut", authentifier, commandeController.mettreAJourStatut);
+router.get("/", authentifier, commandeController.listerCommandes);//est3mltha web
+router.get("/obtenirDetailsCommande/:id", authentifier, commandeController.obtenirDetailsCommande);//est3mltha web
+router.put("/mettreAJourStatut/:id/statut", authentifier, commandeController.mettreAJourStatut);//est3mltha web
 router.put("/modifierAdresseLivraison/:id/adresse", authentifier, commandeController.modifierAdresseLivraison);
-router.delete("/annulerCommande/:id", authentifier, commandeController.annulerCommande);
+router.delete("/annulerCommande/:id", authentifier, commandeController.annulerCommande);//est3mltha web
 // In your routes file
-router.post("/ajouterNoteAdmin/:id/notes", authentifier, commandeController.ajouterNoteAdmin);
-router.get("/genererFacture/:id/facture", authentifier, commandeController.genererFacture);
-router.get("/:id/historique", authentifier, commandeController.obtenirHistorique);
+router.post("/ajouterNoteAdmin/:id/notes", authentifier, commandeController.ajouterNoteAdmin);//est3mltha web
+router.get("/genererFacture/:id/facture", authentifier, commandeController.genererFacture);//est3mltha web
+router.get("/:id/historique", authentifier, commandeController.obtenirHistorique);//est3mltha web
 router.post("/:id/notifier", authentifier, commandeController.envoyerNotificationClient);
 
-router.post( "/:id/confirmer-livraison", authentifier, commandeController.confirmerLivraisonQR );
 router.get("/commandes-a-livrer", authentifier, verifierAdmin, commandeController.obtenirCommandesALivrer);
 
 module.exports = router;

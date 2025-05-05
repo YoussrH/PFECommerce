@@ -8,7 +8,7 @@ const QRCode = require('qrcode');
 const { envoyerEmail } = require('../services/emailService');
 const db = require('../models');
 const sequelize = db.sequelize;
-const Colis = require('../models/Colis');
+const Colis  = require('../models/Colis');
 
 
 
@@ -660,7 +660,6 @@ const genererFacture = async (req, res) => {
     });
   }
 };
-
 /* 
 const mettreAJourStatut = async (req, res) => {
   let transaction;
@@ -669,66 +668,62 @@ const mettreAJourStatut = async (req, res) => {
     const { statut } = req.body;
     const utilisateurId = req.utilisateur?.id;
 
-    // Start transaction with isolation level to prevent deadlocks
     transaction = await sequelize.transaction({
       isolationLevel: Sequelize.Transaction.ISOLATION_LEVELS.READ_COMMITTED
     });
 
-    // First get basic commande info without locking
     const commande = await Commande.findByPk(id, {
+      transaction,
       include: [{
         model: Client,
         as: 'client',
-        attributes: ['utilisateur_id', 'telephone'],
-        include: [{
-          model: Utilisateur,
+        include: [{ 
+          model: Utilisateur, 
           as: 'utilisateur',
           attributes: ['id', 'prenom', 'nom', 'email']
         }]
-      }],
-      transaction
+      }]
     });
 
     if (!commande) {
       await transaction.rollback();
-      return res.status(404).json({ 
-        success: false,
-        message: 'Commande non trouvée'
-      });
+      return res.status(404).json({ success: false, message: 'Commande non trouvée' });
     }
 
-    // Now lock ONLY the commande row
-    const [updatedCount] = await Commande.update(
-      { statut },
-      { 
-        where: { id },
-        transaction,
-        lock: true,
-        skip: ['updated_at'] // Skip timestamp auto-update to prevent deadlock
-      }
-    );
+    console.log(`Changing status from ${commande.statut} to ${statut}`);
 
-    if (updatedCount === 0) {
-      await transaction.rollback();
-      return res.status(400).json({
-        success: false,
-        message: 'Aucune commande mise à jour'
-      });
-    }
+    // Update command status
+    await commande.update({ statut }, { transaction });
 
-    // Handle package creation
-    if (statut === 'expediee') {
-      const [colis] = await db.Colis.findOrCreate({
+    // Handle package creation based on status
+    if (statut === 'en_preparation' || statut === 'expediee') {
+      console.log(`Creating/updating colis for ${statut} status`);
+      
+      const isExpediee = statut === 'expediee';
+      const colisData = {
+        commande_id: id,
+        livreur_id: commande.livreur_id,
+        statut: isExpediee ? 'expedie' : 'en_preparation',
+        transporteur: commande.methode_livraison === 'express' ? 'Express' : 'Standard',
+        numero_suivi: `TRK${Date.now().toString(36).toUpperCase()}`,
+        url_suivi: `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`,
+        ...(isExpediee && { date_expedition: new Date() })
+      };
+
+      // Check if colis exists
+      const existingColis = await sequelize.models.Colis.findOne({
         where: { commande_id: id },
-        defaults: {
-          numero_suivi: `TRK${Date.now().toString(36).toUpperCase()}`,
-          statut: 'expedie',
-          date_expedition: new Date(),
-          transporteur: commande.methode_livraison === 'express' ? 'Express' : 'Standard',
-          url_suivi: `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`
-        },
         transaction
       });
+
+      let colis;
+      if (existingColis) {
+        // Update existing colis
+        colis = await existingColis.update(colisData, { transaction });
+      } else {
+        // Create new colis
+        colis = await sequelize.models.Colis.create(colisData, { transaction });
+      }
 
       // Generate QR code
       const qrToken = require('uuid').v4();
@@ -738,160 +733,6 @@ const mettreAJourStatut = async (req, res) => {
         token: qrToken
       });
       const qrCodeData = await QRCode.toDataURL(qrData);
-      
-      await colis.update({
-        qr_token: qrToken,
-        qr_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-        qr_code_data: qrCodeData
-      }, { transaction });
-    }
-
-    // Log history
-    await CommandeHistorique.create({
-      commande_id: commande.id,
-      utilisateur_id: utilisateurId,
-      action: 'changement_statut',
-      ancienne_valeur: commande.statut,
-      nouvelle_valeur: statut,
-      details: `Statut changé de ${commande.statut} à ${statut}`
-    }, { transaction });
-
-    // Commit transaction FIRST
-    await transaction.commit();
-
-    // Send notification AFTER successful commit
-    if (statut === 'expediee') {
-      const colis = await db.Colis.findOne({ where: { commande_id: id } });
-      await sendShippingNotification(commande, colis, utilisateurId);
-    }
-
-    res.status(200).json({ 
-      success: true,
-      message: 'Statut mis à jour',
-      data: { 
-        ancienStatut: commande.statut, 
-        nouveauStatut: statut 
-      }
-    });
-
-  } catch (error) {
-    if (transaction) {
-      try {
-        await transaction.rollback();
-      } catch (rollbackError) {
-        console.error('Rollback error:', rollbackError);
-      }
-    }
-    
-    console.error('Status update error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Erreur changement statut',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-}; */
-
-const mettreAJourStatut = async (req, res) => {
-  let transaction;
-  try {
-    const { id } = req.params;
-    const { statut } = req.body;
-    const utilisateurId = req.utilisateur?.id;
-
-    transaction = await sequelize.transaction({
-      isolationLevel: Sequelize.Transaction.ISOLATION_LEVELS.READ_COMMITTED
-    });
-
-    const commande = await Commande.findByPk(id, {
-      include: [{
-        model: Client,
-        as: 'client',
-        attributes: ['utilisateur_id', 'telephone'],
-        include: [{
-          model: Utilisateur,
-          as: 'utilisateur',
-          attributes: ['id', 'prenom', 'nom', 'email']
-        }]
-      }],
-      transaction
-    });
-
-    if (!commande) {
-      await transaction.rollback();
-      return res.status(404).json({ success: false, message: 'Commande non trouvée' });
-    }
-
-    const [updatedCount] = await Commande.update(
-      { statut },
-      {
-        where: { id },
-        transaction,
-        lock: true,
-        skip: ['updated_at']
-      }
-    );
-
-    if (updatedCount === 0) {
-      await transaction.rollback();
-      return res.status(400).json({ success: false, message: 'Aucune commande mise à jour' });
-    }
-
-    // ✅ If statut is "en_preparation", create or update colis and generate QR code
-    if (statut === 'en_preparation') {
-      let colis = await db.Colis.findOne({ where: { commande_id: id }, transaction });
-      if (colis) {
-        // If colis exists, update its statut
-        await colis.update({ statut: 'en_preparation' }, { transaction });
-      } else {
-        // If colis doesn't exist, create a new colis
-        colis = await db.Colis.create({
-          commande_id: id,
-          statut: 'en_preparation',
-          transporteur: commande.methode_livraison === 'express' ? 'Express' : 'Standard',
-          numero_suivi: `TRK${Date.now().toString(36).toUpperCase()}`,
-          url_suivi: `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`,
-        }, { transaction });
-
-        // Generate QR code when colis is created
-        const qrToken = require('uuid').v4();
-        const qrData = JSON.stringify({
-          colisId: colis.id,
-          commandeId: commande.id,
-          token: qrToken
-        });
-        const qrCodeData = await QRCode.toDataURL(qrData); // Generate the QR code
-
-        // Update colis with the QR code and expiration details
-        await colis.update({
-          qr_token: qrToken,
-          qr_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-          qr_code_data: qrCodeData
-        }, { transaction });
-      }
-    }
-
-    // ✅ Handle package creation if commande is "expediee"
-    if (statut === 'expediee') {
-      const [colis] = await db.Colis.findOrCreate({
-        where: { commande_id: id },
-        defaults: {
-          numero_suivi: `TRK${Date.now().toString(36).toUpperCase()}`,
-          statut: 'expedie',
-          date_expedition: new Date(),
-          transporteur: commande.methode_livraison === 'express' ? 'Express' : 'Standard',
-          url_suivi: `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`
-        },
-        transaction
-      });
-
-      const qrToken = require('uuid').v4();
-      const qrData = JSON.stringify({
-        colisId: colis.id,
-        commandeId: commande.id,
-        token: qrToken
-      });
-      const qrCodeData = await QRCode.toDataURL(qrData);
 
       await colis.update({
         qr_token: qrToken,
@@ -900,6 +741,7 @@ const mettreAJourStatut = async (req, res) => {
       }, { transaction });
     }
 
+    // Log status change
     await CommandeHistorique.create({
       commande_id: commande.id,
       utilisateur_id: utilisateurId,
@@ -911,11 +753,7 @@ const mettreAJourStatut = async (req, res) => {
 
     await transaction.commit();
 
-    // Only send notification after commit
-    if (statut === 'expediee') {
-      const colis = await db.Colis.findOne({ where: { commande_id: id } });
-      await sendShippingNotification(commande, colis, utilisateurId);
-    }
+    console.log(`Status changed successfully for command ${commande.id}`);
 
     res.status(200).json({
       success: true,
@@ -927,15 +765,143 @@ const mettreAJourStatut = async (req, res) => {
     });
 
   } catch (error) {
+    console.error('Error in mettreAJourStatut:', error);
+    
     if (transaction) {
       try {
         await transaction.rollback();
+        console.log('Transaction rolled back');
       } catch (rollbackError) {
         console.error('Rollback error:', rollbackError);
       }
     }
 
-    console.error('Status update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur changement statut',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+}; */
+const mettreAJourStatut = async (req, res) => {
+  let transaction;
+  try {
+    const { id } = req.params;
+    const { statut } = req.body;
+    const utilisateurId = req.utilisateur?.id;
+
+    transaction = await sequelize.transaction({
+      isolationLevel: Sequelize.Transaction.ISOLATION_LEVELS.READ_COMMITTED
+    });
+
+    const commande = await Commande.findByPk(id, {
+      transaction,
+      include: [{
+        model: Client,
+        as: 'client',
+        include: [{ 
+          model: Utilisateur, 
+          as: 'utilisateur',
+          attributes: ['id', 'prenom', 'nom', 'email']
+        }]
+      }]
+    });
+
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Commande non trouvée' });
+    }
+
+    console.log(`Changing status from ${commande.statut} to ${statut}`);
+
+    // Update command status
+    await commande.update({ statut }, { transaction });
+
+    const existingColis = await sequelize.models.Colis.findOne({
+      where: { commande_id: id },
+      transaction
+    });
+
+    if (statut === 'en_preparation' || statut === 'expediee') {
+      console.log(`Creating/updating colis for ${statut} status`);
+
+      const isExpediee = statut === 'expediee';
+      const colisData = {
+        commande_id: id,
+        livreur_id: commande.livreur_id,
+        statut: isExpediee ? 'expedie' : 'en_preparation',
+        transporteur: commande.methode_livraison === 'express' ? 'Express' : 'Standard',
+        numero_suivi: `TRK${Date.now().toString(36).toUpperCase()}`,
+        url_suivi: `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`,
+        ...(isExpediee && { date_expedition: new Date() })
+      };
+
+      let colis;
+      if (existingColis) {
+        colis = await existingColis.update(colisData, { transaction });
+      } else {
+        colis = await sequelize.models.Colis.create(colisData, { transaction });
+      }
+
+      // Generate QR code
+      const qrToken = require('uuid').v4();
+      const qrData = JSON.stringify({
+        colisId: colis.id,
+        commandeId: commande.id,
+        token: qrToken
+      });
+      const qrCodeData = await QRCode.toDataURL(qrData);
+
+      await colis.update({
+        qr_token: qrToken,
+        qr_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        qr_code_data: qrCodeData
+      }, { transaction });
+    }
+
+    // ✅ Set date_livraison if statut is 'livree'
+    if (statut === 'livree' && existingColis) {
+      await existingColis.update({
+        statut: 'livree',
+        date_livraison: new Date()
+      }, { transaction });
+    }
+
+    // Log status change
+    await CommandeHistorique.create({
+      commande_id: commande.id,
+      utilisateur_id: utilisateurId,
+      action: 'changement_statut',
+      ancienne_valeur: commande.statut,
+      nouvelle_valeur: statut,
+      details: `Statut changé de ${commande.statut} à ${statut}`
+    }, { transaction });
+
+    await transaction.commit();
+
+    console.log(`Status changed successfully for command ${commande.id}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Statut mis à jour',
+      data: {
+        ancienStatut: commande.statut,
+        nouveauStatut: statut
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in mettreAJourStatut:', error);
+
+    if (transaction) {
+      try {
+        await transaction.rollback();
+        console.log('Transaction rolled back');
+      } catch (rollbackError) {
+        console.error('Rollback error:', rollbackError);
+      }
+    }
+
     res.status(500).json({
       success: false,
       message: 'Erreur changement statut',
@@ -944,7 +910,14 @@ const mettreAJourStatut = async (req, res) => {
   }
 };
 
-
+// Helper function to get last inserted colis ID
+async function getLastInsertedColisId(transaction) {
+  const result = await sequelize.query(
+    'SELECT LAST_INSERT_ID() as id',
+    { transaction, type: sequelize.QueryTypes.SELECT }
+  );
+  return result[0].id;
+}
 
 
 async function sendShippingNotification(commande, colis, utilisateurId) {
