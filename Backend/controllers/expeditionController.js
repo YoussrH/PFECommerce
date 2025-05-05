@@ -1,3 +1,4 @@
+//controller/expeditionController.js
 const { Op, Sequelize } = require('sequelize');
 const QRCode = require('qrcode');
 const db = require('../models');
@@ -38,9 +39,9 @@ const STATUTS_EXPEDITION = {
 };
 
 const STATUTS_COLIS = {
-  PREPARATION: 'preparation',
+  PREPARATION: 'en_preparation',
   EXPEDIE: 'expedie',
-  LIVRE: 'livre'
+  LIVRE: 'livree'
 };
 
 // Generate QR Code for package
@@ -148,7 +149,7 @@ const suivreExpeditions = async (req, res) => {
     switch(colisStatus) {
       case 'preparation': return 'Préparée';
       case 'expedie': return 'En route';
-      case 'livre': return 'Livrée';
+      case 'livree': return 'Livrée';
       case 'echec': return 'Échec de livraison';
       default: return colisStatus;
     }
@@ -164,7 +165,7 @@ const suivreExpeditions = async (req, res) => {
       // Map display status to colis status
       const colisStatut = statut_expedition === 'Préparée' ? 'preparation' :
                          statut_expedition === 'En route' ? 'expedie' :
-                         statut_expedition === 'Livrée' ? 'livre' :
+                         statut_expedition === 'Livrée' ? 'livree' :
                          statut_expedition === 'Échec de livraison' ? 'echec' : statut_expedition;
   
       const colis = await Colis.findByPk(id, {
@@ -196,18 +197,18 @@ const suivreExpeditions = async (req, res) => {
       // Handle status-specific updates
       if (colisStatut === 'expedie') {
         updateData.date_expedition = new Date();
-      } else if (colisStatut === 'livre') {
+      } else if (colisStatut === 'livree') {
         updateData.date_livraison = new Date();
       }
   
       await colis.update(updateData, { transaction });
   
       // Update order status if all packages are delivered
-      if (colisStatut === 'livre') {
+      if (colisStatut === 'livree') {
         const remainingColis = await Colis.count({
           where: { 
             commande_id: colis.commande_id,
-            statut: { [Op.not]: 'livre' }
+            statut: { [Op.not]: 'livree' }
           },
           transaction
         });
@@ -533,93 +534,7 @@ const traiterRetour = async (req, res) => {
     }
   };
 
-const creerColis = async (req, res) => {
-    let transaction;
-    try {
-      const { commande_id, livreur_id } = req.body;
-      const utilisateurId = req.utilisateur.id;
-  
-      transaction = await sequelize.transaction();
-  
-      const commande = await Commande.findByPk(commande_id, { 
-        transaction,
-        include: [Client]
-      });
-  
-      if (!commande) {
-        await transaction.rollback();
-        return res.status(404).json({ 
-          success: false,
-          message: 'Commande non trouvée'
-        });
-      }
-  
-      // Check if package already exists
-      const existingColis = await Colis.findOne({
-        where: { commande_id },
-        transaction
-      });
-  
-      if (existingColis) {
-        await transaction.rollback();
-        return res.status(400).json({ 
-          success: false,
-          message: 'Un colis existe déjà pour cette commande'
-        });
-      }
-  
-      // Create package
-      const colis = await Colis.create({
-        commande_id,
-        livreur_id,
-       
-        statut: 'preparation'
-      }, { transaction });
-  
-      // Generate QR code
-      const qrToken = require('uuid').v4();
-      const qrData = JSON.stringify({
-        colisId: colis.id,
-        commandeId: commande_id,
-        token: qrToken
-      });
-      
-      const qrCodeData = await QRCode.toDataURL(qrData);
-  
-      await colis.update({
-        qr_token: qrToken,
-        qr_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
-        qr_code_data: qrCodeData
-      }, { transaction });
-  
-      // Log history
-      await CommandeHistorique.create({
-        commande_id,
-        utilisateur_id: utilisateurId,
-        action: 'creation_colis',
-        details: `Colis créé (${colis.numero_suivi})`,
-        nouvelle_valeur: JSON.stringify(colis.get({ plain: true }))
-      }, { transaction });
-  
-      await transaction.commit();
-  
-      res.status(201).json({
-        success: true,
-        message: 'Colis créé avec succès',
-        data: colis
-      });
-  
-    } catch (error) {
-      if (transaction) await transaction.rollback();
-      
-      const errorInfo = debugError('creerColis', error, { body: req.body });
-      res.status(500).json({ 
-        success: false,
-        message: 'Erreur création colis',
-        debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
-      });
-    }
-  };
+
   
   const mettreAJourStatutColis = async (req, res) => {
     let transaction;
@@ -654,7 +569,7 @@ const creerColis = async (req, res) => {
         if (colis.commande.statut !== 'expediee') {
           await colis.commande.update({ statut: 'expediee' }, { transaction });
         }
-      } else if (statut === 'livre') {
+      } else if (statut === 'livree') {
         updateData.date_livraison = new Date();
       }
   
@@ -693,14 +608,123 @@ const creerColis = async (req, res) => {
     }
   };
   
-  // Other functions remain the same...
-module.exports = {
+  const scannerQRCodeColis = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+      const { code } = req.body;
+      const utilisateurId = req.utilisateur?.id || null;
+  
+      if (!code) {
+        return res.status(400).json({
+          success: false,
+          message: 'QR code invalide ou manquant.'
+        });
+      }
+  
+      // Extract colis ID from the QR code (expected format: colis:<id>)
+      const match = code.match(/^colis:(\d+)$/);
+      if (!match) {
+        return res.status(400).json({
+          success: false,
+          message: 'QR code non reconnu.'
+        });
+      }
+  
+      const colisId = match[1];
+  
+      const colis = await Colis.findByPk(colisId, {
+        transaction,
+        include: [
+          {
+            model: Commande,
+            as: 'commande'
+          },
+          {
+            model: Livreur,
+            as: 'livreur',
+            include: [{ model: Utilisateur, as: 'utilisateur' }]
+          }
+        ]
+      });
+  
+      if (!colis) {
+        await transaction.rollback();
+        return res.status(404).json({
+          success: false,
+          message: 'Colis introuvable.'
+        });
+      }
+  
+      if (colis.statut === 'livree') {
+        await transaction.rollback();
+        return res.status(200).json({
+          success: true,
+          message: 'Ce colis a déjà été livré.',
+          data: { colis }
+        });
+      }
+  
+      const ancienStatut = colis.statut;
+      await colis.update({
+        statut: 'livree',
+        date_livraison: new Date()
+      }, { transaction });
+  
+      // If all colis in this order are delivered, update Commande status
+      const nonDelivered = await Colis.count({
+        where: {
+          commande_id: colis.commande_id,
+          statut: { [Op.not]: 'livree' }
+        },
+        transaction
+      });
+  
+      if (nonDelivered === 0) {
+        await Commande.update(
+          { statut: 'livree' },
+          { where: { id: colis.commande_id }, transaction }
+        );
+      }
+  
+      await CommandeHistorique.create({
+        commande_id: colis.commande_id,
+        utilisateur_id: utilisateurId,
+        action: 'livraison_via_qr',
+        ancienne_valeur: ancienStatut,
+        nouvelle_valeur: 'livree',
+        details: 'Livraison confirmée via QR code.'
+      }, { transaction });
+  
+      // Optional: notify client or livreur here
+  
+      await transaction.commit();
+  
+      res.status(200).json({
+        success: true,
+        message: 'Colis marqué comme livré.',
+        data: {
+          colis_id: colis.id,
+          nouveau_statut: 'Livrée',
+          date_livraison: colis.date_livraison
+        }
+      });
+    } catch (error) {
+      await transaction.rollback();
+      const errorInfo = debugError('scannerQRCodeColis', error, { body: req.body });
+      res.status(500).json({
+        success: false,
+        message: 'Erreur lors du traitement du QR code.',
+        debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+      });
+    }
+  };
+  module.exports = {
   suivreExpeditions,
   mettreAJourStatutExpedition,
   listerColis,
   gererColis,
   listerRetours,
   traiterRetour,
-    creerColis,
-    mettreAJourStatutColis
+mettreAJourStatutColis,
+    scannerQRCodeColis
 };

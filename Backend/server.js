@@ -25,6 +25,7 @@ const reclamationRoutes = require('./routes/reclamationRoutes');
 const commandeRoutes = require('./routes/commandeRoutes');
 const livraisonRoutes = require('./routes/livraisonRoutes');
 const expeditionsRoutes = require('./routes/expeditionRoutes');
+const livreurRoutes = require('./routes/livreurRoutes');
 const path = require('path');
 const cronJobs = require('./utils/cronJobs'); 
 const pool = new Pool({
@@ -100,6 +101,7 @@ app.use("/commandes", commandeRoutes);
 app.use("/livraisons", livraisonRoutes);
 app.use("/utilisateurs", utilisateurRoutes);
 app.use("/expeditions", expeditionsRoutes);
+app.use("/livreur", livreurRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/health', (req, res) => {

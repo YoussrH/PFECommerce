@@ -1,3 +1,4 @@
+//routes/expeditionRoutes.js
 const express = require('express');
 const router = express.Router();
 const expeditionController = require('../controllers/expeditionController');

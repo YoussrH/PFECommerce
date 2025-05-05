@@ -1,3 +1,4 @@
+// File: controllers/livraisonController.js
 const { Livraison, Commande, Client, Livreur, Utilisateur, Adresse } = require('../models');
 const { Op, Sequelize } = require('sequelize');
 const db = require('../models');
@@ -42,8 +43,7 @@ const obtenirLivraisonsDisponibles = async (req, res) => {
   }
 };
 
-// Assign delivery to a delivery person
-// controllers/livraisonController.js
+
 const assignerLivraison = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
@@ -142,9 +142,164 @@ const obtenirLivraisonsParLivreur = async (req, res) => {
     });
   }
 };
+// Add to your existing controllers/livraisonController.js
 
+// Update delivery person status
+const updateStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { enService } = req.body;
+
+    const livreur = await Livreur.findByPk(id, {
+      include: [{ model: Utilisateur, as: 'utilisateur' }]
+    });
+
+    if (!livreur) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Livreur non trouvé' 
+      });
+    }
+
+    await livreur.update({ enService });
+
+    res.status(200).json({
+      success: true,
+      message: 'Statut mis à jour',
+      data: {
+        enService: livreur.enService
+      }
+    });
+  } catch (error) {
+    console.error('Error updating status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la mise à jour du statut'
+    });
+  }
+};
+
+// Get today's stats for a delivery person
+const getTodayStats = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const totalLivraisons = await Commande.count({
+      where: {
+        livreur_id: id,
+        created_at: {
+          [Op.between]: [today, tomorrow]
+        }
+      }
+    });
+
+    const livraisonsCompletees = await Commande.count({
+      where: {
+        livreur_id: id,
+        statut: 'livree',
+        created_at: {
+          [Op.between]: [today, tomorrow]
+        }
+      }
+    });
+
+    const livraisonsEnCours = await Commande.count({
+      where: {
+        livreur_id: id,
+        statut: 'en_cours',
+        created_at: {
+          [Op.between]: [today, tomorrow]
+        }
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalLivraisons,
+        livraisonsCompletees,
+        livraisonsEnCours
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des statistiques'
+    });
+  }
+};
+
+// Get assigned deliveries for a delivery person
+const getAssignedDeliveries = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const commandes = await Commande.findAll({
+      where: {
+        livreur_id: id,
+        created_at: {
+          [Op.between]: [today, tomorrow]
+        },
+        statut: {
+          [Op.in]: ['en_attente', 'en_cours']
+        }
+      },
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          include: [{ 
+            model: Utilisateur, 
+            as: 'utilisateur',
+            attributes: ['id', 'prenom', 'nom', 'email']
+          }]
+        },
+        { 
+          model: Adresse, 
+          as: 'adresse',
+          attributes: ['id', 'adresse', 'complement', 'code_postal', 'ville', 'gouvernorat']
+        },
+        {
+          model: Article,
+          as: 'articles',
+          through: { 
+            model: CommandeArticle,
+            attributes: ['quantite', 'prix_unitaire', 'taille_id', 'couleur_id']
+          }
+        }
+      ],
+      order: [
+        ['statut', 'DESC'], // 'en_cours' first
+        ['date_livraison_prevue', 'ASC'] // Then by delivery time
+      ]
+    });
+
+    res.status(200).json({
+      success: true,
+      data: commandes
+    });
+  } catch (error) {
+    console.error('Error fetching assigned deliveries:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des livraisons'
+    });
+  }
+};
 module.exports = {
   obtenirLivraisonsDisponibles,
   assignerLivraison,
-  obtenirLivraisonsParLivreur
+  obtenirLivraisonsParLivreur,
+  updateStatus,
+  getTodayStats,
+  getAssignedDeliveries
 };

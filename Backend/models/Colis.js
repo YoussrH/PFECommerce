@@ -24,12 +24,12 @@ module.exports = (sequelize) => {
     },
     statut: {
       type: DataTypes.ENUM(
-        'preparation',
+        'en_preparation',
         'expedie',
-        'livre',
+        'livree',
         'retourne'
       ),
-      defaultValue: 'preparation'
+      defaultValue: 'en_preparation'
     },
     date_expedition: DataTypes.DATE,
     date_livraison: DataTypes.DATE,
@@ -64,7 +64,7 @@ module.exports = (sequelize) => {
           if (colis.statut === 'expedie' && !colis.date_expedition) {
             colis.date_expedition = new Date();
           }
-          if (colis.statut === 'livre' && !colis.date_livraison) {
+          if (colis.statut === 'livree' && !colis.date_livraison) {
             colis.date_livraison = new Date();
           }
         }

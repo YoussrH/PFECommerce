@@ -132,11 +132,7 @@ const Sidebar = ({ isSidebarCollapsed }) => {
     { href: "/admin/ventes/retours", icon: FaUndo, label: "Retours & Remboursements" },
   ];
 
-  const expensesSubmenuItems = [
-    { href: "/admin/depenses/facture", icon: FaReceipt, label: "Dépenses & Factures" },
-    { href: "/admin/depenses/fournisseur", icon: FaUserGroup, label: "Fournisseurs & Partenaires" },
-    { href: "/admin/depenses/paiments", icon: FaMoneyBillWave, label: "Paiements & Transactions" },
-  ];
+
 
   const shippingSubmenuItems = [
     { href: "/admin/expeditions/expeditions", icon: FaTruck, label: "Suivi des expéditions" },
@@ -199,14 +195,6 @@ const Sidebar = ({ isSidebarCollapsed }) => {
           isCollapsed={isSidebarCollapsed}
           hasSubmenu={true}
           submenuItems={salesSubmenuItems}
-        />
-        <SidebarLink
-          href="/admin/depenses"
-          icon={CircleDollarSign}
-          label="Dépenses & Fournisseurs"
-          isCollapsed={isSidebarCollapsed}
-          hasSubmenu={true}
-          submenuItems={expensesSubmenuItems}
         />
         <SidebarLink
           href="/admin/expeditions"

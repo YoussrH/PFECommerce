@@ -10,7 +10,6 @@ import RecentUpdates from "./accueil/recent-updates/page";
 import Announcements from "./accueil/announcements/page";
 import Inventory from "./inventaire/page";
 import Sales from "./ventes/page";
-import Expenses from "./depenses/page";
 import Products from "./produits/page";
 import Users from "./utilisateurs/page";
 import Integration from "./integrations/page";
@@ -55,8 +54,6 @@ export default function DashboardPage() {
           return <Inventory />;
         case "/admin/sales":
           return <Sales />;
-        case "/admin/expenses":
-          return <Expenses />;
         case "/admin/products":
           return <Products />;
         case "/admin/users":

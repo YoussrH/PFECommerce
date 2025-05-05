@@ -1,6 +1,89 @@
-const { Utilisateur } = require("../models");
+const { Utilisateur,Livreur } = require("../models");
 const jwt = require('jsonwebtoken');
 
+const authentifierLivreur = async (req, res, next) => {
+  try {
+    // First try session
+    if (req.session?.utilisateur) {
+      const utilisateur = await Utilisateur.findByPk(req.session.utilisateur.id, {
+        include: [{
+          model: Livreur,
+          as: 'livreur',
+          required: true
+        }]
+      });
+
+      if (utilisateur) {
+        req.utilisateur = utilisateur;
+        req.livreur = utilisateur.livreur;
+        return next();
+      }
+    }
+
+    // Then try JWT
+    const authHeader = req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentification livreur requise'
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const utilisateur = await Utilisateur.findByPk(decoded.id, {
+      include: [{
+        model: Livreur,
+        as: 'livreur',
+        required: true
+      }],
+      attributes: { exclude: ['mot_de_passe'] }
+    });
+
+    if (!utilisateur) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentification livreur requise'
+      });
+    }
+
+    // Verify role is livreur
+    if (utilisateur.role !== 'livreur') {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès réservé aux livreurs'
+      });
+    }
+
+    req.utilisateur = utilisateur;
+    req.livreur = utilisateur.livreur;
+    req.token = token;
+    
+    next();
+  } catch (error) {
+    console.error('Erreur authentification livreur:', error);
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token invalide'
+      });
+    }
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expiré'
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: "Erreur d'authentification"
+    });
+  }
+};
 const authentifier = async (req, res, next) => {
   try {
     if (req.session.utilisateur) {
@@ -162,5 +245,6 @@ module.exports = {
   verifierAdmin,
   verifierSuperAdmin,
     authentifier,
+  authentifierLivreur
 
 };

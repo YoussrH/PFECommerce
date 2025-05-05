@@ -356,7 +356,7 @@ const obtenirUtilisateur = async (req, res) => {
       include: [{
         model: Client,
         as: 'client',
-        attributes: { exclude: ['createdAt', 'updatedAt'] }
+        attributes: { exclude: ['created_at', 'updated_at'] }
       }],
       attributes: { exclude: ['mot_de_passe', 'otp', 'otp_expires'] }
     });
@@ -380,6 +380,31 @@ const obtenirUtilisateur = async (req, res) => {
     });
   }
 };
+const obtenirUtilisateurParId = async (req, res) => {
+  try {
+    const utilisateur = await Utilisateur.findByPk(req.params.id, {
+      attributes: { exclude: ['mot_de_passe', 'otp', 'otp_expires'] }
+    });
+
+    if (!utilisateur) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Utilisateur non trouvé' 
+      });
+    }
+
+    res.json({ 
+      success: true,
+      utilisateur 
+    });
+  } catch (error) {
+    console.error('Get user by ID error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Erreur interne du serveur'
+    });
+  }
+};
 const connecterLivreur = async (req, res) => {
   try {
     const { email, mot_de_passe } = req.body;
@@ -387,7 +412,7 @@ const connecterLivreur = async (req, res) => {
     if (!email || !mot_de_passe) {
       return res.status(400).json({ 
         success: false,
-        message: "Email et mot de passe sont obligatoires." 
+        message: "Email and password are required" 
       });
     }
 
@@ -395,14 +420,14 @@ const connecterLivreur = async (req, res) => {
     if (!utilisateur) {
       return res.status(404).json({ 
         success: false,
-        message: "Livreur non trouvé." 
+        message: "Admin not found" 
       });
     }
 
-    if (utilisateur.role !== 'livreur') {
+    if (!["livreur"].includes(utilisateur.role)) {
       return res.status(403).json({ 
         success: false,
-        message: "Accès réservé aux livreurs." 
+        message: "livreur privileges required" 
       });
     }
 
@@ -410,14 +435,14 @@ const connecterLivreur = async (req, res) => {
     if (!motDePasseValide) {
       return res.status(401).json({ 
         success: false,
-        message: "Identifiants invalides." 
+        message: "Invalid credentials" 
       });
     }
 
     if (!utilisateur.est_verifie) {
       return res.status(403).json({ 
         success: false,
-        message: "Compte non vérifié." 
+        message: "Account not verified" 
       });
     }
 
@@ -430,19 +455,30 @@ const connecterLivreur = async (req, res) => {
       est_verifie: utilisateur.est_verifie,
     };
 
-    req.session.cookie.expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 1 week
+    const token = jwt.sign(
+      {
+        id: utilisateur.id,
+        email: utilisateur.email,
+        role: utilisateur.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "8h" } 
+    );
+
     req.session.save();
 
     res.json({
       success: true,
-      message: "Connexion livreur réussie",
+      message: "Admin login successful",
+      token, 
       utilisateur: req.session.utilisateur,
     });
+
   } catch (err) {
-    console.error('Livreur login error:', err);
+    console.error('Admin login error:', err);
     res.status(500).json({ 
       success: false,
-      error: "Échec de la connexion livreur." 
+      error: "Admin login failed" 
     });
   }
 };
@@ -454,4 +490,5 @@ module.exports = {
   deconnecterUtilisateur,
   obtenirUtilisateur,
   connecterLivreur,
+  obtenirUtilisateurParId
 };

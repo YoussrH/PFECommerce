@@ -10,4 +10,5 @@ router.post("/connexion-admin", authController.connecterAdmin);
 router.post("/deconnexion", authentifier, authController.deconnecterUtilisateur);
 router.get("/utilisateur", authentifier, authController.obtenirUtilisateur);
 router.post("/connexion-livreur", authController.connecterLivreur);
+router.get('/utilisateurs/:id', authentifier, authController.obtenirUtilisateurParId);
 module.exports = router;
