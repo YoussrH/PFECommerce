@@ -40,7 +40,7 @@ const STATUTS_EXPEDITION = {
 
 const STATUTS_COLIS = {
   PREPARATION: 'en_preparation',
-  EXPEDIE: 'expedie',
+  EXPEDIE: 'expediee',
   LIVRE: 'livree'
 };
 
@@ -68,7 +68,7 @@ const suivreExpeditions = async (req, res) => {
       const colisWhere = {};
       if (statut && statut !== 'all') {
         colisWhere.statut = statut === 'Préparée' ? 'preparation' : 
-                           statut === 'En route' ? 'expedie' :
+                           statut === 'En route' ? 'expediee' :
                            statut === 'Livrée' ? 'livre' :
                            statut === 'Échec de livraison' ? 'echec' : statut;
       }
@@ -148,7 +148,7 @@ const suivreExpeditions = async (req, res) => {
   const mapColisStatusToDisplay = (colisStatus) => {
     switch(colisStatus) {
       case 'preparation': return 'Préparée';
-      case 'expedie': return 'En route';
+      case 'expediee': return 'En route';
       case 'livree': return 'Livrée';
       case 'echec': return 'Échec de livraison';
       default: return colisStatus;
@@ -164,7 +164,7 @@ const suivreExpeditions = async (req, res) => {
   
       // Map display status to colis status
       const colisStatut = statut_expedition === 'Préparée' ? 'preparation' :
-                         statut_expedition === 'En route' ? 'expedie' :
+                         statut_expedition === 'En route' ? 'expediee' :
                          statut_expedition === 'Livrée' ? 'livree' :
                          statut_expedition === 'Échec de livraison' ? 'echec' : statut_expedition;
   
@@ -195,7 +195,7 @@ const suivreExpeditions = async (req, res) => {
       const updateData = { statut: colisStatut };
   
       // Handle status-specific updates
-      if (colisStatut === 'expedie') {
+      if (colisStatut === 'expediee') {
         updateData.date_expedition = new Date();
       } else if (colisStatut === 'livree') {
         updateData.date_livraison = new Date();
@@ -634,7 +634,7 @@ const traiterRetour = async (req, res) => {
       const updateData = { statut };
   
       // Handle status-specific updates
-      if (statut === 'expedie') {
+      if (statut === 'expediee') {
         updateData.date_expedition = new Date();
         
         // If no livreur assigned, use the one from the commande

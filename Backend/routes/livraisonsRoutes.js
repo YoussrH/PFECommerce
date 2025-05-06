@@ -24,5 +24,5 @@ router.get("/mes-livraisons/aujourdhui", authentifierLivreur, livraisonControlle
 
 // Get delivery statistics for current delivery person
 router.get("/mes-statistiques", authentifierLivreur, livraisonController.obtenirMesStatistiquesLivraison);
-
+router.get("/obtenirLivraisonParId/:id", authentifier, livraisonController.obtenirLivraisonParId);
 module.exports = router;

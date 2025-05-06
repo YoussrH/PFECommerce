@@ -297,13 +297,33 @@ const obtenirMesLivraisonsAujourdhui = async (req, res) => {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    // Find commandes with colis shipped today
+    // Find commandes that:
+    // 1. Are assigned to this delivery person
+    // 2. Are not completed (status is not 'livree')
+    // 3. Either:
+    //    a) Were shipped today, OR
+    //    b) Were shipped before today but not yet delivered
     const livraisons = await Commande.findAll({
       where: {
         livreur_id: livreurId,
         statut: {
-          [Op.in]: ['en_preparation', 'expediee', 'livree']
-        }
+          [Op.in]: ['en_preparation', 'expediee'] // Only include not-yet-delivered
+        },
+        [Op.or]: [
+          // Shipments from today
+          {
+            '$colis.date_expedition$': {
+              [Op.between]: [todayStart, todayEnd]
+            }
+          },
+          // OR shipments from before today that aren't delivered
+          {
+            '$colis.date_expedition$': {
+              [Op.lt]: todayStart
+            },
+            '$colis.date_livraison$': null
+          }
+        ]
       },
       include: [
         {
@@ -324,14 +344,13 @@ const obtenirMesLivraisonsAujourdhui = async (req, res) => {
           model: Colis,
           as: 'colis',
           attributes: ['id', 'numero_suivi', 'statut', 'date_expedition', 'date_livraison'],
-          where: {
-            date_expedition: {
-              [Op.between]: [todayStart, todayEnd]
-            }
-          }
+          required: true // Ensure only commandes with colis are returned
         }
       ],
-      order: [['created_at', 'DESC']]
+      order: [
+        ['statut', 'ASC'], // 'en_preparation' first, then 'expediee'
+        ['created_at', 'DESC'] // Newer ones first within same status
+      ]
     });
 
     const result = livraisons.map(l => ({
@@ -363,272 +382,6 @@ const obtenirMesLivraisonsAujourdhui = async (req, res) => {
     });
   }
 };
- 
-
-
-/* const obtenirMesLivraisonsEnCours = async (req, res) => {
-  try {
-    if (!req.livreur || !req.livreur.utilisateur_id) {
-      return res.status(401).json({
-        success: false,
-        message: 'Non authentifié ou identifiant livreur manquant.'
-      });
-    }
-
-    const livreurId = req.livreur.utilisateur_id;
-
-    // Fetch deliveries that are in progress (en_preparation, expediee) and not yet delivered
-    const livraisons = await Commande.findAll({
-      where: {
-        livreur_id: livreurId,
-        statut: {
-          [Op.in]: ['en_preparation', 'expediee']
-        },
-        date_livraison: null  // Not yet delivered
-      },
-      include: [
-        {
-          model: Client,
-          as: 'client',
-          include: [{
-            model: Utilisateur,
-            as: 'utilisateur',
-            attributes: ['prenom', 'nom']
-          }]
-        },
-        {
-          model: Adresse,
-          as: 'adresse',
-          attributes: ['adresse']
-        },
-        {
-          model: Colis,
-          as: 'colis',
-          attributes: ['id', 'numero_suivi', 'statut', 'date_expedition', 'date_livraison']
-        }
-      ],
-      order: [['created_at', 'DESC']]
-    });
-
-    const result = livraisons.map(l => ({
-      livraison_id: l.id,
-      reference: l.reference,
-      date_creation: l.created_at,
-      adresse_livraison: l.adresse?.adresse || 'Adresse non disponible',
-      client_nom: l.client?.utilisateur
-        ? `${l.client.utilisateur.prenom} ${l.client.utilisateur.nom}`
-        : 'Client inconnu',
-      statut: l.statut,
-      colis: l.colis || null
-    }));
-
-    res.status(200).json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    console.error('Erreur obtenirMesLivraisonsEnCours:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur interne du serveur.',
-      ...(process.env.NODE_ENV === 'development' && {
-        error: error.message,
-        stack: error.stack
-      })
-    });
-  }
-};
-const obtenirMesLivraisonsCompletees = async (req, res) => {
-  try {
-    if (!req.livreur || !req.livreur.utilisateur_id) {
-      return res.status(401).json({
-        success: false,
-        message: 'Non authentifié ou identifiant livreur manquant.'
-      });
-    }
-
-    const livreurId = req.livreur.utilisateur_id;
-
-    // Fetch completed deliveries (livree with date_livraison set)
-    const livraisons = await Commande.findAll({
-      where: {
-        livreur_id: livreurId,
-        statut: 'livree',
-        date_livraison: { [Op.not]: null }  // Delivered deliveries
-      },
-      include: [
-        {
-          model: Client,
-          as: 'client',
-          include: [{
-            model: Utilisateur,
-            as: 'utilisateur',
-            attributes: ['prenom', 'nom']
-          }]
-        },
-        {
-          model: Adresse,
-          as: 'adresse',
-          attributes: ['adresse']
-        },
-        {
-          model: Colis,
-          as: 'colis',
-          attributes: ['id', 'numero_suivi', 'statut', 'date_expedition', 'date_livraison']
-        }
-      ],
-      order: [['date_livraison', 'DESC']]  // Ordered by delivery date
-    });
-
-    const result = livraisons.map(l => ({
-      livraison_id: l.id,
-      reference: l.reference,
-      date_creation: l.created_at,
-      adresse_livraison: l.adresse?.adresse || 'Adresse non disponible',
-      client_nom: l.client?.utilisateur
-        ? `${l.client.utilisateur.prenom} ${l.client.utilisateur.nom}`
-        : 'Client inconnu',
-      statut: l.statut,
-      colis: l.colis || null
-    }));
-
-    res.status(200).json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    console.error('Erreur obtenirMesLivraisonsCompletees:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur interne du serveur.',
-      ...(process.env.NODE_ENV === 'development' && {
-        error: error.message,
-        stack: error.stack
-      })
-    });
-  }
-}; */
-
-
-/* const obtenirMesStatistiquesLivraison = async (req, res) => {
-  try {
-    // Use the same authentication pattern as obtenirMesLivraisons
-    if (!req.livreur || !req.livreur.utilisateur_id) {
-      return res.status(401).json({
-        success: false,
-        message: 'Non authentifié ou identifiant livreur manquant.'
-      });
-    }
-
-    const livreurId = req.livreur.utilisateur_id;
-
-    // Get all counts in a single transaction for consistency
-    const stats = await sequelize.transaction(async (transaction) => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-      const [
-        totalLivraisons,
-        livraisonsCompletees,
-        livraisonsEnCours,
-        livraisonsDuJour,
-        livraisonsCompleteesAujourdhui,
-        colisLivresCeMois
-      ] = await Promise.all([
-        // Total deliveries for the driver
-        Commande.count({
-          where: { livreur_id: livreurId },
-          transaction
-        }),
-        // Completed deliveries in total
-        Commande.count({
-          where: {
-            livreur_id: livreurId,
-            statut: 'livree'
-          },
-          transaction
-        }),
-        // In progress deliveries (en_preparation or expediee)
-        Commande.count({
-          where: {
-            livreur_id: livreurId,
-            statut: {
-              [Op.in]: ['en_preparation', 'expediee']
-            }
-          },
-          transaction
-        }),
-        // Livraisons du jour
-        Commande.count({
-          where: {
-            livreur_id: livreurId,
-            created_at: {
-              [Op.between]: [today, tomorrow]
-            }
-          },
-          transaction
-        }),
-        // Livraisons complètes aujourd'hui (livree)
-        Commande.count({
-          where: {
-            livreur_id: livreurId,
-            statut: 'livree',
-            created_at: {
-              [Op.between]: [today, tomorrow]
-            }
-          },
-          transaction
-        }),
-        // Livraisons complètes ce mois
-        Commande.count({
-          where: {
-            livreur_id: livreurId,
-            statut: 'livree',
-            created_at: {
-              [Op.between]: [startOfMonth, endOfMonth]
-            }
-          },
-          transaction
-        })
-      ]);
-
-      return {
-        total: totalLivraisons,
-        completees: livraisonsCompletees,
-        enCours: livraisonsEnCours,
-        livraisonsDuJour: {
-          total: livraisonsDuJour,
-          completees: livraisonsCompleteesAujourdhui
-        },
-        colisLivresCeMois: colisLivresCeMois
-      };
-    });
-
-    res.status(200).json({
-      success: true,
-      data: stats
-    });
-
-  } catch (error) {
-    console.error('Erreur obtenirMesStatistiquesLivraison:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la récupération des statistiques',
-      ...(process.env.NODE_ENV === 'development' && {
-        error: error.message,
-        stack: error.stack
-      })
-    });
-  }
-};
- */
-
-
 
 
 // Update delivery status (for delivery person)
@@ -637,6 +390,16 @@ const mettreAJourStatutLivraison = async (req, res) => {
   try {
     const { id } = req.params;
     const { statut } = req.body;
+
+    // Verify user is authenticated and is a delivery person
+    if (!req.utilisateur || !req.utilisateur.livreur || !req.utilisateur.livreur.id) {
+      await transaction.rollback();
+      return res.status(403).json({ 
+        success: false,
+        message: 'Accès refusé: utilisateur non authentifié ou non livreur' 
+      });
+    }
+
     const livreurId = req.utilisateur.livreur.id;
 
     const commande = await Commande.findOne({
@@ -670,7 +433,6 @@ const mettreAJourStatutLivraison = async (req, res) => {
 
     await commande.update({ statut }, { transaction });
 
-    // If status is 'livree', update delivery date
     if (statut === 'livree') {
       await commande.update({ date_livraison: new Date() }, { transaction });
     }
@@ -740,11 +502,22 @@ const obtenirMesStatistiquesLivraison = async (req, res) => {
         transaction
       });
 
-      // Colis livrés (statut = 'livree' dans colis)
+      // Colis livrés (via commande livrée OU colis livré)
       const completees = await Colis.count({
+        include: [{
+          model: Commande,
+          as: 'commande',
+          where: { 
+            statut: 'livree'
+          },
+          required: false
+        }],
         where: { 
           livreur_id: livreurId,
-          statut: 'livree'
+          [Op.or]: [
+            { statut: 'livree' },
+            { '$commande.statut$': 'livree' }
+          ]
         },
         transaction
       });
@@ -753,7 +526,7 @@ const obtenirMesStatistiquesLivraison = async (req, res) => {
       const enCours = await Colis.count({
         where: {
           livreur_id: livreurId,
-          statut: { [Op.in]: ['en_preparation', 'expedie'] }
+          statut: { [Op.in]: ['en_preparation', 'expediee'] }
         },
         transaction
       });
@@ -767,22 +540,48 @@ const obtenirMesStatistiquesLivraison = async (req, res) => {
         transaction
       });
 
-      // Colis livrés aujourd'hui (date_livraison = aujourd'hui)
+      // Colis livrés aujourd'hui (via commande livrée OU colis livré aujourd'hui)
       const livraisonsDuJourCompletees = await Colis.count({
+        include: [{
+          model: Commande,
+          as: 'commande',
+          required: false
+        }],
         where: { 
           livreur_id: livreurId,
-          statut: 'livree',
-          date_livraison: { [Op.between]: [todayStart, todayEnd] }
+          [Op.or]: [
+            { 
+              statut: 'livree',
+              date_livraison: { [Op.between]: [todayStart, todayEnd] }
+            },
+            { 
+              '$commande.statut$': 'livree',
+              '$commande.updated_at$': { [Op.between]: [todayStart, todayEnd] }
+            }
+          ]
         },
         transaction
       });
 
-      // Colis livrés ce mois-ci (date_livraison ce mois)
+      // Colis livrés ce mois-ci
       const colisLivresCeMois = await Colis.count({
+        include: [{
+          model: Commande,
+          as: 'commande',
+          required: false
+        }],
         where: { 
           livreur_id: livreurId,
-          statut: 'livree',
-          date_livraison: { [Op.between]: [startOfMonth, endOfMonth] }
+          [Op.or]: [
+            { 
+              statut: 'livree',
+              date_livraison: { [Op.between]: [startOfMonth, endOfMonth] }
+            },
+            { 
+              '$commande.statut$': 'livree',
+              '$commande.updated_at$': { [Op.between]: [startOfMonth, endOfMonth] }
+            }
+          ]
         },
         transaction
       });
@@ -813,9 +612,94 @@ const obtenirMesStatistiquesLivraison = async (req, res) => {
   }
 };
 
+const obtenirLivraisonParId = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const livreurId = req.livreur?.utilisateur_id;
 
+    const livraison = await Commande.findOne({
+      where: { 
+        id,
+        ...(livreurId && { livreur_id: livreurId }) // Only filter by livreur if authenticated as one
+      },
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          include: [{
+            model: Utilisateur,
+            as: 'utilisateur',
+            attributes: ['prenom', 'nom'] // Removed telephone from here
+          }]
+        },
+        {
+          model: Adresse,
+          as: 'adresse',
+          attributes: ['adresse', 'ville', 'code_postal']
+        },
+        {
+          model: Colis,
+          as: 'colis',
+          attributes: ['id', 'numero_suivi', 'statut', 'date_expedition', 'date_livraison']
+        },
+        {
+          model: Livreur,
+          as: 'livreur',
+          include: [{
+            model: Utilisateur,
+            as: 'utilisateur',
+            attributes: ['prenom', 'nom']
+          }]
+        }
+      ]
+    });
 
+    if (!livraison) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Livraison non trouvée' 
+      });
+    }
+
+    const result = {
+      livraison_id: livraison.id,
+      reference: livraison.reference,
+      date_creation: livraison.created_at,
+      date_livraison: livraison.date_livraison,
+      statut: livraison.statut,
+      montant_total: livraison.prix_total, // Changed from montant_total to prix_total
+      instructions: livraison.notes_admin, // Assuming notes_admin contains delivery instructions
+      client_nom: livraison.client?.utilisateur 
+        ? `${livraison.client.utilisateur.prenom} ${livraison.client.utilisateur.nom}`
+        : 'Client inconnu',
+      client_telephone: livraison.client?.telephone || 'N/A', // Get phone directly from client
+      adresse_livraison: livraison.adresse?.adresse 
+        ? `${livraison.adresse.adresse}, ${livraison.adresse.code_postal} ${livraison.adresse.ville}`
+        : 'Adresse non disponible',
+      livreur: livraison.livreur?.utilisateur
+        ? `${livraison.livreur.utilisateur.prenom} ${livraison.livreur.utilisateur.nom}`
+        : null,
+      colis: livraison.colis || []
+    };
+
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Erreur obtenirLivraisonParId:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération de la livraison',
+      ...(process.env.NODE_ENV === 'development' && {
+        error: error.message,
+        stack: error.stack
+      })
+    });
+  }
+};
 module.exports = {
+  obtenirLivraisonParId,
   obtenirLivraisonsDisponibles,
   assignerLivraison,
   obtenirLivraisonsParLivreur,

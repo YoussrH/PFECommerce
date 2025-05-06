@@ -25,7 +25,7 @@ module.exports = (sequelize) => {
     statut: {
       type: DataTypes.ENUM(
         'en_preparation',
-        'expedie',
+        'expediee',
         'livree',
         'retourne'
       ),
@@ -61,7 +61,7 @@ module.exports = (sequelize) => {
       },
       afterUpdate: async (colis) => {
         if (colis.changed('statut')) {
-          if (colis.statut === 'expedie' && !colis.date_expedition) {
+          if (colis.statut === 'expediee' && !colis.date_expedition) {
             colis.date_expedition = new Date();
           }
           if (colis.statut === 'livree' && !colis.date_livraison) {

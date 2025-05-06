@@ -660,129 +660,7 @@ const genererFacture = async (req, res) => {
     });
   }
 };
-/* 
-const mettreAJourStatut = async (req, res) => {
-  let transaction;
-  try {
-    const { id } = req.params;
-    const { statut } = req.body;
-    const utilisateurId = req.utilisateur?.id;
 
-    transaction = await sequelize.transaction({
-      isolationLevel: Sequelize.Transaction.ISOLATION_LEVELS.READ_COMMITTED
-    });
-
-    const commande = await Commande.findByPk(id, {
-      transaction,
-      include: [{
-        model: Client,
-        as: 'client',
-        include: [{ 
-          model: Utilisateur, 
-          as: 'utilisateur',
-          attributes: ['id', 'prenom', 'nom', 'email']
-        }]
-      }]
-    });
-
-    if (!commande) {
-      await transaction.rollback();
-      return res.status(404).json({ success: false, message: 'Commande non trouvée' });
-    }
-
-    console.log(`Changing status from ${commande.statut} to ${statut}`);
-
-    // Update command status
-    await commande.update({ statut }, { transaction });
-
-    // Handle package creation based on status
-    if (statut === 'en_preparation' || statut === 'expediee') {
-      console.log(`Creating/updating colis for ${statut} status`);
-      
-      const isExpediee = statut === 'expediee';
-      const colisData = {
-        commande_id: id,
-        livreur_id: commande.livreur_id,
-        statut: isExpediee ? 'expedie' : 'en_preparation',
-        transporteur: commande.methode_livraison === 'express' ? 'Express' : 'Standard',
-        numero_suivi: `TRK${Date.now().toString(36).toUpperCase()}`,
-        url_suivi: `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`,
-        ...(isExpediee && { date_expedition: new Date() })
-      };
-
-      // Check if colis exists
-      const existingColis = await sequelize.models.Colis.findOne({
-        where: { commande_id: id },
-        transaction
-      });
-
-      let colis;
-      if (existingColis) {
-        // Update existing colis
-        colis = await existingColis.update(colisData, { transaction });
-      } else {
-        // Create new colis
-        colis = await sequelize.models.Colis.create(colisData, { transaction });
-      }
-
-      // Generate QR code
-      const qrToken = require('uuid').v4();
-      const qrData = JSON.stringify({
-        colisId: colis.id,
-        commandeId: commande.id,
-        token: qrToken
-      });
-      const qrCodeData = await QRCode.toDataURL(qrData);
-
-      await colis.update({
-        qr_token: qrToken,
-        qr_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-        qr_code_data: qrCodeData
-      }, { transaction });
-    }
-
-    // Log status change
-    await CommandeHistorique.create({
-      commande_id: commande.id,
-      utilisateur_id: utilisateurId,
-      action: 'changement_statut',
-      ancienne_valeur: commande.statut,
-      nouvelle_valeur: statut,
-      details: `Statut changé de ${commande.statut} à ${statut}`
-    }, { transaction });
-
-    await transaction.commit();
-
-    console.log(`Status changed successfully for command ${commande.id}`);
-
-    res.status(200).json({
-      success: true,
-      message: 'Statut mis à jour',
-      data: {
-        ancienStatut: commande.statut,
-        nouveauStatut: statut
-      }
-    });
-
-  } catch (error) {
-    console.error('Error in mettreAJourStatut:', error);
-    
-    if (transaction) {
-      try {
-        await transaction.rollback();
-        console.log('Transaction rolled back');
-      } catch (rollbackError) {
-        console.error('Rollback error:', rollbackError);
-      }
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Erreur changement statut',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-}; */
 const mettreAJourStatut = async (req, res) => {
   let transaction;
   try {
@@ -829,7 +707,7 @@ const mettreAJourStatut = async (req, res) => {
       const colisData = {
         commande_id: id,
         livreur_id: commande.livreur_id,
-        statut: isExpediee ? 'expedie' : 'en_preparation',
+        statut: isExpediee ? 'expediee' : 'en_preparation',
         transporteur: commande.methode_livraison === 'express' ? 'Express' : 'Standard',
         numero_suivi: `TRK${Date.now().toString(36).toUpperCase()}`,
         url_suivi: `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`,

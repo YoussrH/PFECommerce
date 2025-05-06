@@ -42,7 +42,7 @@ const formatDate = (dateString) => {
 
 const statusVariant = {
   preparation: 'secondary',
-  expedie: 'default',
+  expediee: 'default',
   livre: 'success',
   retourne: 'destructive'
 }
@@ -77,7 +77,7 @@ export default function ColisPage() {
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
                 <SelectItem value="preparation">En préparation</SelectItem>
-                <SelectItem value="expedie">Expédié</SelectItem>
+                <SelectItem value="expediee">Expédié</SelectItem>
                 <SelectItem value="livre">Livré</SelectItem>
                 <SelectItem value="retourne">Retourné</SelectItem>
               </SelectContent>

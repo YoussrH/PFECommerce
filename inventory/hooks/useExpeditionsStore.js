@@ -23,7 +23,7 @@ export const useExpeditionsStore = create((set, get) => ({
   mapColisStatus: (status) => {
     switch(status) {
       case 'preparation': return 'Préparée';
-      case 'expedie': return 'En route';
+      case 'expediee': return 'En route';
       case 'livre': return 'Livrée';
       case 'retourne': return 'Retourné';
       case 'echec': return 'Échec de livraison';
@@ -44,7 +44,7 @@ export const useExpeditionsStore = create((set, get) => ({
           page, 
           limit, 
           statut: statut === 'Préparée' ? 'preparation' :
-                 statut === 'En route' ? 'expedie' :
+                 statut === 'En route' ? 'expediee' :
                  statut === 'Livrée' ? 'livre' :
                  statut === 'Retourné' ? 'retourne' :
                  statut === 'Échec de livraison' ? 'echec' : statut,
@@ -98,7 +98,7 @@ export const useExpeditionsStore = create((set, get) => ({
           page, 
           limit, 
           statut: statut === 'Préparée' ? 'preparation' :
-                 statut === 'En route' ? 'expedie' :
+                 statut === 'En route' ? 'expediee' :
                  statut === 'Livrée' ? 'livre' :
                  statut === 'Échec de livraison' ? 'echec' : statut,
           livreur_id, 
@@ -143,7 +143,7 @@ export const useExpeditionsStore = create((set, get) => ({
     try {
       // Map display status to colis status
       const colisStatut = statut_expedition === 'Préparée' ? 'preparation' :
-                         statut_expedition === 'En route' ? 'expedie' :
+                         statut_expedition === 'En route' ? 'expediee' :
                          statut_expedition === 'Livrée' ? 'livre' :
                          statut_expedition === 'Échec de livraison' ? 'echec' : statut_expedition;
 
