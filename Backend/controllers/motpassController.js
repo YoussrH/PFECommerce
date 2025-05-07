@@ -225,8 +225,85 @@ const reinitialiserMotDePasse = async (req, res) => {
   }
 };
 
+const changerMotDePasse = async (req, res) => {
+  try {
+    // Get user from request (added by auth middleware)
+    const utilisateur = req.user;
+    
+    // Get passwords from body
+    const { motDePasseActuel, nouveauMotDePasse } = req.body;
+
+    // Validate input
+    if (!motDePasseActuel || !nouveauMotDePasse) {
+      return res.status(400).json({
+        success: false,
+        error: "Veuillez fournir le mot de passe actuel et le nouveau mot de passe"
+      });
+    }
+
+    if (motDePasseActuel === nouveauMotDePasse) {
+      return res.status(400).json({
+        success: false,
+        error: "Le nouveau mot de passe doit être différent de l'actuel"
+      });
+    }
+
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(
+      motDePasseActuel,
+      utilisateur.mot_de_passe
+    );
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        error: "Mot de passe actuel incorrect"
+      });
+    }
+
+    // Update password
+    const hashedPassword = await bcrypt.hash(nouveauMotDePasse, 10);
+    await utilisateur.update({
+      mot_de_passe: hashedPassword,
+      token_reinitialisation: null,
+      code_reinitialisation: null,
+      expiration_token_reinitialisation: null
+    });
+
+    // Send confirmation email (optional)
+    try {
+      await transporter.sendMail({
+        from: `MGM <${process.env.EMAIL_USER}>`,
+        to: utilisateur.email,
+        subject: "Confirmation de changement de mot de passe",
+        html: `
+          <p>Bonjour ${utilisateur.prenom},</p>
+          <p>Votre mot de passe a été modifié avec succès.</p>
+          <p>Si vous n'avez pas effectué cette action, veuillez contacter immédiatement notre support.</p>
+          <p>Merci,<br>L'équipe MGM</p>
+        `
+      });
+    } catch (emailError) {
+      console.error("Erreur lors de l'envoi de l'email de confirmation:", emailError);
+    }
+
+    return res.json({
+      success: true,
+      message: "Mot de passe changé avec succès"
+    });
+
+  } catch (error) {
+    console.error('Erreur dans changerMotDePasse:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Erreur lors du changement de mot de passe"
+    });
+  }
+};
 module.exports = {
   motDePasseOublie,
   verifierCodeReinitialisation,
-  reinitialiserMotDePasse
+  reinitialiserMotDePasse,
+  changerMotDePasse
+  
 };

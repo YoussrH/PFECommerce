@@ -129,7 +129,6 @@ const Sidebar = ({ isSidebarCollapsed }) => {
         { href: "/admin/ventes/remise/appliquer", icon: FaTags, label: "Appliquer une réduction" },
       ],
     },
-    { href: "/admin/ventes/retours", icon: FaUndo, label: "Retours & Remboursements" },
   ];
 
 
@@ -159,6 +158,14 @@ const Sidebar = ({ isSidebarCollapsed }) => {
     { href: "/admin/parametres/rapports", icon: TbReport, label: "Rapports d’Entreprise" },
     { href: "/admin/parametres/journaux", icon: Archive, label: "Journaux d’Activité" },
   ];
+  // Add this with your existing submenu arrays
+const reclamationsSubmenuItems = [
+  { href: "/admin/reclamations/inbox", icon: FaStickyNote, label: "Boîte de réception" },
+  { href: "/admin/reclamations/traitees", icon: FaReceipt, label: "Traitées" },
+  { href: "/admin/reclamations/attente", icon: FaUndo, label: "En attente" },
+  { href: "/admin/reclamations/archivees", icon: Archive, label: "Archivées" },
+];
+
 
   return (
     <div className={sidebarClassNames}>
@@ -212,6 +219,15 @@ const Sidebar = ({ isSidebarCollapsed }) => {
           hasSubmenu={true}
           submenuItems={usersSubmenuItems}
         />
+        <SidebarLink
+          href="/admin/reclamations"
+          icon={FaStickyNote}
+          label="Réclamations"
+          isCollapsed={isSidebarCollapsed}
+          hasSubmenu={true}
+          submenuItems={reclamationsSubmenuItems}
+        />
+
         <SidebarLink
           href="/admin/parametres"
           icon={SlidersHorizontal}

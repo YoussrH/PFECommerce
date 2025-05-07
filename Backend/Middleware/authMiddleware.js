@@ -39,7 +39,10 @@ const authentifierLivreur = async (req, res, next) => {
         as: 'livreur',
         required: true
       }],
-      attributes: { exclude: ['mot_de_passe'] }
+      attributes: req.originalUrl.includes('changer-mot-de-passe') 
+      ? undefined 
+      : { exclude: ['mot_de_passe'] }
+  
     });
 
     if (!utilisateur || !utilisateur.livreur) {

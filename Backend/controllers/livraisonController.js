@@ -698,6 +698,239 @@ const obtenirLivraisonParId = async (req, res) => {
     });
   }
 };
+
+/* const obtenirLivraisonsParDate = async (req, res) => {
+  try {
+    if (!req.livreur || !req.livreur.utilisateur_id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Non authentifié ou identifiant livreur manquant.'
+      });
+    }
+
+    const livreurId = req.livreur.utilisateur_id;
+    const { dateDebut, dateFin } = req.query;
+
+    // Parse dates if provided
+    const startDate = dateDebut ? new Date(dateDebut) : null;
+    const endDate = dateFin ? new Date(dateFin) : null;
+
+    // Validate dates
+    if ((dateDebut && isNaN(startDate.getTime())) || (dateFin && isNaN(endDate.getTime()))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Format de date invalide. Utilisez le format ISO (YYYY-MM-DD).'
+      });
+    }
+
+    // Build where clause for date filtering
+    const dateFilter = {};
+    if (startDate) {
+      dateFilter[Op.gte] = startDate;
+    }
+    if (endDate) {
+      dateFilter[Op.lte] = endDate;
+    }
+
+    const livraisons = await Commande.findAll({
+      where: { 
+        livreur_id: livreurId,
+        ...(Object.keys(dateFilter).length) > 0 && {
+          [Op.or]: [
+            {
+              date_livraison: dateFilter
+            },
+            {
+              '$colis.date_livraison$': dateFilter
+            }
+          ]
+        }
+      },
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          include: [{
+            model: Utilisateur,
+            as: 'utilisateur',
+            attributes: ['prenom', 'nom']
+          }]
+        },
+        {
+          model: Adresse,
+          as: 'adresse',
+          attributes: ['adresse']
+        },
+        {
+          model: Colis,
+          as: 'colis',
+          attributes: ['id', 'numero_suivi', 'statut', 'date_expedition', 'date_livraison']
+        }
+      ],
+      order: [['date_livraison', 'DESC']] // Sort by delivery date by default
+    });
+
+    const result = livraisons.map(l => ({
+      livraison_id: l.id,
+      reference: l.reference,
+      date_creation: l.created_at,
+      date_livraison: l.date_livraison || l.colis?.[0]?.date_livraison,
+      adresse_livraison: l.adresse?.adresse || 'Adresse non disponible',
+      client_nom: l.client?.utilisateur
+        ? `${l.client.utilisateur.prenom} ${l.client.utilisateur.nom}`
+        : 'Client inconnu',
+      statut: l.statut,
+      colis: l.colis || null
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: result.length,
+      data: result
+    });
+  } catch (error) {
+    console.error('Erreur obtenirLivraisonsParDate:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur.',
+      ...(process.env.NODE_ENV === 'development' && {
+        error: error.message,
+        stack: error.stack
+      })
+    });
+  }
+}; */
+
+
+const obtenirLivraisonsParDate = async (req, res) => {
+  try {
+    if (!req.livreur || !req.livreur.utilisateur_id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Non authentifié ou identifiant livreur manquant.'
+      });
+    }
+
+    const livreurId = req.livreur.utilisateur_id;
+    const { dateDebut, dateFin } = req.query;
+
+    if (!dateDebut || !dateFin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Les paramètres dateDebut et dateFin sont requis.'
+      });
+    }
+
+    const startDate = new Date(dateDebut);
+    const endDate = new Date(dateFin);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Format de date invalide. Utilisez le format ISO (YYYY-MM-DD).'
+      });
+    }
+
+    const livraisons = await Commande.findAll({
+      where: {
+        livreur_id: livreurId,
+        [Op.or]: [
+          {
+            '$colis.date_livraison$': {
+              [Op.between]: [startDate, endDate]
+            }
+          },
+          {
+            '$colis.date_expedition$': {
+              [Op.between]: [startDate, endDate]
+            }
+          },
+          {
+            [Op.and]: [
+              { '$colis.date_livraison$': null },
+              { '$colis.date_expedition$': null },
+              {
+                created_at: {
+                  [Op.between]: [startDate, endDate]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          include: [{
+            model: Utilisateur,
+            as: 'utilisateur',
+            attributes: ['prenom', 'nom']
+          }]
+        },
+        {
+          model: Adresse,
+          as: 'adresse',
+          attributes: ['adresse']
+        },
+        {
+          model: Colis,
+          as: 'colis',
+          attributes: ['id', 'numero_suivi', 'statut', 'date_expedition', 'date_livraison'],
+          required: false // Important pour inclure même les commandes sans colis
+        }
+      ],
+      order: [
+        [{ model: Colis, as: 'colis' }, 'date_livraison', 'DESC'],
+        [{ model: Colis, as: 'colis' }, 'date_expedition', 'DESC'],
+        ['created_at', 'DESC']
+      ]
+    });
+
+    const result = livraisons.map(l => {
+      const colis = Array.isArray(l.colis) ? l.colis[0] : l.colis;
+
+      let displayDate =
+        colis?.date_livraison ||
+        colis?.date_expedition ||
+        l.created_at;
+
+      return {
+        livraison_id: l.id,
+        reference: l.reference,
+        date_creation: l.created_at,
+        date_livraison: colis?.date_livraison || null,
+        displayDate,
+        adresse_livraison: l.adresse?.adresse || 'Adresse non disponible',
+        client_nom: l.client?.utilisateur
+          ? `${l.client.utilisateur.prenom} ${l.client.utilisateur.nom}`
+          : 'Client inconnu',
+        statut: l.statut,
+        colis: l.colis || []
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: result.length,
+      data: result
+    });
+  } catch (error) {
+    console.error('Erreur obtenirLivraisonsParDate:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur.',
+      ...(process.env.NODE_ENV === 'development' && {
+        error: error.message,
+        stack: error.stack
+      })
+    });
+  }
+};
+
+
 module.exports = {
   obtenirLivraisonParId,
   obtenirLivraisonsDisponibles,
@@ -708,5 +941,6 @@ module.exports = {
   mettreAJourStatutLivraison,
   obtenirMesStatistiquesLivraison,
   updateStatus,
+  obtenirLivraisonsParDate
 };
 
