@@ -19,6 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { useGenerateInvoice } from '@/hooks/useCommandes'
 
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
@@ -49,6 +50,7 @@ const statusVariant = {
 
 export default function ColisPage() {
   const { colis, loading, fetchColis } = useExpeditionsStore()
+  const { mutateAsync: generateInvoice } = useGenerateInvoice()
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
@@ -60,8 +62,17 @@ export default function ColisPage() {
     fetchColis(filters)
   }, [filters])
 
+  const handleDownloadInvoice = async (commandeId) => {
+    try {
+      await generateInvoice(commandeId)
+    } catch (error) {
+      console.error('Failed to generate invoice:', error)
+    }
+  }
+
   return (
     <div className="container mx-auto p-6">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Gestion des Colis</CardTitle>
         </CardHeader>
@@ -130,9 +141,9 @@ export default function ColisPage() {
                       </div>
                     </div>
 
-                    {/* QR Code Display */}
-                    {colis.qr_code_data && (
-                      <div className="mt-4">
+                    <div className="flex gap-2 mt-4">
+                      {/* QR Code Display */}
+                      {colis.qr_code_data && (
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button variant="outline" size="sm">
@@ -155,8 +166,19 @@ export default function ColisPage() {
                             </div>
                           </DialogContent>
                         </Dialog>
-                      </div>
-                    )}
+                      )}
+
+                      {/* Download Invoice Button */}
+                      {colis.commande_id && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDownloadInvoice(colis.commande_id)}
+                        >
+                          Télécharger Facture
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               ))
@@ -165,6 +187,7 @@ export default function ColisPage() {
             )}
           </div>
         </CardContent>
+      </Card>
     </div>
   )
 }

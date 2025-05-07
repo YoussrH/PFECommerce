@@ -45,7 +45,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true
       },
       statut: {
-        type: DataTypes.ENUM('nouveau', 'en_cours', 'resolu'),
+        type: DataTypes.ENUM('nouveau', 'en_attente', 'traite', 'archive'),
         defaultValue: 'nouveau'
       },
       utilisateur_id: {

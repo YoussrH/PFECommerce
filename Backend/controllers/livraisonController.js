@@ -384,91 +384,114 @@ const obtenirMesLivraisonsAujourdhui = async (req, res) => {
 };
 
 
-// Update delivery status (for delivery person)
 const mettreAJourStatutLivraison = async (req, res) => {
-  const transaction = await sequelize.transaction();
+  let transaction;
   try {
-    const { id } = req.params;
+    const { id } = req.params; // commande_id
     const { statut } = req.body;
+    const livreurId = req.livreur?.utilisateur_id;
 
-    // Verify user is authenticated and is a delivery person
-    if (!req.utilisateur || !req.utilisateur.livreur || !req.utilisateur.livreur.id) {
-      await transaction.rollback();
-      return res.status(403).json({ 
+    if (!livreurId) {
+      return res.status(401).json({
         success: false,
-        message: 'Accès refusé: utilisateur non authentifié ou non livreur' 
+        message: 'Non authentifié ou identifiant livreur manquant.'
       });
     }
 
-    const livreurId = req.utilisateur.livreur.id;
+    transaction = await sequelize.transaction({
+      isolationLevel: Sequelize.Transaction.ISOLATION_LEVELS.READ_COMMITTED
+    });
 
-    const commande = await Commande.findOne({
-      where: {
-        id,
-        livreur_id: livreurId
-      },
-      transaction
+    const commande = await Commande.findByPk(id, {
+      transaction,
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          include: [{
+            model: Utilisateur,
+            as: 'utilisateur',
+            attributes: ['id', 'prenom', 'nom', 'email']
+          }]
+        }
+      ]
     });
 
     if (!commande) {
       await transaction.rollback();
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Commande non trouvée ou non assignée à vous' 
+        message: 'Commande non trouvée'
       });
     }
 
-    const allowedStatuses = {
-      'en_preparation': ['expediee'],
-      'expediee': ['livree']
-    };
-
-    if (!allowedStatuses[commande.statut] || !allowedStatuses[commande.statut].includes(statut)) {
+    if (commande.livreur_id !== livreurId) {
       await transaction.rollback();
-      return res.status(400).json({ 
+      return res.status(403).json({
         success: false,
-        message: 'Transition de statut non autorisée'
+        message: 'Accès refusé : vous n’êtes pas le livreur assigné à cette commande.'
       });
     }
 
+    const ancienStatut = commande.statut;
+
+    // Autoriser uniquement certains statuts pour le livreur
+    const statutsAutorisés = ['recuperee', 'livree', 'echouee'];
+    if (!statutsAutorisés.includes(statut)) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Statut '${statut}' non autorisé pour le livreur.`
+      });
+    }
+
+    // Mettre à jour la commande
     await commande.update({ statut }, { transaction });
 
-    if (statut === 'livree') {
-      await commande.update({ date_livraison: new Date() }, { transaction });
+    const colis = await sequelize.models.Colis.findOne({
+      where: { commande_id: id },
+      transaction
+    });
+
+    if (colis) {
+      await colis.update({
+        statut,
+        ...(statut === 'livree' && { date_livraison: new Date() })
+      }, { transaction });
     }
 
     await CommandeHistorique.create({
       commande_id: commande.id,
-      utilisateur_id: req.utilisateur.id,
-      action: 'changement_statut_livreur',
-      ancienne_valeur: commande.statut,
+      utilisateur_id: livreurId,
+      action: 'changement_statut',
+      ancienne_valeur: ancienStatut,
       nouvelle_valeur: statut,
-      details: `Statut changé par le livreur`
+      details: `Livreur a changé le statut de ${ancienStatut} à ${statut}`
     }, { transaction });
 
     await transaction.commit();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Statut mis à jour avec succès',
       data: {
-        commande_id: commande.id,
-        nouveau_statut: statut
+        commandeId: commande.id,
+        ancienStatut,
+        nouveauStatut: statut
       }
     });
+
   } catch (error) {
-    await transaction.rollback();
-    const errorInfo = debugError('mettreAJourStatutLivraison', error, {
-      commandeId: req.params.id,
-      body: req.body
-    });
-    res.status(500).json({
+    if (transaction) await transaction.rollback();
+    console.error('Erreur changement statut par livreur:', error);
+    return res.status(500).json({
       success: false,
-      message: 'Erreur lors de la mise à jour du statut',
-      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+      message: 'Erreur interne lors du changement de statut'
     });
   }
 };
+
+
 
 const obtenirMesStatistiquesLivraison = async (req, res) => {
   try {
@@ -698,108 +721,6 @@ const obtenirLivraisonParId = async (req, res) => {
     });
   }
 };
-
-/* const obtenirLivraisonsParDate = async (req, res) => {
-  try {
-    if (!req.livreur || !req.livreur.utilisateur_id) {
-      return res.status(401).json({
-        success: false,
-        message: 'Non authentifié ou identifiant livreur manquant.'
-      });
-    }
-
-    const livreurId = req.livreur.utilisateur_id;
-    const { dateDebut, dateFin } = req.query;
-
-    // Parse dates if provided
-    const startDate = dateDebut ? new Date(dateDebut) : null;
-    const endDate = dateFin ? new Date(dateFin) : null;
-
-    // Validate dates
-    if ((dateDebut && isNaN(startDate.getTime())) || (dateFin && isNaN(endDate.getTime()))) {
-      return res.status(400).json({
-        success: false,
-        message: 'Format de date invalide. Utilisez le format ISO (YYYY-MM-DD).'
-      });
-    }
-
-    // Build where clause for date filtering
-    const dateFilter = {};
-    if (startDate) {
-      dateFilter[Op.gte] = startDate;
-    }
-    if (endDate) {
-      dateFilter[Op.lte] = endDate;
-    }
-
-    const livraisons = await Commande.findAll({
-      where: { 
-        livreur_id: livreurId,
-        ...(Object.keys(dateFilter).length) > 0 && {
-          [Op.or]: [
-            {
-              date_livraison: dateFilter
-            },
-            {
-              '$colis.date_livraison$': dateFilter
-            }
-          ]
-        }
-      },
-      include: [
-        {
-          model: Client,
-          as: 'client',
-          include: [{
-            model: Utilisateur,
-            as: 'utilisateur',
-            attributes: ['prenom', 'nom']
-          }]
-        },
-        {
-          model: Adresse,
-          as: 'adresse',
-          attributes: ['adresse']
-        },
-        {
-          model: Colis,
-          as: 'colis',
-          attributes: ['id', 'numero_suivi', 'statut', 'date_expedition', 'date_livraison']
-        }
-      ],
-      order: [['date_livraison', 'DESC']] // Sort by delivery date by default
-    });
-
-    const result = livraisons.map(l => ({
-      livraison_id: l.id,
-      reference: l.reference,
-      date_creation: l.created_at,
-      date_livraison: l.date_livraison || l.colis?.[0]?.date_livraison,
-      adresse_livraison: l.adresse?.adresse || 'Adresse non disponible',
-      client_nom: l.client?.utilisateur
-        ? `${l.client.utilisateur.prenom} ${l.client.utilisateur.nom}`
-        : 'Client inconnu',
-      statut: l.statut,
-      colis: l.colis || null
-    }));
-
-    res.status(200).json({
-      success: true,
-      count: result.length,
-      data: result
-    });
-  } catch (error) {
-    console.error('Erreur obtenirLivraisonsParDate:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur interne du serveur.',
-      ...(process.env.NODE_ENV === 'development' && {
-        error: error.message,
-        stack: error.stack
-      })
-    });
-  }
-}; */
 
 
 const obtenirLivraisonsParDate = async (req, res) => {

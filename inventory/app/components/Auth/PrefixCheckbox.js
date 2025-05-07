@@ -5,6 +5,7 @@ const PrefixCheckbox = ({ formData, setFormData }) => {
   const options = ["Madame","Monsieur","Mlle"];
 
   return (
+    
     <div className="w-64 mx-auto">
       <label className="block text-black font-medium my-2 text-xs">
         Civilité <span className="text-yellow-500">*</span>

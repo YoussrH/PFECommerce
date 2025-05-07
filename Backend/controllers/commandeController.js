@@ -442,225 +442,398 @@ const obtenirDetailsCommande = async (req, res) => {
 };
 
 
-// 8. Generate Invoice - FIXED VERSION
+
 const genererFacture = async (req, res) => {
   let transaction;
   try {
     const { id } = req.params;
+    const { type = "commande" } = req.query; // 'commande' or 'colis'
 
-    // Validate UUID first
     if (!isUUID(id, 4)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Format ID de commande invalide'
+        message: "Format ID de commande invalide",
       });
     }
 
     transaction = await sequelize.transaction();
-    
+
     const commande = await Commande.findByPk(id, {
       transaction,
       include: [
         {
           model: Client,
-          as: 'client',
-          include: [{ model: Utilisateur, as: 'utilisateur' }]
+          as: "client",
+          include: [{ model: Utilisateur, as: "utilisateur" }],
         },
-        { model: Adresse, as: 'adresse' },
+        { model: Adresse, as: "adresse" },
         {
-          model: Article,
-          as: 'articles',
-          through: { 
-            model: CommandeArticle,
-            attributes: ['quantite', 'prix_unitaire', 'taille_id', 'couleur_id']
-          },
+          model: CommandeArticle,
+          as: "commande_articles",
           include: [
-            { model: Marque, as: 'marque' },
-            { 
-              model: Taille,
-              as: 'tailles',
-              through: { attributes: [] } 
+            {
+              model: Article,
+              as: "article",
+              include: [
+                { model: Marque, as: "marque" },
+                {
+                  model: Taille,
+                  as: "tailles",
+                  through: { attributes: [] },
+                },
+                {
+                  model: Couleur,
+                  as: "couleurs",
+                  through: { attributes: [] },
+                },
+              ],
             },
-            { 
-              model: Couleur,
-              as: 'couleurs',
-              through: { attributes: [] } 
-            }
-          ]
-        }
-      ]
+          ],
+        },
+      ],
     });
 
     if (!commande) {
       await transaction.rollback();
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Commande non trouvée' 
+        message: "Commande non trouvée",
       });
     }
 
-    if (commande.statut === 'annulee') {
+    if (commande.statut === "annulee") {
       await transaction.rollback();
       return res.status(400).json({
         success: false,
-        message: 'Impossible de générer une facture pour une commande annulée'
+        message: "Impossible de générer une facture pour une commande annulée",
       });
     }
 
-    let facture = await Facture.findOne({ 
-      where: { commande_id: id },
-      transaction
-    });
+    // Find or create colis if type is 'colis'
+    let colis = null;
+    if (type === "colis") {
+      colis = await sequelize.models.Colis.findOne({
+        where: { commande_id: id },
+        transaction,
+      });
 
-    if (!facture) {
-      const numeroFacture = `FAC-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
-      
-      facture = await Facture.create({
-        commande_id: commande.id,
-        numero: numeroFacture,
-        date_emission: new Date(),
-        montant_ht: commande.prix_total / 1.2, // Assuming 20% VAT
-        taux_tva: 20.0,
-        montant_ttc: commande.prix_total,
-        fichier_url: `/factures/${numeroFacture}.pdf`,
-        est_payee: commande.statut === 'livree'
-      }, { transaction });
-
-      // Add invoice generation to history
-      await CommandeHistorique.create({
-        commande_id: commande.id,
-        utilisateur_id: req.utilisateur?.id || null,
-        action: 'generation_facture',
-        details: `Facture ${numeroFacture} générée`
-      }, { transaction });
+      if (!colis) {
+        await transaction.rollback();
+        return res.status(400).json({
+          success: false,
+          message: "Aucun colis trouvé pour cette commande",
+        });
+      }
     }
 
-    // Create the factures directory if it doesn't exist
-    const facturesDir = path.join(__dirname, '../../public/factures');
-    if (!fs.existsSync(facturesDir)) {
-      fs.mkdirSync(facturesDir, { recursive: true });
+    const numeroFacture = `FAC-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+    const isColisInvoice = type === "colis";
+    const fileName = isColisInvoice ? `Colis-${commande.reference}.pdf` : `${numeroFacture}.pdf`;
+    const filePath = path.join(__dirname, "../../public/factures", fileName);
+
+    // Ensure directory exists
+    if (!fs.existsSync(path.dirname(filePath))) {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
     }
 
-    // Generate PDF
-    const doc = new PDFDocument();
-    const pdfPath = path.join(facturesDir, `${facture.numero}.pdf`);
-    const writeStream = fs.createWriteStream(pdfPath);
+    const doc = new PDFDocument({ margin: 30 });
+    const writeStream = fs.createWriteStream(filePath);
     doc.pipe(writeStream);
+
+    // Register monospace font (Courier)
+    doc.font("Courier");
 
     // Get delivery info
     const deliveryInfo = getDeliveryInfo(commande.methode_livraison);
 
-    // PDF Header
-    doc.image(path.join(__dirname, '../../public/logo.png'), 50, 45, { width: 50 })
-       .fillColor('#444444')
-       .fontSize(20)
-       .text('Facture', 200, 50, { align: 'right' })
-       .fontSize(10)
-       .text(`Numéro: ${facture.numero}`, 200, 65, { align: 'right' })
-       .text(`Date: ${new Date(facture.date_emission).toLocaleDateString('fr-FR')}`, 200, 80, { align: 'right' })
-       .moveDown();
-
-    // Customer Information
-    doc.fillColor('#444444')
-       .fontSize(14)
-       .text('Facturé à:', 50, 120)
-       .fontSize(10)
-       .text(`${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`, 50, 140)
-       .text(`${commande.adresse.adresse}`, 50, 155)
-       .text(`${commande.adresse.code_postal} ${commande.adresse.ville}`, 50, 170)
-       .text(`${commande.adresse.gouvernorat}`, 50, 185)
-       .moveDown();
-
-    // Invoice Items Table Header
-    doc.fontSize(12)
-       .fillColor('#ffffff')
-       .rect(50, 220, 500, 20)
-       .fill('#009966')
-       .text('Description', 50, 222)
-       .text('Quantité', 300, 222)
-       .text('Prix', 400, 222, { width: 100, align: 'right' })
-       .text('Total', 500, 222, { width: 50, align: 'right' });
-
-    // Invoice Items
-    let yPosition = 250;
-    doc.fillColor('#444444')
-       .fontSize(10);
-
-    commande.articles.forEach(article => {
-      const commandeArticle = article.CommandeArticle;
-      const lineTotal = commandeArticle.prix_unitaire * commandeArticle.quantite;
-      
-      doc.text(article.nom_produit, 50, yPosition)
-         .text(commandeArticle.quantite.toString(), 300, yPosition)
-         .text(`${commandeArticle.prix_unitaire.toFixed(2)} DT`, 400, yPosition, { width: 100, align: 'right' })
-         .text(`${lineTotal.toFixed(2)} DT`, 500, yPosition, { width: 50, align: 'right' });
-      
-      yPosition += 25;
-    });
-
-    // Delivery Fee
-    doc.text(deliveryInfo.description, 50, yPosition)
-       .text('1', 300, yPosition)
-       .text(`${deliveryInfo.fee.toFixed(2)} DT`, 400, yPosition, { width: 100, align: 'right' })
-       .text(`${deliveryInfo.fee.toFixed(2)} DT`, 500, yPosition, { width: 50, align: 'right' });
-    
-    yPosition += 30;
-
-    // Totals
-    doc.fontSize(12)
-       .text(`Sous-total: ${(facture.montant_ttc - deliveryInfo.fee).toFixed(2)} DT`, 400, yPosition, { width: 150, align: 'right' })
-       .text(`Frais de livraison: ${deliveryInfo.fee.toFixed(2)} DT`, 400, yPosition + 20, { width: 150, align: 'right' })
-       .fontSize(14)
-       .text(`Total TTC: ${facture.montant_ttc.toFixed(2)} DT`, 400, yPosition + 40, { width: 150, align: 'right' })
-       .moveDown();
-
-    // Footer
-    doc.fontSize(10)
-       .text('Merci pour votre achat!', 50, 700, { align: 'center' })
-       .text('Pour toute question, contactez notre service client au +216 XX XXX XXX', 50, 720, { align: 'center' });
+    if (isColisInvoice) {
+      // Generate Colis Invoice with QR Code
+      generateColisInvoice(doc, commande, colis, deliveryInfo);
+    } else {
+      // Generate Regular Invoice
+      generateCommandeInvoice(doc, commande, numeroFacture, deliveryInfo);
+    }
 
     doc.end();
 
     await new Promise((resolve, reject) => {
-      writeStream.on('finish', resolve);
-      writeStream.on('error', reject);
+      writeStream.on("finish", resolve);
+      writeStream.on("error", reject);
     });
+
+    // Only create facture record for regular invoices
+    if (!isColisInvoice) {
+      let facture = await Facture.findOne({
+        where: { commande_id: id },
+        transaction,
+      });
+
+      if (!facture) {
+        facture = await Facture.create(
+          {
+            commande_id: commande.id,
+            numero: numeroFacture,
+            date_emission: new Date(),
+            montant_ht: commande.prix_total / 1.2, // Assuming 20% VAT
+            taux_tva: 20.0,
+            montant_ttc: commande.prix_total,
+            fichier_url: `/factures/${fileName}`,
+            est_payee: commande.statut === "livree",
+          },
+          { transaction }
+        );
+
+        await CommandeHistorique.create(
+          {
+            commande_id: commande.id,
+            utilisateur_id: req.utilisateur?.id || null,
+            action: "generation_facture",
+            details: `Facture ${numeroFacture} générée`,
+          },
+          { transaction }
+        );
+      }
+    }
 
     await transaction.commit();
 
     // Send the generated PDF
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=Facture-${facture.numero}.pdf`);
-    fs.createReadStream(pdfPath).pipe(res);
-
+    res.setHeader("Content-Type", "application/pdf");
+    const disposition = isColisInvoice ? "inline" : "attachment";
+    res.setHeader("Content-Disposition", `${disposition}; filename=${fileName}`);
+    fs.createReadStream(filePath).pipe(res);
   } catch (error) {
     if (transaction) await transaction.rollback();
-    
-    // Handle specific errors
-    if (error.code === 'ENOENT') {
-      return res.status(500).json({
-        success: false,
-        message: 'Erreur système: Impossible de créer le fichier PDF'
-      });
-    }
 
-    if (error.name === 'SequelizeDatabaseError') {
-      return res.status(400).json({
-        success: false,
-        message: 'Erreur de base de données',
-        details: error.message
-      });
-    }
-
-    const errorInfo = debugError('genererFacture', error, { commandeId: req.params.id });
-    res.status(500).json({ 
+    const errorInfo = debugError("genererFacture", error, {
+      commandeId: req.params.id,
+      query: req.query,
+    });
+    res.status(500).json({
       success: false,
-      message: 'Erreur génération facture',
-      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+      message: "Erreur génération facture",
+      debug: process.env.NODE_ENV === "development" ? errorInfo : undefined,
     });
   }
 };
+function generateCommandeInvoice(doc, commande, numeroFacture, deliveryInfo) {
+  const orange = "#F97316";
+  const black = "#000000";
 
+  // Draw the orange header bar
+  doc.rect(0, 0, 612, 80).fill(orange).fillColor(black);
+
+  // Add the company name to the header
+  doc.fontSize(24).fillColor("white").text("MGM NEGOCES SARL", 0, 20, { align: "center" });
+
+  // Add "FACTURE" title under the company name
+  doc.fontSize(18).text("FACTURE", 0, 50, { align: "center" });
+
+  // Set default color and font size for rest of the document
+  doc.fillColor(black);
+  doc.fontSize(10).moveDown(2);
+
+  // Add invoice number and date on the top-right
+  doc.text(`Numéro: ${numeroFacture}`, 400, doc.y);
+  doc.text(`Date: ${new Date().toLocaleDateString("fr-FR")}`, 400, doc.y + 10);
+  doc.moveDown(1);
+
+  // Draw a bordered container for the invoice
+  doc
+    .lineWidth(2)
+    .strokeColor(orange)
+    .rect(30, 120, 552, 580)
+    .stroke()
+    .strokeColor(black);
+
+  // Company contact info (top left)
+  doc.fontSize(12).text("MGM Négoces Sarl", 50, 130);
+  doc.text("123 Rue des Entrepreneurs", 50, 145);
+  doc.text("1002 Tunis, Tunisie", 50, 160);
+  doc.text("Tél: +216 70 123 456", 50, 175);
+  doc.text("Email: contact@mgmnegoces.com", 50, 190);
+
+  // Client info
+  doc.moveDown(1.5);
+  doc.fontSize(14).fillColor(orange).text("Facturé à:", 50);
+  doc.fillColor(black).fontSize(12);
+  doc.text(`${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`, 50);
+  doc.text(`${commande.adresse.adresse}`, 50);
+  doc.text(`${commande.adresse.code_postal} ${commande.adresse.ville}`, 50);
+  doc.text(`${commande.adresse.gouvernorat}`, 50);
+
+  doc.moveDown(1.5);
+
+  // Table headers
+  const tableTop = doc.y;
+  doc
+    .fontSize(12)
+    .fillColor(orange)
+    .text("Description", 50, tableTop)
+    .text("Qté", 280, tableTop)
+    .text("Prix Unitaire", 350, tableTop, { width: 200, align: "right" })
+    .fillColor(black);
+
+  doc
+    .lineWidth(1)
+    .strokeColor(orange)
+    .moveTo(50, tableTop + 15)
+    .lineTo(550, tableTop + 15)
+    .stroke();
+
+  doc.moveDown(0.8);
+
+  // Articles loop - updated to use commande_articles
+  commande.commande_articles.forEach((commandeArticle) => {
+    const article = commandeArticle.article;
+    
+    doc
+      .fontSize(11)
+      .text(article.nom_produit, 50, doc.y)
+      .text(commandeArticle.quantite.toString(), 280, doc.y)
+      .text(`${commandeArticle.prix_unitaire.toFixed(2)} DT`, 350, doc.y, { width: 200, align: "right" });
+
+    doc.moveDown(0.4);
+  });
+
+  // Line below the item list
+  doc
+    .moveDown(0.5)
+    .lineWidth(1)
+    .strokeColor(orange)
+    .moveTo(50, doc.y)
+    .lineTo(550, doc.y)
+    .stroke()
+    .moveDown(0.5);
+
+  // Totals section
+  const left = 340;
+  const topTotal = doc.y;
+  doc
+    .fontSize(12)
+    .fillColor(black)
+    .text(`Sous-total: ${(commande.prix_total - deliveryInfo.fee).toFixed(2)} DT`, left, topTotal)
+    .text(`Frais de livraison: ${deliveryInfo.fee.toFixed(2)} DT`, left, topTotal + 15)
+    .fontSize(14)
+    .fillColor(orange)
+    .text(`Total TTC: ${commande.prix_total.toFixed(2)} DT`, left, topTotal + 30)
+    .fillColor(black)
+    .moveDown();
+
+  // Footer
+  doc
+    .fontSize(10)
+    .text("MGM Négoces Sarl - Merci pour votre confiance!", 0, 680, { align: "center" })
+    .text("Pour toute question, contactez notre service client au +216 70 123 456", 0, 695, {
+      align: "center",
+    });
+}
+
+
+function generateColisInvoice(doc, commande, colis, deliveryInfo) {
+  // Colors
+  const orange = "#F97316";
+  const black = "#000000";
+
+  // Header with orange background
+  doc.rect(0, 0, 612, 60).fill(orange).fillColor(black);
+  doc.fontSize(20).fillColor("white").text("MGM NEGOCES SARL", 0, 20, { align: "center" });
+  doc.fontSize(14).text("BON DE LIVRAISON", 0, 40, { align: "center" });
+
+  // Reset colors
+  doc.fillColor(black);
+
+  // Invoice Details
+  doc.fontSize(10).moveDown(2);
+  doc.text(`Référence: ${commande.reference}`, 400, doc.y);
+  doc.text(`Date: ${new Date().toLocaleDateString("fr-FR")}`, 400, doc.y + 15);
+  doc.moveDown(2);
+
+  // Border around content
+  doc
+    .lineWidth(2)
+    .strokeColor(orange)
+    .rect(30, 100, 552, 500)
+    .stroke()
+    .strokeColor(black);
+
+  // Company Info
+  doc.fontSize(12).moveTo(50, 120);
+  doc.text("MGM Négoces Sarl", 50, 120);
+  doc.text("123 Rue des Entrepreneurs", 50, 135);
+  doc.text("1002 Tunis, Tunisie", 50, 150);
+  doc.moveDown();
+
+  // Delivery Information
+  doc.fontSize(14).fillColor(orange).text("Informations de livraison:", 50, doc.y);
+  doc.fillColor(black).fontSize(12);
+  doc.text(
+    `Transporteur: ${colis.transporteur || deliveryInfo.description}`,
+    50,
+    doc.y + 15
+  );
+  doc.text(`Numéro de suivi: ${colis.numero_suivi}`, 50, doc.y + 30);
+  doc.text(
+    `Date d'expédition: ${colis.date_expedition.toLocaleDateString("fr-FR")}`,
+    50,
+    doc.y + 45
+  );
+  doc.moveDown(2);
+
+  // Customer Information
+  doc.fontSize(14).fillColor(orange).text("Livrer à:", 50, doc.y);
+  doc.fillColor(black).fontSize(12);
+  doc.text(
+    `${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`,
+    50,
+    doc.y + 15
+  );
+  doc.text(`${commande.adresse.adresse}`, 50, doc.y + 30);
+  doc.text(
+    `${commande.adresse.code_postal} ${commande.adresse.ville}`,
+    50,
+    doc.y + 45
+  );
+  doc.text(`${commande.adresse.gouvernorat}`, 50, doc.y + 60);
+  doc.moveDown(2);
+
+  // QR Code for delivery confirmation
+  if (colis.qr_code_data) {
+    doc.fontSize(14).fillColor(orange).text("QR Code pour confirmation:", 50, doc.y);
+    doc.fillColor(black).moveDown(0.5);
+
+    // Add QR code image
+    doc.image(colis.qr_code_data, 50, doc.y, { width: 120 });
+    doc.y += 130;
+
+    doc.fontSize(10).text("Scannez pour confirmer la livraison", 50, doc.y);
+    doc.moveDown();
+  }
+
+  // Items List (compact) - updated to use commande_articles
+  doc.fontSize(14).fillColor(orange).text("Articles:", 50, doc.y);
+  doc.fillColor(black).moveDown(0.5);
+
+  commande.commande_articles.forEach((commandeArticle) => {
+    doc.text(
+      `${commandeArticle.article.nom_produit} - ${commandeArticle.quantite} x ${commandeArticle.prix_unitaire.toFixed(2)} DT`,
+      50,
+      doc.y
+    );
+    doc.moveDown();
+  });
+
+  // Footer
+  doc
+    .fontSize(10)
+    .text("MGM Négoces Sarl - Livraison sécurisée", 0, 580, { align: "center" })
+    .text(
+      "Contactez-nous au +216 70 123 456",
+      0,
+      595,
+      { align: "center" }
+    );
+}
 const mettreAJourStatut = async (req, res) => {
   let transaction;
   try {
