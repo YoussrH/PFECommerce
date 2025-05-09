@@ -8,7 +8,6 @@ const QRCode = require('qrcode');
 const { envoyerEmail } = require('../services/emailService');
 const db = require('../models');
 const sequelize = db.sequelize;
-const Colis  = require('../models/Colis');
 
 
 
@@ -26,7 +25,8 @@ const {
   Marque,
   Utilisateur,
   ArticleTaille,
-  ImageArticleCouleur
+  ImageArticleCouleur,
+  Colis
 
 } = require('../models');
 
@@ -443,7 +443,141 @@ const obtenirDetailsCommande = async (req, res) => {
 
 
 
-const genererFacture = async (req, res) => {
+// Updated mettreAJourStatut function with shipping notification
+const mettreAJourStatut = async (req, res) => {
+  let transaction;
+  try {
+    const { id } = req.params;
+    const { statut } = req.body;
+    const utilisateurId = req.utilisateur?.id;
+
+    transaction = await sequelize.transaction({
+      isolationLevel: Sequelize.Transaction.ISOLATION_LEVELS.READ_COMMITTED
+    });
+
+    const commande = await Commande.findByPk(id, {
+      transaction,
+      include: [{
+        model: Client,
+        as: 'client',
+        include: [{ 
+          model: Utilisateur, 
+          as: 'utilisateur',
+          attributes: ['id', 'prenom', 'nom', 'email']
+        }]
+      }]
+    });
+
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Commande non trouvée' });
+    }
+
+    console.log(`Changing status from ${commande.statut} to ${statut}`);
+
+    // Update command status
+    await commande.update({ statut }, { transaction });
+
+    const existingColis = await sequelize.models.Colis.findOne({
+      where: { commande_id: id },
+      transaction
+    });
+
+    if (statut === 'en_preparation' || statut === 'expediee') {
+      console.log(`Creating/updating colis for ${statut} status`);
+
+      const isExpediee = statut === 'expediee';
+      const colisData = {
+        commande_id: id,
+        livreur_id: commande.livreur_id,
+        statut: isExpediee ? 'expediee' : 'en_preparation',
+        transporteur: commande.methode_livraison === 'express' ? 'Express' : 'Standard',
+        numero_suivi: `TRK${Date.now().toString(36).toUpperCase()}`,
+        url_suivi: `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`,
+        ...(isExpediee && { date_expedition: new Date() })
+      };
+
+      let colis;
+      if (existingColis) {
+        colis = await existingColis.update(colisData, { transaction });
+      } else {
+        colis = await sequelize.models.Colis.create(colisData, { transaction });
+      }
+
+      // Generate QR code
+      const qrToken = require('uuid').v4();
+      const qrData = JSON.stringify({
+        colisId: colis.id,
+        commandeId: commande.id,
+        token: qrToken
+      });
+      const qrCodeData = await QRCode.toDataURL(qrData);
+
+      await colis.update({
+        qr_token: qrToken,
+        qr_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        qr_code_data: qrCodeData
+      }, { transaction });
+
+      // Send shipping notification if status is 'expediee'
+      if (isExpediee) {
+        await sendShippingNotification(commande, colis, utilisateurId);
+      }
+    }
+
+    // Set date_livraison if statut is 'livree'
+    if (statut === 'livree' && existingColis) {
+      await existingColis.update({
+        statut: 'livree',
+        date_livraison: new Date()
+      }, { transaction });
+    }
+
+    // Log status change
+    await CommandeHistorique.create({
+      commande_id: commande.id,
+      utilisateur_id: utilisateurId,
+      action: 'changement_statut',
+      ancienne_valeur: commande.statut,
+      nouvelle_valeur: statut,
+      details: `Statut changé de ${commande.statut} à ${statut}`
+    }, { transaction });
+
+    await transaction.commit();
+
+    console.log(`Status changed successfully for command ${commande.id}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Statut mis à jour',
+      data: {
+        ancienStatut: commande.statut,
+        nouveauStatut: statut
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in mettreAJourStatut:', error);
+
+    if (transaction) {
+      try {
+        await transaction.rollback();
+        console.log('Transaction rolled back');
+      } catch (rollbackError) {
+        console.error('Rollback error:', rollbackError);
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Erreur changement statut',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Updated genererFacture function with better colis invoice support
+/* const genererFacture = async (req, res) => {
   let transaction;
   try {
     const { id } = req.params;
@@ -490,6 +624,11 @@ const genererFacture = async (req, res) => {
             },
           ],
         },
+        {
+          model: Livreur,
+          as: "livreur",
+          include: [{ model: Utilisateur, as: "utilisateur" }]
+        }
       ],
     });
 
@@ -539,9 +678,6 @@ const genererFacture = async (req, res) => {
     const doc = new PDFDocument({ margin: 30 });
     const writeStream = fs.createWriteStream(filePath);
     doc.pipe(writeStream);
-
-    // Register monospace font (Courier)
-    doc.font("Courier");
 
     // Get delivery info
     const deliveryInfo = getDeliveryInfo(commande.methode_livraison);
@@ -615,7 +751,332 @@ const genererFacture = async (req, res) => {
       debug: process.env.NODE_ENV === "development" ? errorInfo : undefined,
     });
   }
+}; */
+
+const genererFacture = async (req, res) => {
+  let transaction;
+  try {
+    const { id } = req.params;
+    const { type = "commande" } = req.query; // 'commande' or 'colis'
+
+    transaction = await sequelize.transaction();
+
+    // First check if this is a colis ID and find the associated commande
+    let commande;
+    let colis = null;
+    
+    if (type === "colis") {
+      // Use the Colis model from sequelize.models if direct import doesn't work
+      colis = await sequelize.models.Colis.findByPk(id, {
+        transaction,
+        include: [{
+          model: Commande,
+          as: 'commande',
+          include: [
+            {
+              model: Client,
+              as: "client",
+              include: [{ model: Utilisateur, as: "utilisateur" }],
+            },
+            { model: Adresse, as: "adresse" },
+            {
+              model: CommandeArticle,
+              as: "commande_articles",
+              include: [
+                {
+                  model: Article,
+                  as: "article",
+                  include: [
+                    { model: Marque, as: "marque" },
+                    {
+                      model: Taille,
+                      as: "tailles",
+                      through: { attributes: [] },
+                    },
+                    {
+                      model: Couleur,
+                      as: "couleurs",
+                      through: { attributes: [] },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              model: Livreur,
+              as: "livreur",
+              include: [{ model: Utilisateur, as: "utilisateur" }]
+            }
+          ]
+        }]
+      });
+
+      if (!colis) {
+        await transaction.rollback();
+        return res.status(404).json({
+          success: false,
+          message: "Colis non trouvé",
+        });
+      }
+
+      commande = colis.commande;
+    } else {
+      // Regular commande lookup
+      commande = await Commande.findByPk(id, {
+        transaction,
+        include: [
+          {
+            model: Client,
+            as: "client",
+            include: [{ model: Utilisateur, as: "utilisateur" }],
+          },
+          { model: Adresse, as: "adresse" },
+          {
+            model: CommandeArticle,
+            as: "commande_articles",
+            include: [
+              {
+                model: Article,
+                as: "article",
+                include: [
+                  { model: Marque, as: "marque" },
+                  {
+                    model: Taille,
+                    as: "tailles",
+                    through: { attributes: [] },
+                  },
+                  {
+                    model: Couleur,
+                    as: "couleurs",
+                    through: { attributes: [] },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            model: Livreur,
+            as: "livreur",
+            include: [{ model: Utilisateur, as: "utilisateur" }]
+          }
+        ],
+      });
+    }
+
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Commande non trouvée",
+      });
+    }
+
+    if (commande.statut === "annulee") {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "Impossible de générer une facture pour une commande annulée",
+      });
+    }
+
+    const numeroFacture = `FAC-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+    const isColisInvoice = type === "colis";
+    const fileName = isColisInvoice ? `Colis-${commande.reference}.pdf` : `${numeroFacture}.pdf`;
+    const filePath = path.join(__dirname, "../../public/factures", fileName);
+
+    // Ensure directory exists
+    if (!fs.existsSync(path.dirname(filePath))) {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    }
+
+    const doc = new PDFDocument({ margin: 30 });
+    const writeStream = fs.createWriteStream(filePath);
+    doc.pipe(writeStream);
+
+    // Get delivery info
+    const deliveryInfo = getDeliveryInfo(commande.methode_livraison);
+
+    if (isColisInvoice) {
+      // Generate Colis Invoice with QR Code
+      generateColisInvoice(doc, commande, colis, deliveryInfo);
+    } else {
+      // Generate Regular Invoice
+      generateCommandeInvoice(doc, commande, numeroFacture, deliveryInfo);
+    }
+
+    doc.end();
+
+    await new Promise((resolve, reject) => {
+      writeStream.on("finish", resolve);
+      writeStream.on("error", reject);
+    });
+
+    // Only create facture record for regular invoices
+    if (!isColisInvoice) {
+      let facture = await Facture.findOne({
+        where: { commande_id: commande.id },
+        transaction,
+      });
+
+      if (!facture) {
+        facture = await Facture.create(
+          {
+            commande_id: commande.id,
+            numero: numeroFacture,
+            date_emission: new Date(),
+            montant_ht: commande.prix_total / 1.2, // Assuming 20% VAT
+            taux_tva: 20.0,
+            montant_ttc: commande.prix_total,
+            fichier_url: `/factures/${fileName}`,
+            est_payee: commande.statut === "livree",
+          },
+          { transaction }
+        );
+
+        await CommandeHistorique.create(
+          {
+            commande_id: commande.id,
+            utilisateur_id: req.utilisateur?.id || null,
+            action: "generation_facture",
+            details: `Facture ${numeroFacture} générée`,
+          },
+          { transaction }
+        );
+      }
+    }
+
+    await transaction.commit();
+
+    // Send the generated PDF
+    res.setHeader("Content-Type", "application/pdf");
+    const disposition = isColisInvoice ? "inline" : "attachment";
+    res.setHeader("Content-Disposition", `${disposition}; filename=${fileName}`);
+    fs.createReadStream(filePath).pipe(res);
+
+  } catch (error) {
+    if (transaction) await transaction.rollback();
+
+    const errorInfo = debugError("genererFacture", error, {
+      commandeId: req.params.id,
+      query: req.query,
+    });
+    res.status(500).json({
+      success: false,
+      message: "Erreur génération facture",
+      debug: process.env.NODE_ENV === "development" ? errorInfo : undefined,
+    });
+  }
 };
+// Enhanced generateColisInvoice function
+/* function generateColisInvoice(doc, commande, colis, deliveryInfo) {
+  // Colors
+  const orange = "#F97316";
+  const black = "#000000";
+  const gray = "#6B7280";
+
+  // Header with orange background
+  doc.rect(0, 0, 612, 80).fill(orange).fillColor(black);
+  doc.fontSize(20).fillColor("white").text("MGM NEGOCES SARL", 0, 20, { align: "center" });
+  doc.fontSize(16).text("BON DE LIVRAISON", 0, 45, { align: "center" });
+
+  // Reset colors
+  doc.fillColor(black);
+
+  // Invoice Details
+  doc.fontSize(10).moveDown(2);
+  doc.text(`Référence commande: ${commande.reference}`, 400, 90);
+  doc.text(`Date: ${new Date().toLocaleDateString("fr-FR")}`, 400, 105);
+  doc.text(`Numéro colis: ${colis.numero_suivi}`, 400, 120);
+  doc.moveDown(2);
+
+  // Border around content
+  doc
+    .lineWidth(2)
+    .strokeColor(orange)
+    .rect(30, 140, 552, 400)
+    .stroke()
+    .strokeColor(black);
+
+  // Company Info
+  doc.fontSize(12).moveTo(50, 160);
+  doc.text("MGM Négoces Sarl", 50, 160);
+  doc.text("123 Rue des Entrepreneurs", 50, 175);
+  doc.text("1002 Tunis, Tunisie", 50, 190);
+  doc.text("Tél: +216 70 123 456", 50, 205);
+  doc.moveDown();
+
+  // Delivery Information
+  const deliveryY = 230;
+  doc.fontSize(14).fillColor(orange).text("Informations de livraison:", 50, deliveryY);
+  doc.fillColor(black).fontSize(12);
+  doc.text(`Transporteur: ${colis.transporteur || deliveryInfo.description}`, 50, deliveryY + 20);
+  doc.text(`Numéro de suivi: ${colis.numero_suivi}`, 50, deliveryY + 35);
+  doc.text(`Date d'expédition: ${colis.date_expedition?.toLocaleDateString("fr-FR") || new Date().toLocaleDateString("fr-FR")}`, 50, deliveryY + 50);
+  doc.text(`Méthode: ${commande.methode_livraison === 'express' ? 'Express' : 'Standard'}`, 50, deliveryY + 65);
+  doc.moveDown(2);
+
+  // Customer Information
+  const customerY = deliveryY + 90;
+  doc.fontSize(14).fillColor(orange).text("Livrer à:", 50, customerY);
+  doc.fillColor(black).fontSize(12);
+  doc.text(`${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`, 50, customerY + 20);
+  doc.text(`${commande.adresse.adresse}`, 50, customerY + 35);
+  doc.text(`${commande.adresse.code_postal} ${commande.adresse.ville}`, 50, customerY + 50);
+  doc.text(`${commande.adresse.gouvernorat}`, 50, customerY + 65);
+  doc.moveDown(2);
+
+  // QR Code for delivery confirmation
+  if (colis.qr_code_data) {
+    const qrY = customerY + 90;
+    doc.fontSize(14).fillColor(orange).text("QR Code pour confirmation:", 50, qrY);
+    doc.fillColor(black).moveDown(0.5);
+    doc.image(colis.qr_code_data, 50, qrY + 20, { width: 120 });
+    doc.fontSize(10).text("Scannez pour confirmer la livraison", 50, qrY + 150);
+  }
+
+  // Items List (without prices)
+  const itemsY = colis.qr_code_data ? customerY + 180 : customerY + 90;
+  doc.fontSize(14).fillColor(orange).text("Articles:", 50, itemsY);
+  doc.fillColor(black).moveDown(0.5);
+  
+  let currentY = itemsY + 20;
+  commande.commande_articles.forEach((commandeArticle) => {
+    const article = commandeArticle.article;
+    doc.text(
+      `${article.nom_produit} - Quantité: ${commandeArticle.quantite}`,
+      50,
+      currentY
+    );
+    currentY += 20;
+    
+    // Add size and color if available
+    if (commandeArticle.taille_id || commandeArticle.couleur_id) {
+      const details = [];
+      if (commandeArticle.taille_id) {
+        const taille = article.tailles.find(t => t.id === commandeArticle.taille_id);
+        if (taille) details.push(`Taille: ${taille.libelle}`);
+      }
+      if (commandeArticle.couleur_id) {
+        const couleur = article.couleurs.find(c => c.id === commandeArticle.couleur_id);
+        if (couleur) details.push(`Couleur: ${couleur.libelle}`);
+      }
+      if (details.length > 0) {
+        doc.fontSize(10).fillColor(gray).text(details.join(', '), 70, currentY);
+        currentY += 15;
+        doc.fontSize(12).fillColor(black);
+      }
+    }
+    
+    currentY += 10;
+  });
+
+  // Footer
+  doc
+    .fontSize(10)
+    .text("MGM Négoces Sarl - Livraison sécurisée", 0, 550, { align: "center" })
+    .text("Contactez-nous au +216 70 123 456", 0, 565, { align: "center" });
+}
+
 function generateCommandeInvoice(doc, commande, numeroFacture, deliveryInfo) {
   const orange = "#F97316";
   const black = "#000000";
@@ -727,248 +1188,265 @@ function generateCommandeInvoice(doc, commande, numeroFacture, deliveryInfo) {
     .text("Pour toute question, contactez notre service client au +216 70 123 456", 0, 695, {
       align: "center",
     });
-}
+} */
 
-
-function generateColisInvoice(doc, commande, colis, deliveryInfo) {
-  // Colors
-  const orange = "#F97316";
-  const black = "#000000";
-
-  // Header with orange background
-  doc.rect(0, 0, 612, 60).fill(orange).fillColor(black);
-  doc.fontSize(20).fillColor("white").text("MGM NEGOCES SARL", 0, 20, { align: "center" });
-  doc.fontSize(14).text("BON DE LIVRAISON", 0, 40, { align: "center" });
-
-  // Reset colors
-  doc.fillColor(black);
-
-  // Invoice Details
-  doc.fontSize(10).moveDown(2);
-  doc.text(`Référence: ${commande.reference}`, 400, doc.y);
-  doc.text(`Date: ${new Date().toLocaleDateString("fr-FR")}`, 400, doc.y + 15);
-  doc.moveDown(2);
-
-  // Border around content
-  doc
-    .lineWidth(2)
-    .strokeColor(orange)
-    .rect(30, 100, 552, 500)
-    .stroke()
-    .strokeColor(black);
-
-  // Company Info
-  doc.fontSize(12).moveTo(50, 120);
-  doc.text("MGM Négoces Sarl", 50, 120);
-  doc.text("123 Rue des Entrepreneurs", 50, 135);
-  doc.text("1002 Tunis, Tunisie", 50, 150);
-  doc.moveDown();
-
-  // Delivery Information
-  doc.fontSize(14).fillColor(orange).text("Informations de livraison:", 50, doc.y);
-  doc.fillColor(black).fontSize(12);
-  doc.text(
-    `Transporteur: ${colis.transporteur || deliveryInfo.description}`,
-    50,
-    doc.y + 15
-  );
-  doc.text(`Numéro de suivi: ${colis.numero_suivi}`, 50, doc.y + 30);
-  doc.text(
-    `Date d'expédition: ${colis.date_expedition.toLocaleDateString("fr-FR")}`,
-    50,
-    doc.y + 45
-  );
-  doc.moveDown(2);
-
-  // Customer Information
-  doc.fontSize(14).fillColor(orange).text("Livrer à:", 50, doc.y);
-  doc.fillColor(black).fontSize(12);
-  doc.text(
-    `${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`,
-    50,
-    doc.y + 15
-  );
-  doc.text(`${commande.adresse.adresse}`, 50, doc.y + 30);
-  doc.text(
-    `${commande.adresse.code_postal} ${commande.adresse.ville}`,
-    50,
-    doc.y + 45
-  );
-  doc.text(`${commande.adresse.gouvernorat}`, 50, doc.y + 60);
-  doc.moveDown(2);
-
-  // QR Code for delivery confirmation
-  if (colis.qr_code_data) {
-    doc.fontSize(14).fillColor(orange).text("QR Code pour confirmation:", 50, doc.y);
-    doc.fillColor(black).moveDown(0.5);
-
-    // Add QR code image
-    doc.image(colis.qr_code_data, 50, doc.y, { width: 120 });
-    doc.y += 130;
-
-    doc.fontSize(10).text("Scannez pour confirmer la livraison", 50, doc.y);
-    doc.moveDown();
-  }
-
-  // Items List (compact) - updated to use commande_articles
-  doc.fontSize(14).fillColor(orange).text("Articles:", 50, doc.y);
-  doc.fillColor(black).moveDown(0.5);
-
-  commande.commande_articles.forEach((commandeArticle) => {
-    doc.text(
-      `${commandeArticle.article.nom_produit} - ${commandeArticle.quantite} x ${commandeArticle.prix_unitaire.toFixed(2)} DT`,
-      50,
-      doc.y
-    );
-    doc.moveDown();
-  });
-
-  // Footer
-  doc
-    .fontSize(10)
-    .text("MGM Négoces Sarl - Livraison sécurisée", 0, 580, { align: "center" })
-    .text(
-      "Contactez-nous au +216 70 123 456",
-      0,
-      595,
-      { align: "center" }
-    );
-}
-const mettreAJourStatut = async (req, res) => {
-  let transaction;
-  try {
-    const { id } = req.params;
-    const { statut } = req.body;
-    const utilisateurId = req.utilisateur?.id;
-
-    transaction = await sequelize.transaction({
-      isolationLevel: Sequelize.Transaction.ISOLATION_LEVELS.READ_COMMITTED
-    });
-
-    const commande = await Commande.findByPk(id, {
-      transaction,
-      include: [{
-        model: Client,
-        as: 'client',
-        include: [{ 
-          model: Utilisateur, 
-          as: 'utilisateur',
-          attributes: ['id', 'prenom', 'nom', 'email']
-        }]
-      }]
-    });
-
-    if (!commande) {
-      await transaction.rollback();
-      return res.status(404).json({ success: false, message: 'Commande non trouvée' });
-    }
-
-    console.log(`Changing status from ${commande.statut} to ${statut}`);
-
-    // Update command status
-    await commande.update({ statut }, { transaction });
-
-    const existingColis = await sequelize.models.Colis.findOne({
-      where: { commande_id: id },
-      transaction
-    });
-
-    if (statut === 'en_preparation' || statut === 'expediee') {
-      console.log(`Creating/updating colis for ${statut} status`);
-
-      const isExpediee = statut === 'expediee';
-      const colisData = {
-        commande_id: id,
-        livreur_id: commande.livreur_id,
-        statut: isExpediee ? 'expediee' : 'en_preparation',
-        transporteur: commande.methode_livraison === 'express' ? 'Express' : 'Standard',
-        numero_suivi: `TRK${Date.now().toString(36).toUpperCase()}`,
-        url_suivi: `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`,
-        ...(isExpediee && { date_expedition: new Date() })
-      };
-
-      let colis;
-      if (existingColis) {
-        colis = await existingColis.update(colisData, { transaction });
-      } else {
-        colis = await sequelize.models.Colis.create(colisData, { transaction });
-      }
-
-      // Generate QR code
-      const qrToken = require('uuid').v4();
-      const qrData = JSON.stringify({
-        colisId: colis.id,
-        commandeId: commande.id,
-        token: qrToken
+    function generateColisInvoice(doc, commande, colis, deliveryInfo) {
+      // Colors
+      const orange = "#f05a22";
+      const black = "#000000";
+      const gray = "#6B7280";
+  
+      // Header with orange background
+      doc.rect(0, 0, 612, 80).fill(orange).fillColor(black);
+      doc.fontSize(24).fillColor("white").text("MGM NEGOCES SARL", 0, 20, { align: "center" });
+      doc.fontSize(20).text("BON DE LIVRAISON", 0, 45, { align: "center" });
+  
+      // Reset colors
+      doc.fillColor(black);
+  
+      // Invoice Details - Right aligned with reduced spacing
+      doc.fontSize(10).moveDown(0.5);
+      const detailsX = 400;
+      doc.text(`Date: ${new Date().toLocaleDateString("fr-FR")}`, detailsX, 90);
+      doc.text(`Numéro colis: ${colis.numero_suivi}`, detailsX, 105);
+      
+      // Border around content
+      doc.lineWidth(2).strokeColor(orange).rect(30, 140, 552, 400).stroke().strokeColor(black);
+  
+      // Company Info
+      doc.fontSize(12).moveTo(50, 160);
+      doc.text("MGM Négoces Sarl", 50, 160);
+      doc.text("123 Rue des Entrepreneurs", 50, 175);
+      doc.text("1002 Tunis, Tunisie", 50, 190);
+      doc.text("Tél: +216 70 123 456", 50, 205);
+  
+      // Delivery and Customer Information side by side
+      const infoY = 230;
+      const columnWidth = 250; // Width for each column
+      
+      // Left Column - Delivery Information
+      doc.fontSize(12).fillColor(orange).text("Informations de livraison:", 50, infoY);
+      doc.fillColor(black).fontSize(12);
+      doc.text(`Date d'expédition: ${colis.date_expedition?.toLocaleDateString("fr-FR") || new Date().toLocaleDateString("fr-FR")}`, 50, infoY + 20);
+      doc.text(`Méthode: ${commande.methode_livraison === "express" ? "Express" : "Standard"}`, 50, infoY + 40);
+  
+      // Right Column - Customer Information
+      doc.fontSize(12).fillColor(orange).text("Livrer à:", 50 + columnWidth, infoY);
+      doc.fillColor(black).fontSize(12);
+      doc.text(`${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`, 50 + columnWidth, infoY + 20);
+      doc.text(`${commande.adresse.adresse}`, 50 + columnWidth, infoY + 40);
+      doc.text(`${commande.adresse.code_postal} ${commande.adresse.ville}`, 50 + columnWidth, infoY + 60);
+      doc.text(`${commande.adresse.gouvernorat}`, 50 + columnWidth, infoY + 80);
+  
+      // Items Table - starts below both columns
+      const itemsY = infoY + 100;
+      doc.fontSize(12).fillColor(orange).text("Articles:", 50, itemsY);
+      doc.fillColor(black);
+  
+      // Table headers
+      const tableTop = itemsY + 20;
+      doc.fontSize(12)
+         .fillColor(orange)
+         .text("Article", 50, tableTop)
+         .text("Quantité", 280, tableTop)
+         .text("Détails", 350, tableTop);
+  
+      // Table header line
+      doc.lineWidth(1)
+         .strokeColor(orange)
+         .moveTo(50, tableTop + 15)
+         .lineTo(550, tableTop + 15)
+         .stroke();
+  
+      // Table content
+      let currentY = tableTop + 25;
+      doc.fillColor(black).fontSize(12);
+  
+      commande.commande_articles.forEach((commandeArticle) => {
+          const article = commandeArticle.article;
+          
+          // Article name and quantity
+          doc.text(article.nom_produit, 50, currentY)
+             .text(commandeArticle.quantite.toString(), 280, currentY);
+  
+          // Details (size and color)
+          let details = "";
+          if (commandeArticle.taille_id) {
+              const taille = article.tailles.find(t => t.id === commandeArticle.taille_id);
+              if (taille) details += `Taille: ${taille.libelle}`;
+          }
+          if (commandeArticle.couleur_id) {
+              const couleur = article.couleurs.find(c => c.id === commandeArticle.couleur_id);
+              if (couleur) details += `${details ? ', ' : ''}Couleur: ${couleur.libelle}`;
+          }
+  
+          doc.text(details, 350, currentY);
+          currentY += 20;
       });
-      const qrCodeData = await QRCode.toDataURL(qrData);
-
-      await colis.update({
-        qr_token: qrToken,
-        qr_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-        qr_code_data: qrCodeData
-      }, { transaction });
-    }
-
-    // ✅ Set date_livraison if statut is 'livree'
-    if (statut === 'livree' && existingColis) {
-      await existingColis.update({
-        statut: 'livree',
-        date_livraison: new Date()
-      }, { transaction });
-    }
-
-    // Log status change
-    await CommandeHistorique.create({
-      commande_id: commande.id,
-      utilisateur_id: utilisateurId,
-      action: 'changement_statut',
-      ancienne_valeur: commande.statut,
-      nouvelle_valeur: statut,
-      details: `Statut changé de ${commande.statut} à ${statut}`
-    }, { transaction });
-
-    await transaction.commit();
-
-    console.log(`Status changed successfully for command ${commande.id}`);
-
-    res.status(200).json({
-      success: true,
-      message: 'Statut mis à jour',
-      data: {
-        ancienStatut: commande.statut,
-        nouveauStatut: statut
+  
+      // QR Code Section
+      if (colis.qr_code_data) {
+          const qrY = currentY + 110;
+          doc.fontSize(12).fillColor(orange).text("QR Code", 0, qrY, { align: "center" });
+          
+          const qrSize = 120;
+          const qrX = (612 - qrSize) / 2;
+          
+          doc.image(colis.qr_code_data, qrX, qrY + 20, { width: qrSize });
+          doc.fontSize(12).text("Scannez pour confirmer", 33, qrY + 20 + qrSize + 10, { align: "center" });
       }
-    });
-
-  } catch (error) {
-    console.error('Error in mettreAJourStatut:', error);
-
-    if (transaction) {
-      try {
-        await transaction.rollback();
-        console.log('Transaction rolled back');
-      } catch (rollbackError) {
-        console.error('Rollback error:', rollbackError);
-      }
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Erreur changement statut',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+  
+      // Footer
+      doc.fontSize(10)
+         .text("MGM Négoces Sarl - Livraison sécurisée", 0, 750, { align: "center" })
   }
-};
-
-// Helper function to get last inserted colis ID
-async function getLastInsertedColisId(transaction) {
-  const result = await sequelize.query(
-    'SELECT LAST_INSERT_ID() as id',
-    { transaction, type: sequelize.QueryTypes.SELECT }
-  );
-  return result[0].id;
-}
+    
+    function generateCommandeInvoice(doc, commande, numeroFacture, deliveryInfo) {
+      // Updated orange color
+      const orange = "#f05a22"
+      const black = "#000000"
+      const gray = "#6B7280"
+    
+      // Draw the orange header bar
+      doc.rect(0, 0, 612, 80).fill(orange).fillColor(black)
+    
+      // Add the company name to the header
+      doc.fontSize(24).fillColor("white").text("MGM NEGOCES SARL", 0, 20, { align: "center" })
+    
+      // Add "FACTURE" title under the company name
+      doc.fontSize(18).text("FACTURE", 0, 50, { align: "center" })
+    
+      // Set default color and font size for rest of the document
+      doc.fillColor(black)
+      doc.fontSize(10).moveDown(2)
+    
+      // Add invoice details in a single block with consistent indentation
+      const detailsX = 400
+      doc.text(`Numéro: ${numeroFacture}`, detailsX, 90)
+      doc.text(`Date: ${new Date().toLocaleDateString("fr-FR")}`, detailsX, 105)
+      doc.text(`Référence: ${commande.reference}`, detailsX, 120)
+      doc.moveDown(1)
+    
+      // Draw a bordered container for the invoice
+      doc.lineWidth(2).strokeColor(orange).rect(30, 140, 552, 560).stroke().strokeColor(black)
+    
+      // Company and client info in two columns with consistent indentation
+      const leftColX = 50
+      const rightColX = 300
+      const infoY = 160
+    
+      // Company contact info (left column)
+      doc.fontSize(14).fillColor(orange).text("De:", leftColX, infoY)
+      doc.fillColor(black).fontSize(12)
+      doc.text("MGM Négoces Sarl", leftColX, infoY + 20)
+      doc.text("123 Rue des Entrepreneurs", leftColX, infoY + 35)
+      doc.text("1002 Tunis, Tunisie", leftColX, infoY + 50)
+      doc.text("Tél: +216 70 123 456", leftColX, infoY + 65)
+      doc.text("Email: contact@mgmnegoces.com", leftColX, infoY + 80)
+    
+      // Client info (right column)
+      doc.fontSize(14).fillColor(orange).text("Facturé à:", rightColX, infoY)
+      doc.fillColor(black).fontSize(12)
+      doc.text(`${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`, rightColX, infoY + 20)
+      doc.text(`${commande.adresse.adresse}`, rightColX, infoY + 35)
+      doc.text(`${commande.adresse.code_postal} ${commande.adresse.ville}`, rightColX, infoY + 50)
+      doc.text(`${commande.adresse.gouvernorat}`, rightColX, infoY + 65)
+    
+      // Table headers
+      const tableTop = infoY + 120
+      doc
+        .fontSize(12)
+        .fillColor(orange)
+        .text("Description", 50, tableTop)
+        .text("Qté", 300, tableTop)
+        .text("Prix Unitaire", 380, tableTop)
+        .text("Total", 480, tableTop)
+        .fillColor(black)
+    
+      // Table header line
+      doc
+        .lineWidth(1)
+        .strokeColor(orange)
+        .moveTo(50, tableTop + 15)
+        .lineTo(550, tableTop + 15)
+        .stroke()
+    
+      // Articles loop with consistent table format
+      let currentY = tableTop + 25
+      let subtotal = 0
+    
+      commande.commande_articles.forEach((commandeArticle) => {
+        const article = commandeArticle.article
+        const lineTotal = commandeArticle.quantite * commandeArticle.prix_unitaire
+        subtotal += lineTotal
+    
+        doc
+          .fontSize(11)
+          .text(article.nom_produit, 50, currentY)
+          .text(commandeArticle.quantite.toString(), 300, currentY)
+          .text(`${commandeArticle.prix_unitaire.toFixed(2)} DT`, 380, currentY)
+          .text(`${lineTotal.toFixed(2)} DT`, 480, currentY)
+    
+        // Add size and color if available
+        if (commandeArticle.taille_id || commandeArticle.couleur_id) {
+          const details = []
+          if (commandeArticle.taille_id) {
+            const taille = article.tailles.find((t) => t.id === commandeArticle.taille_id)
+            if (taille) details.push(`Taille: ${taille.libelle}`)
+          }
+          if (commandeArticle.couleur_id) {
+            const couleur = article.couleurs.find((c) => c.id === commandeArticle.couleur_id)
+            if (couleur) details.push(`Couleur: ${couleur.libelle}`)
+          }
+    
+          currentY += 15
+          doc.fontSize(10).fillColor(gray).text(details.join(", "), 70, currentY)
+          doc.fillColor(black)
+        }
+    
+        currentY += 25
+      })
+    
+      // Line below the item list
+      doc.lineWidth(1).strokeColor(orange).moveTo(50, currentY).lineTo(550, currentY).stroke()
+    
+      // Totals section with consistent alignment
+      currentY += 20
+      const totalsX = 380
+      const valuesX = 480
+    
+      doc.fontSize(12).fillColor(black)
+      doc.text("Sous-total:", totalsX, currentY)
+      doc.text(`${subtotal.toFixed(2)} DT`, valuesX, currentY)
+    
+      currentY += 20
+      doc.text("Frais de livraison:", totalsX, currentY)
+      doc.text(`${deliveryInfo.fee.toFixed(2)} DT`, valuesX, currentY)
+    
+      currentY += 20
+      doc.lineWidth(1).strokeColor(orange).moveTo(totalsX, currentY).lineTo(550, currentY).stroke()
+    
+      currentY += 10
+      doc.fontSize(14).fillColor(orange)
+      doc.text("Total TTC:", totalsX, currentY)
+      doc.text(`${commande.prix_total.toFixed(2)} DT`, valuesX, currentY)
+    
+      // Payment information
+      currentY += 40
+      doc.fontSize(12).fillColor(orange).text("Informations de paiement:", 50, currentY)
+      doc.fillColor(black)
+      currentY += 20
+      doc.text("Méthode: " + (commande.methode_paiement || "Paiement à la livraison"), 50, currentY)
+      currentY += 15
+      doc.text("Statut: " + (commande.statut_paiement || "En attente"), 50, currentY)
+    
+      // Footer
+      doc
+        .fontSize(10)
+        .text("MGM Négoces Sarl - Merci pour votre confiance!", 0, 720, { align: "center" })
+          
+        
+    }
 
 
 async function sendShippingNotification(commande, colis, utilisateurId) {
@@ -977,9 +1455,7 @@ async function sendShippingNotification(commande, colis, utilisateurId) {
       throw new Error('Package information is required for shipping notification');
     }
 
-    const urlConfirmation = `${process.env.FRONTEND_URL}/confirmation-livraison?token=${colis.qr_token}`;
-
-    // Send email
+    // Send email without QR code
     await envoyerEmail({
       to: commande.client.utilisateur.email,
       subject: `Votre commande #${commande.reference} a été expédiée`,
@@ -991,9 +1467,8 @@ async function sendShippingNotification(commande, colis, utilisateurId) {
         TRACKING_NUMBER: colis.numero_suivi,
         CARRIER_NAME: colis.transporteur || 'Standard',
         SHIPPING_DATE: new Date().toLocaleDateString('fr-FR'),
-        DELIVERY_ESTIMATE: '2-3 jours ouvrables',
-        TRACKING_LINK: urlConfirmation,
-        QR_CODE_URL: colis.qr_code_data
+        DELIVERY_ESTIMATE: commande.methode_livraison === 'express' ? '1-2 jours ouvrables' : '2-3 jours ouvrables',
+        TRACKING_LINK: colis.url_suivi || `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`
       }
     });
 
@@ -1004,13 +1479,13 @@ async function sendShippingNotification(commande, colis, utilisateurId) {
       action: 'notification_expedition',
       details: 'Notification d\'expédition envoyée'
     });
+
+    console.log(`Shipping notification sent for command ${commande.id}`);
   } catch (error) {
     console.error('Error sending shipping notification:', error);
     throw error;
   }
 }
-
-
 
 // 5. Update Delivery Address
 const modifierAdresseLivraison = async (req, res) => {

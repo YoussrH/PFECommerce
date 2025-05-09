@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { useGenerateInvoice } from '@/hooks/useCommandes'
+import { useCommandesStore } from '@/hooks/useCommandesStore'
 
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
@@ -50,7 +50,7 @@ const statusVariant = {
 
 export default function ColisPage() {
   const { colis, loading, fetchColis } = useExpeditionsStore()
-  const { mutateAsync: generateInvoice } = useGenerateInvoice()
+  const { generateColisInvoice } = useCommandesStore()
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
@@ -62,11 +62,11 @@ export default function ColisPage() {
     fetchColis(filters)
   }, [filters])
 
-  const handleDownloadInvoice = async (commandeId) => {
+  const handleDownloadColisInvoice = async (colisId) => {
     try {
-      await generateInvoice(commandeId)
+      await generateColisInvoice(colisId)
     } catch (error) {
-      console.error('Failed to generate invoice:', error)
+      console.error('Failed to generate colis invoice:', error)
     }
   }
 
@@ -168,16 +168,14 @@ export default function ColisPage() {
                         </Dialog>
                       )}
 
-                      {/* Download Invoice Button */}
-                      {colis.commande_id && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleDownloadInvoice(colis.commande_id)}
-                        >
-                          Télécharger Facture
-                        </Button>
-                      )}
+                      {/* Download Colis Invoice Button */}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleDownloadColisInvoice(colis.id)}
+                      >
+                        Télécharger Facture Colis
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

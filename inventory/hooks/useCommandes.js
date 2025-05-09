@@ -90,6 +90,23 @@ export const useGenerateInvoice = () => {
       throw error;
     }
   };
+  
+
+  return { mutateAsync };
+};
+
+export const useGenerateColisInvoice = () => {
+  const { generateColisInvoice } = useCommandesStore();
+
+  const mutateAsync = async (id) => {
+    try {
+      await generateColisInvoice(id);
+      return true;
+    } catch (error) {
+      console.error('Generate colis invoice error:', error);
+      throw error;
+    }
+  };
 
   return { mutateAsync };
 };

@@ -1,246 +1,360 @@
 "use client";
-import { Archive, CircleDollarSign, Clipboard, Layout, SlidersHorizontal, User } from "lucide-react";
-import { TiArrowForwardOutline } from "react-icons/ti";
+import { 
+  LayoutDashboard, PieChart, Boxes, Box, Tags, Warehouse, 
+  Scale, Layers, ShoppingCart, FileText, Receipt, CreditCard, 
+  Truck, Undo2, Users, UserCog, Mail, Archive, Settings, DollarSign 
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React, { useState } from "react";
-import { TbReport } from "react-icons/tb";
-import { TbShoppingCart } from "react-icons/tb";
-import { HiOutlineShoppingCart } from "react-icons/hi";
-import { FaBox, FaTruck, FaFileInvoice, FaReceipt, FaMoneyBillWave, FaUndo, FaStickyNote } from "react-icons/fa";
-import { FaUserGroup } from "react-icons/fa6";
-import { FaBoxes, FaLayerGroup, FaBalanceScale, FaTags, FaWarehouse, FaCubes } from "react-icons/fa";
-import { MdOutlineKeyboardArrowDown } from "react-icons/md";
+import React from "react";
+import { cn } from "@/lib/utils";
 
-const SidebarLink = ({ href, icon: Icon, label, isCollapsed, hasSubmenu, submenuItems }) => {
+const SidebarLink = ({ 
+  href, 
+  icon: Icon, 
+  label, 
+  isSidebarCollapsed, 
+  isSubItem = false, 
+  iconColor = "text-blue-500",
+  customIcon
+}) => {
   const pathname = usePathname();
-  const [isDropdownOpen, setDropdownOpen] = useState(false);
-
   const isActive = pathname === href;
-  const isSubmenuActive = submenuItems?.some((item) => pathname.startsWith(item.href));
-
-  const handleLinkClick = (e) => {
-    if (hasSubmenu) {
-      e.preventDefault();
-      setDropdownOpen(!isDropdownOpen);
-    }
-  };
 
   return (
-    <div>
-      <Link href={href} passHref>
-        <div
-          onClick={handleLinkClick} 
-          className={`cursor-pointer flex items-center rounded-md text-black justify-between ${
-            isCollapsed ? "justify-center py-3 mx-3 my-1" : "justify-start px-8 py-4 mx-2"
-          } hover:bg-gray-100 gap-3 transition-colors ${
-            (isActive && !isSubmenuActive) || (isSubmenuActive && !hasSubmenu)
-              ? "bg-blue-50"
-              : ""
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <Icon
-              className={`w-4 h-4 ${
-                isCollapsed ? "justify-center ml-3" : "ml-5"
-              } ${
-                isActive || isSubmenuActive ? "text-blue-500" : "text-gray-700"
-              }`}
-            />
-            {!isCollapsed && (
-              <span
-                className={`font-medium ${
-                  isActive || isSubmenuActive ? "text-blue-500" : "text-gray-700"
-                }`}
-              >
-                {label}
-              </span>
-            )}
+    <Link href={href} passHref>
+      <div
+        className={cn(
+          "flex items-center rounded-md transition-all duration-200 group",
+          "hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:shadow-xs",
+          "hover:border-l-4 hover:border-blue-400 hover:pl-3",
+          isActive 
+            ? "bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-500 pl-3 font-medium text-blue-700" 
+            : "text-gray-600",
+          isSidebarCollapsed 
+            ? "justify-center p-4 mx-1 my-1" 
+            : "justify-start p-3 mx-2",
+          isSubItem && !isSidebarCollapsed && "ml-8"
+        )}
+      >
+        {customIcon ? (
+          <div className={cn(
+            "transition-transform group-hover:scale-110",
+            isSidebarCollapsed ? "mx-auto" : "mr-3",
+            isActive ? "text-blue-600" : iconColor
+          )}>
+            {customIcon}
           </div>
+        ) : (
+          <Icon className={cn(
+            "transition-transform group-hover:scale-110",
+            isSidebarCollapsed ? "w-6 h-6 mx-auto" : "w-5 h-5 mr-3",
+            isActive ? "text-blue-600" : iconColor
+          )} />
+        )}
+        {!isSidebarCollapsed && <span className="text-sm">{label}</span>}
+      </div>
+    </Link>
+  );
+};
 
-          {!isCollapsed && hasSubmenu && (
-            <div className="cursor-pointer">
-              <MdOutlineKeyboardArrowDown
-                className={`w-4 h-4 ${
-                  isActive || isSubmenuActive ? "text-blue-500" : "text-gray-500"
-                } transform ${
-                  isDropdownOpen ? "rotate-180" : ""
-                }`}
-              />
-            </div>
-          )}
-        </div>
-      </Link>
-
-      {!isCollapsed && hasSubmenu && isDropdownOpen && (
-        <div className="pl-5">
-          {submenuItems.map((item, index) => (
-            <SidebarLink
-              key={index}
-              href={item.href}
-              icon={item.icon}
-              label={item.label}
-              isCollapsed={isCollapsed}
-              hasSubmenu={item.hasSubmenu}
-              submenuItems={item.submenuItems}
-            />
-          ))}
+const SidebarSection = ({ title, icon: Icon, isSidebarCollapsed, children }) => {
+  return (
+    <div className="mb-4">
+      {!isSidebarCollapsed && (
+        <div className="flex items-center px-4 py-2 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+          {Icon && <Icon className="w-4 h-4 mr-2 text-purple-500" />}
+          <span className="text-purple-600">{title}</span>
         </div>
       )}
+      <div className="space-y-1">
+        {children}
+      </div>
     </div>
   );
 };
 
 const Sidebar = ({ isSidebarCollapsed }) => {
-  const sidebarClassNames = ` font-mono bg-white fixed flex flex-col ${
-    isSidebarCollapsed
-      ? "w-0 sm:w-16 md:w-16 lg:w-16"
-      : "w-72 sm:w-64 md:w-64 lg:w-72"
-  } bg-white transition-all duration-300 overflow-y-auto h-full shadow-md z-40 scrollbar-transparent`;
-
-  const dashboardSubmenuItems = [
-    { href: "/admin", icon: Layout, label: "Vue d’ensemble" },
-    { href: "/admin/reports", icon: TbReport, label: "Rapports & Analyses" },
-  ];
-
-  const inventorySubmenuItems = [
-    { href: "/admin/inventaire/produits", icon: FaBoxes, label: "Liste des produits" },
-    { href: "/admin/inventaire/produits/nouveau", icon: FaCubes, label: "Ajouter un produit" },
-    { href: "/admin/inventaire/categories", icon: FaTags, label: "Gérer les catégories" },
-    { href: "/admin/inventaire/marque", icon: FaWarehouse, label: "Gérer les Marques" },
-    { href: "/admin/inventaire/ajustments", icon: FaBalanceScale, label: "Ajouter un ajustement" },
-    { href: "/admin/inventaire/ajustments/historique", icon: FaLayerGroup, label: "Historique des ajustements" },
-  ];
-
-  const salesSubmenuItems = [
-    { href: "/admin/ventes/commandes", icon: HiOutlineShoppingCart, label: "Liste des commandes" },
-    { href: "/admin/ventes/factures", icon: FaFileInvoice, label: "Factures" },
-    { href: "/admin/ventes/paiments", icon: FaMoneyBillWave, label: "Reçus de paiement" },
-    { href: "/admin/ventes/notes-credit", icon: FaStickyNote, label: "Notes de crédit" },
-    {
-      href: "/admin/ventes/remise",
-      icon: FaTags,
-      label: "Réductions & Promotions",
-      hasSubmenu: true,
-      submenuItems: [
-        { href: "/admin/ventes/remise", icon: FaTags, label: "Liste des réductions" },
-        { href: "/admin/ventes/remsie/cree", icon: FaTags, label: "Créer une réduction" },
-        { href: "/admin/ventes/remise/appliquer", icon: FaTags, label: "Appliquer une réduction" },
-      ],
-    },
-  ];
-
-
-
-  const shippingSubmenuItems = [
-    { href: "/admin/expeditions/expeditions", icon: FaTruck, label: "Suivi des expéditions" },
-    { href: "/admin/expeditions/colis", icon: FaBox, label: "Gestion des colis" },
-    { href: "/admin/expeditions/retours", icon: FaUndo, label: "Retours & Remplacements" },
-  ];
-
-  const usersSubmenuItems = [
-    { href: "/admin/utilisateurs/clients", icon: FaUserGroup, label: "Liste des clients" },
-    { href: "/admin/utilisateurs/livreur",  icon: () => (
-      <Image
-        src="/delivery-man.png"
-        alt="Livreur Icon"
-        width={20}
-        height={20}
-      />
-    ), label: "Liste des livreurs" },
-    { href: "/admin/utilisateurs/personnel", icon: User, label: "Administrateurs" },
-  ];
-
-  const settingsSubmenuItems = [
-    { href: "/admin/parametres", icon: SlidersHorizontal, label: "Paramètres de la Boutique" },
-    { href: "/admin/parametres/Regles", icon: CircleDollarSign, label: "Règles fiscales & Tarification" },
-    { href: "/admin/parametres/rapports", icon: TbReport, label: "Rapports d’Entreprise" },
-    { href: "/admin/parametres/journaux", icon: Archive, label: "Journaux d’Activité" },
-  ];
-  // Add this with your existing submenu arrays
-const reclamationsSubmenuItems = [
-  { href: "/admin/reclamations/inbox", icon: FaStickyNote, label: "Boîte de réception" },
-  { href: "/admin/reclamations/traitees", icon: FaReceipt, label: "Traitées" },
-  { href: "/admin/reclamations/attente", icon: FaUndo, label: "En attente" },
-  { href: "/admin/reclamations/archivees", icon: Archive, label: "Archivées" },
-];
-
+  const sidebarClassNames = cn(
+    "font-sans bg-white fixed flex flex-col",
+    "border-r border-gray-200 shadow-sm",
+    isSidebarCollapsed ? "w-20" : "w-64", // Increased collapsed width
+    "bg-white transition-all duration-300 overflow-y-auto h-full z-40"
+  );
 
   return (
     <div className={sidebarClassNames}>
-      <div
-        className={`flex gap-3 justify-center md:justify-start items-center  ${
-          isSidebarCollapsed ? "px-2 pt-3" : "px-8 pt-4"
-        }`}
-      >
-        <Image src="/mgm1.svg" alt="MGM-logo" width={27} height={27} className="w-11" />
-        {!isSidebarCollapsed && <h1 className="font-bold font-mono text-xl">NEGOCE</h1>}
+      <div className={cn(
+        "flex items-center border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white",
+        isSidebarCollapsed ? "justify-center p-4" : "justify-start px-6 py-4"
+      )}>
+        <Image 
+          src="/mgm1.svg" 
+          alt="MGM-logo" 
+          width={36} 
+          height={36} 
+          className={cn(
+            "transition-all duration-300",
+            isSidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+          )}
+        />
+        {!isSidebarCollapsed && (
+          <h1 className="ml-3 font-bold text-xl bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+            NEGOCE
+          </h1>
+        )}
       </div>
 
-      <div className="flex-grow mt-8 font-mono text-sm">
-        <SidebarLink
-          href="/admin"
-          icon={Layout}
-          label="Tableau de Bord"
-          isCollapsed={isSidebarCollapsed}
-          hasSubmenu={true}
-          submenuItems={dashboardSubmenuItems}
-        />
-        <SidebarLink
-          href="/admin/inventaire"
-          icon={Archive}
-          label="Gestion des Stocks"
-          isCollapsed={isSidebarCollapsed}
-          hasSubmenu={true}
-          submenuItems={inventorySubmenuItems}
-        />
-        <SidebarLink
-          href="/admin/ventes"
-          icon={TbShoppingCart}
-          label="Ventes & Commandes"
-          isCollapsed={isSidebarCollapsed}
-          hasSubmenu={true}
-          submenuItems={salesSubmenuItems}
-        />
-        <SidebarLink
-          href="/admin/expeditions"
-          icon={FaTruck}
-          label="Expédition & Logistique"
-          isCollapsed={isSidebarCollapsed}
-          hasSubmenu={true}
-          submenuItems={shippingSubmenuItems}
-        />
-        <SidebarLink
-          href="/admin/utilisateurs"
-          icon={User}
-          label="Utilisateurs"
-          isCollapsed={isSidebarCollapsed}
-          hasSubmenu={true}
-          submenuItems={usersSubmenuItems}
-        />
-        <SidebarLink
-          href="/admin/reclamations"
-          icon={FaStickyNote}
-          label="Réclamations"
-          isCollapsed={isSidebarCollapsed}
-          hasSubmenu={true}
-          submenuItems={reclamationsSubmenuItems}
-        />
+      <div className="flex-grow p-2 overflow-y-auto">
+        {/* Dashboard Section */}
+        <SidebarSection title="Tableau de Bord" icon={LayoutDashboard} isSidebarCollapsed={isSidebarCollapsed}>
+          <SidebarLink
+            href="/admin"
+            icon={LayoutDashboard}
+            label="Vue d'ensemble"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-blue-500"
+          />
+          <SidebarLink
+            href="/admin/reports"
+            icon={PieChart}
+            label="Rapports & Analyses"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-green-500"
+          />
+        </SidebarSection>
 
-        <SidebarLink
-          href="/admin/parametres"
-          icon={SlidersHorizontal}
-          label="Paramètres & Rapports"
-          isCollapsed={isSidebarCollapsed}
-          hasSubmenu={true}
-          submenuItems={settingsSubmenuItems}
-        />
+        {/* Inventory Section */}
+        <SidebarSection title="Gestion des Stocks" icon={Boxes} isSidebarCollapsed={isSidebarCollapsed}>
+          <SidebarLink
+            href="/admin/inventaire/produits"
+            icon={Box}
+            label="Liste des produits"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-amber-500"
+          />
+          <SidebarLink
+            href="/admin/inventaire/produits/nouveau"
+            icon={Boxes}
+            label="Ajouter un produit"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-amber-600"
+          />
+          <SidebarLink
+            href="/admin/inventaire/categories"
+            icon={Tags}
+            label="Gérer les catégories"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-purple-500"
+          />
+          <SidebarLink
+            href="/admin/inventaire/marque"
+            icon={Warehouse}
+            label="Gérer les Marques"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-red-500"
+          />
+          <SidebarLink
+            href="/admin/inventaire/ajustments"
+            icon={Scale}
+            label="Ajouter un ajustement"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-emerald-500"
+          />
+          <SidebarLink
+            href="/admin/inventaire/ajustments/historique"
+            icon={Layers}
+            label="Historique des ajustements"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-emerald-600"
+          />
+        </SidebarSection>
+
+        {/* Sales Section */}
+        <SidebarSection title="Ventes & Commandes" icon={ShoppingCart} isSidebarCollapsed={isSidebarCollapsed}>
+          <SidebarLink
+            href="/admin/ventes/commandes"
+            icon={ShoppingCart}
+            label="Liste des commandes"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-pink-500"
+          />
+          <SidebarLink
+            href="/admin/ventes/factures"
+            icon={FileText}
+            label="Factures"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-orange-500"
+          />
+          <SidebarLink
+            href="/admin/ventes/paiments"
+            icon={CreditCard}
+            label="Reçus de paiement"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-blue-400"
+          />
+          <SidebarLink
+            href="/admin/ventes/notes-credit"
+            icon={Receipt}
+            label="Notes de crédit"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-indigo-500"
+          />
+          <SidebarLink
+            href="/admin/ventes/remise"
+            icon={Tags}
+            label="Liste des réductions"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-red-400"
+            isSubItem
+          />
+          <SidebarLink
+            href="/admin/ventes/remsie/cree"
+            icon={Tags}
+            label="Créer une réduction"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-red-400"
+            isSubItem
+          />
+          <SidebarLink
+            href="/admin/ventes/remise/appliquer"
+            icon={Tags}
+            label="Appliquer une réduction"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-red-400"
+            isSubItem
+          />
+        </SidebarSection>
+
+        {/* Shipping Section */}
+        <SidebarSection title="Expédition & Logistique" icon={Truck} isSidebarCollapsed={isSidebarCollapsed}>
+          <SidebarLink
+            href="/admin/expeditions/expeditions"
+            icon={Truck}
+            label="Suivi des expéditions"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-cyan-500"
+          />
+          <SidebarLink
+            href="/admin/expeditions/colis"
+            icon={Box}
+            label="Gestion des colis"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-amber-500"
+          />
+          <SidebarLink
+            href="/admin/expeditions/retours"
+            icon={Undo2}
+            label="Retours & Remplacements"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-violet-500"
+          />
+        </SidebarSection>
+
+        {/* Users Section */}
+        <SidebarSection title="Utilisateurs" icon={Users} isSidebarCollapsed={isSidebarCollapsed}>
+          <SidebarLink
+            href="/admin/utilisateurs/clients"
+            icon={Users}
+            label="Liste des clients"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-teal-500"
+          />
+          <SidebarLink
+            href="/admin/utilisateurs/livreur"
+            customIcon={
+              <Image
+                src="/delivery-man.png"
+                alt="Livreur Icon"
+                width={24}
+                height={24}
+                className={cn(
+                  "transition-transform group-hover:scale-110",
+                  isSidebarCollapsed ? "w-6 h-6" : "w-5 h-5 mr-3"
+                )}
+              />
+            }
+            label="Liste des livreurs"
+            isSidebarCollapsed={isSidebarCollapsed}
+          />
+          <SidebarLink
+            href="/admin/utilisateurs/personnel"
+            icon={UserCog}
+            label="Administrateurs"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-blue-600"
+          />
+        </SidebarSection>
+
+        {/* Claims Section */}
+        <SidebarSection title="Réclamations" icon={Mail} isSidebarCollapsed={isSidebarCollapsed}>
+          <SidebarLink
+            href="/admin/reclamations/inbox"
+            icon={Mail}
+            label="Boîte de réception"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-rose-500"
+          />
+          <SidebarLink
+            href="/admin/reclamations/traitees"
+            icon={FileText}
+            label="Traitées"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-green-500"
+          />
+          <SidebarLink
+            href="/admin/reclamations/attente"
+            icon={Undo2}
+            label="En attente"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-yellow-500"
+          />
+          <SidebarLink
+            href="/admin/reclamations/archivees"
+            icon={Archive}
+            label="Archivées"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-gray-500"
+          />
+        </SidebarSection>
+
+        {/* Settings Section */}
+        <SidebarSection title="Paramètres" icon={Settings} isSidebarCollapsed={isSidebarCollapsed}>
+          <SidebarLink
+            href="/admin/parametres"
+            icon={Settings}
+            label="Paramètres de la Boutique"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-gray-600"
+          />
+          <SidebarLink
+            href="/admin/parametres/Regles"
+            icon={DollarSign}
+            label="Règles fiscales & Tarification"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-emerald-500"
+          />
+          <SidebarLink
+            href="/admin/parametres/rapports"
+            icon={PieChart}
+            label="Rapports d'Entreprise"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-blue-400"
+          />
+          <SidebarLink
+            href="/admin/parametres/journaux"
+            icon={Archive}
+            label="Journaux d'Activité"
+            isSidebarCollapsed={isSidebarCollapsed}
+            iconColor="text-gray-500"
+          />
+        </SidebarSection>
       </div>
 
       {!isSidebarCollapsed && (
-        <div className="mb-10">
-          <p className="text-center text-sm font-mono  text-gray-500">&copy; 2025 MGM NEGOCE Sarl</p>
+        <div className="p-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+          <p className="text-center text-xs text-gray-500">&copy; 2025 MGM NEGOCE Sarl</p>
         </div>
       )}
     </div>

@@ -230,4 +230,51 @@ export const useCommandesStore = create((set, get) => ({
       set({ loading: false });
     }
   },
+  generateColisInvoice: async (id) => {
+    if (!id || get().loading) return;
+    
+    set({ loading: true });
+    try {
+      // Make sure to include the type=colis parameter
+      const response = await api.get(`/genererFacture/${id}/facture`, {
+        params: { type: 'colis' },
+        responseType: 'blob'
+      });
+  
+      if (!response.data) {
+        throw new Error('No PDF data received');
+      }
+  
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `colis-invoice-${id}-${Date.now()}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+  
+      toast.success("Facture colis téléchargée avec succès");
+      return true;
+    } catch (error) {
+      const message = error.response?.data?.message || 
+                     error.message || 
+                     'Erreur lors de la génération de la facture colis';
+      
+      if (error.response?.status === 400) {
+        toast.warning(message);
+      } else {
+        toast.error(message);
+      }
+      throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
+  
 }));

@@ -228,7 +228,7 @@ const reinitialiserMotDePasse = async (req, res) => {
 const changerMotDePasse = async (req, res) => {
   try {
     // Get user from request (added by auth middleware)
-    const utilisateur = req.user;
+    const utilisateur = req.utilisateur;
     
     // Get passwords from body
     const { motDePasseActuel, nouveauMotDePasse } = req.body;

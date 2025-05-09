@@ -690,30 +690,73 @@ const traiterRetour = async (req, res) => {
       const { code } = req.body;
       const utilisateurId = req.utilisateur?.id || null;
   
+      // Validate QR code input
       if (!code) {
+        await transaction.rollback();
         return res.status(400).json({
           success: false,
-          message: 'QR code invalide ou manquant.'
+          message: 'QR code invalide ou manquant.',
+          code: 'QR_CODE_MISSING'
         });
       }
   
-      // Extract colis ID from the QR code (expected format: colis:<id>)
-      const match = code.match(/^colis:(\d+)$/);
-      if (!match) {
-        return res.status(400).json({
-          success: false,
-          message: 'QR code non reconnu.'
-        });
+      // Helper function to validate UUID format
+      const isValidUUID = (uuid) => {
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid);
+      };
+  
+      // Parse QR code data (supports both JSON and string formats)
+      let colisId, qrToken;
+      
+      try {
+        // Try to parse as JSON first
+        const qrData = JSON.parse(code);
+        
+        if (!qrData.colisId || !qrData.token) {
+          throw new Error('Missing required fields in QR data');
+        }
+        
+        if (!isValidUUID(qrData.colisId) || !isValidUUID(qrData.token)) {
+          throw new Error('Invalid UUID format in QR data');
+        }
+        
+        colisId = qrData.colisId;
+        qrToken = qrData.token;
+      } catch (jsonError) {
+        // If JSON parsing fails, try the string format
+        const match = code.match(/^colis:([0-9a-f-]+):([0-9a-f-]+)$/i);
+        
+        if (!match || !isValidUUID(match[1]) || !isValidUUID(match[2])) {
+          await transaction.rollback();
+          return res.status(400).json({
+            success: false,
+            message: 'Format QR code non reconnu. Le format doit être soit JSON avec colisId et token, soit "colis:<id>:<token>".',
+            code: 'INVALID_QR_FORMAT',
+            details: process.env.NODE_ENV === 'development' ? {
+              receivedCode: code,
+              error: jsonError.message
+            } : undefined
+          });
+        }
+        
+        colisId = match[1];
+        qrToken = match[2];
       }
   
-      const colisId = match[1];
-  
+      // Find the package with all necessary associations
       const colis = await Colis.findByPk(colisId, {
         transaction,
         include: [
           {
             model: Commande,
-            as: 'commande'
+            as: 'commande',
+            include: [
+              {
+                model: Client,
+                as: 'client',
+                include: [{ model: Utilisateur, as: 'utilisateur' }]
+              }
+            ]
           },
           {
             model: Livreur,
@@ -727,10 +770,41 @@ const traiterRetour = async (req, res) => {
         await transaction.rollback();
         return res.status(404).json({
           success: false,
-          message: 'Colis introuvable.'
+          message: 'Colis introuvable.',
+          code: 'PACKAGE_NOT_FOUND',
+          details: process.env.NODE_ENV === 'development' ? { colisId } : undefined
         });
       }
   
+      // Validate QR token
+      if (colis.qr_token !== qrToken) {
+        await transaction.rollback();
+        return res.status(401).json({
+          success: false,
+          message: 'Token QR code invalide.',
+          code: 'INVALID_QR_TOKEN',
+          details: process.env.NODE_ENV === 'development' ? {
+            expectedToken: colis.qr_token,
+            receivedToken: qrToken
+          } : undefined
+        });
+      }
+  
+      // Check if QR code is expired
+      if (colis.qr_expires && new Date(colis.qr_expires) < new Date()) {
+        await transaction.rollback();
+        return res.status(401).json({
+          success: false,
+          message: 'QR code expiré.',
+          code: 'QR_CODE_EXPIRED',
+          details: process.env.NODE_ENV === 'development' ? {
+            expiresAt: colis.qr_expires,
+            currentTime: new Date()
+          } : undefined
+        });
+      }
+  
+      // Check current status
       if (colis.statut === 'livree') {
         await transaction.rollback();
         return res.status(200).json({
@@ -740,57 +814,131 @@ const traiterRetour = async (req, res) => {
         });
       }
   
+      if (colis.statut !== 'expediee') {
+        await transaction.rollback();
+        return res.status(400).json({
+          success: false,
+          message: 'Le colis doit être en statut "expédié" pour être marqué comme livré.',
+          currentStatus: colis.statut,
+          code: 'INVALID_STATUS'
+        });
+      }
+  
       const ancienStatut = colis.statut;
+      const now = new Date();
+  
+      // Update package status
       await colis.update({
         statut: 'livree',
-        date_livraison: new Date()
+        date_livraison: now,
+        qr_token: null, // Invalidate QR code after use
+        qr_expires: null,
+        qr_code_data: null
       }, { transaction });
   
-      // If all colis in this order are delivered, update Commande status
-      const nonDelivered = await Colis.count({
-        where: {
+      // Check if all packages in this order are delivered
+      const remainingColis = await Colis.count({
+        where: { 
           commande_id: colis.commande_id,
           statut: { [Op.not]: 'livree' }
         },
         transaction
       });
   
-      if (nonDelivered === 0) {
+      // If all packages are delivered, update order status
+      if (remainingColis === 0) {
         await Commande.update(
-          { statut: 'livree' },
+          { statut: 'livree', date_livraison: now },
           { where: { id: colis.commande_id }, transaction }
         );
       }
   
+      // Log the status change
       await CommandeHistorique.create({
         commande_id: colis.commande_id,
         utilisateur_id: utilisateurId,
         action: 'livraison_via_qr',
         ancienne_valeur: ancienStatut,
         nouvelle_valeur: 'livree',
-        details: 'Livraison confirmée via QR code.'
+        details: 'Livraison confirmée via QR code'
       }, { transaction });
   
-      // Optional: notify client or livreur here
+      // Email sending implementation
+      const envoyerEmail = async (emailOptions) => {
+        // Implement your actual email sending logic here
+        // Example using nodemailer:
+        /*
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+          }
+        });
+        
+        await transporter.sendMail({
+          from: '"Your Company" <noreply@yourcompany.com>',
+          to: emailOptions.to,
+          subject: emailOptions.subject,
+          html: `<p>Bonjour ${emailOptions.context.PRENOM},</p>
+                 <p>Votre commande ${emailOptions.context.ORDER_REF} a été livrée.</p>`
+        });
+        */
+        console.log('Email notification would be sent here:', emailOptions);
+        return true;
+      };
+  
+      // Send delivery confirmation notification to client
+      if (colis.commande.client?.utilisateur?.email) {
+        try {
+          await envoyerEmail({
+            to: colis.commande.client.utilisateur.email,
+            subject: `Votre commande #${colis.commande.reference} a été livrée`,
+            template: 'commandeLivree',
+            context: {
+              PRENOM: colis.commande.client.utilisateur.prenom,
+              NOM: colis.commande.client.utilisateur.nom,
+              ORDER_REF: colis.commande.reference,
+              DELIVERY_DATE: now.toLocaleDateString('fr-FR'),
+              DELIVERY_TIME: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+            }
+          });
+        } catch (emailError) {
+          console.error('Failed to send delivery email:', emailError);
+          // Don't fail the whole operation if email fails
+        }
+      }
   
       await transaction.commit();
   
       res.status(200).json({
         success: true,
-        message: 'Colis marqué comme livré.',
+        message: 'Colis marqué comme livré avec succès.',
         data: {
           colis_id: colis.id,
-          nouveau_statut: 'Livrée',
-          date_livraison: colis.date_livraison
+          commande_id: colis.commande_id,
+          reference_commande: colis.commande.reference,
+          nouveau_statut: 'livree',
+          date_livraison: now,
+          livreur: colis.livreur?.utilisateur
+            ? {
+                id: colis.livreur.utilisateur.id,
+                nom: colis.livreur.utilisateur.nom,
+                prenom: colis.livreur.utilisateur.prenom
+              }
+            : null
         }
       });
+  
     } catch (error) {
       await transaction.rollback();
       const errorInfo = debugError('scannerQRCodeColis', error, { body: req.body });
+      
       res.status(500).json({
         success: false,
         message: 'Erreur lors du traitement du QR code.',
-        debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+        debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined,
+        code: 'INTERNAL_SERVER_ERROR'
       });
     }
   };
