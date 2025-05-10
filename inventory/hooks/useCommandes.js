@@ -111,3 +111,18 @@ export const useGenerateColisInvoice = () => {
   return { mutateAsync };
 };
 
+export function useReplaceCommande() {
+  const { remplacerCommande } = useCommandesStore();
+  
+  const mutateAsync = async ({ id, articles, adresse_id, notes }) => {
+    try {
+      await remplacerCommande(id, { articles, adresse_id, notes });
+      return true;
+    } catch (error) {
+      console.error('Replace order error:', error);
+      throw error;
+    }
+  };
+
+  return { mutateAsync };
+}

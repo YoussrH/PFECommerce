@@ -1,7 +1,8 @@
+// models/Commande.js
 const { DataTypes } = require('sequelize');
 const { generateOrderReference } = require('../services/orderReferenceService');
 
-module.exports = (sequelize) => {
+module.exports = (sequelize, DataTypes) => {
   const Commande = sequelize.define('Commande', {
     id: {
       type: DataTypes.UUID,
@@ -46,8 +47,12 @@ module.exports = (sequelize) => {
       type: DataTypes.FLOAT,
       defaultValue: 0,
     },
-    notes_admin: DataTypes.TEXT
-  }, {  // This is the options object
+    notes_admin: DataTypes.TEXT,
+    remplace_commande_id: { // Reference to replaced order
+      type: DataTypes.UUID,
+      allowNull: true,
+    }
+  }, {
     tableName: 'commande',
     hooks: {
       beforeValidate: async (commande) => {
@@ -105,6 +110,12 @@ module.exports = (sequelize) => {
       foreignKey: 'commande_id',
       as: 'retours',
       onDelete: 'CASCADE'
+    });
+    
+    // Self-reference for replaced orders
+    Commande.belongsTo(models.Commande, {
+      foreignKey: 'remplace_commande_id',
+      as: 'commande_remplacee'
     });
   };
 

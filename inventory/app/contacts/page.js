@@ -233,6 +233,7 @@ export default function ContactezNous() {
                   <SelectItem value="produits">Information sur les produits</SelectItem>
                   <SelectItem value="commande">Information sur ma commande</SelectItem>
                   <SelectItem value="retour">Information sur mes retours</SelectItem>
+                  <SelectItem value="remplacement">Demande de remplacement</SelectItem>
                   <SelectItem value="autre">Autre</SelectItem>
                 </SelectContent>
               </Select>
@@ -258,7 +259,7 @@ export default function ContactezNous() {
               rows={4} 
               name="message"
               value={formData.message}
-              onChange={handleChange}
+              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
               required 
               className="border border-black rounded-none" 
             />

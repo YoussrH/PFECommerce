@@ -444,7 +444,7 @@ const obtenirDetailsCommande = async (req, res) => {
 
 
 // Updated mettreAJourStatut function with shipping notification
-const mettreAJourStatut = async (req, res) => {
+/* const mettreAJourStatut = async (req, res) => {
   let transaction;
   try {
     const { id } = req.params;
@@ -574,184 +574,153 @@ const mettreAJourStatut = async (req, res) => {
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
-};
+}; */
 
-// Updated genererFacture function with better colis invoice support
-/* const genererFacture = async (req, res) => {
-  let transaction;
+// controllers/commandeController.js
+
+const mettreAJourStatut = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
-    const { type = "commande" } = req.query; // 'commande' or 'colis'
-
-    if (!isUUID(id, 4)) {
-      return res.status(400).json({
-        success: false,
-        message: "Format ID de commande invalide",
-      });
-    }
-
-    transaction = await sequelize.transaction();
+    const { statut, notes } = req.body;
+    const utilisateurId = req.utilisateur?.id;
 
     const commande = await Commande.findByPk(id, {
       transaction,
-      include: [
-        {
-          model: Client,
-          as: "client",
-          include: [{ model: Utilisateur, as: "utilisateur" }],
-        },
-        { model: Adresse, as: "adresse" },
-        {
-          model: CommandeArticle,
-          as: "commande_articles",
-          include: [
-            {
-              model: Article,
-              as: "article",
-              include: [
-                { model: Marque, as: "marque" },
-                {
-                  model: Taille,
-                  as: "tailles",
-                  through: { attributes: [] },
-                },
-                {
-                  model: Couleur,
-                  as: "couleurs",
-                  through: { attributes: [] },
-                },
-              ],
-            },
-          ],
-        },
-        {
-          model: Livreur,
-          as: "livreur",
-          include: [{ model: Utilisateur, as: "utilisateur" }]
-        }
-      ],
+      include: ['colis']
     });
 
     if (!commande) {
       await transaction.rollback();
-      return res.status(404).json({
+      return res.status(404).json({ 
         success: false,
-        message: "Commande non trouvée",
+        message: 'Commande non trouvée' 
       });
     }
 
-    if (commande.statut === "annulee") {
+    const ancienStatut = commande.statut;
+    
+    // Validate status transition
+    if (!isValidStatusTransition(ancienStatut, statut)) {
       await transaction.rollback();
-      return res.status(400).json({
+      return res.status(400).json({ 
         success: false,
-        message: "Impossible de générer une facture pour une commande annulée",
+        message: 'Transition de statut non autorisée' 
       });
     }
 
-    // Find or create colis if type is 'colis'
-    let colis = null;
-    if (type === "colis") {
-      colis = await sequelize.models.Colis.findOne({
-        where: { commande_id: id },
-        transaction,
-      });
-
-      if (!colis) {
-        await transaction.rollback();
-        return res.status(400).json({
-          success: false,
-          message: "Aucun colis trouvé pour cette commande",
-        });
-      }
-    }
-
-    const numeroFacture = `FAC-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
-    const isColisInvoice = type === "colis";
-    const fileName = isColisInvoice ? `Colis-${commande.reference}.pdf` : `${numeroFacture}.pdf`;
-    const filePath = path.join(__dirname, "../../public/factures", fileName);
-
-    // Ensure directory exists
-    if (!fs.existsSync(path.dirname(filePath))) {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    }
-
-    const doc = new PDFDocument({ margin: 30 });
-    const writeStream = fs.createWriteStream(filePath);
-    doc.pipe(writeStream);
-
-    // Get delivery info
-    const deliveryInfo = getDeliveryInfo(commande.methode_livraison);
-
-    if (isColisInvoice) {
-      // Generate Colis Invoice with QR Code
-      generateColisInvoice(doc, commande, colis, deliveryInfo);
+    // Special handling for canceled/replaced orders
+    if (statut === 'annulee') {
+      await handleOrderCancellation(commande, notes, transaction);
+    } else if (statut === 'remplacee') {
+      await handleOrderReplacement(commande, notes, transaction);
     } else {
-      // Generate Regular Invoice
-      generateCommandeInvoice(doc, commande, numeroFacture, deliveryInfo);
+      await commande.update({ statut }, { transaction });
     }
 
-    doc.end();
-
-    await new Promise((resolve, reject) => {
-      writeStream.on("finish", resolve);
-      writeStream.on("error", reject);
-    });
-
-    // Only create facture record for regular invoices
-    if (!isColisInvoice) {
-      let facture = await Facture.findOne({
-        where: { commande_id: id },
-        transaction,
-      });
-
-      if (!facture) {
-        facture = await Facture.create(
-          {
-            commande_id: commande.id,
-            numero: numeroFacture,
-            date_emission: new Date(),
-            montant_ht: commande.prix_total / 1.2, // Assuming 20% VAT
-            taux_tva: 20.0,
-            montant_ttc: commande.prix_total,
-            fichier_url: `/factures/${fileName}`,
-            est_payee: commande.statut === "livree",
-          },
-          { transaction }
-        );
-
-        await CommandeHistorique.create(
-          {
-            commande_id: commande.id,
-            utilisateur_id: req.utilisateur?.id || null,
-            action: "generation_facture",
-            details: `Facture ${numeroFacture} générée`,
-          },
-          { transaction }
-        );
-      }
+    // Update related parcels if needed
+    if (shouldUpdateParcels(ancienStatut, statut)) {
+      await updateRelatedParcels(commande, statut, transaction);
     }
+
+    await logStatusChange(commande, ancienStatut, statut, utilisateurId, notes, transaction);
 
     await transaction.commit();
 
-    // Send the generated PDF
-    res.setHeader("Content-Type", "application/pdf");
-    const disposition = isColisInvoice ? "inline" : "attachment";
-    res.setHeader("Content-Disposition", `${disposition}; filename=${fileName}`);
-    fs.createReadStream(filePath).pipe(res);
-  } catch (error) {
-    if (transaction) await transaction.rollback();
-
-    const errorInfo = debugError("genererFacture", error, {
-      commandeId: req.params.id,
-      query: req.query,
+    res.status(200).json({ 
+      success: true,
+      message: 'Statut mis à jour',
+      data: { 
+        ancienStatut,
+        nouveauStatut: statut 
+      }
     });
-    res.status(500).json({
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error in mettreAJourStatut:', error);
+    res.status(500).json({ 
       success: false,
-      message: "Erreur génération facture",
-      debug: process.env.NODE_ENV === "development" ? errorInfo : undefined,
+      message: 'Erreur changement statut'
     });
   }
-}; */
+};
+
+// Helper functions
+function isValidStatusTransition(oldStatus, newStatus) {
+  const allowedTransitions = {
+    en_attente: ['en_preparation', 'annulee'],
+    en_preparation: ['expediee', 'annulee', 'remplacee'],
+    expediee: ['livree', 'retourne', 'remplacee'],
+    livree: ['retourne'],
+    annulee: [],
+    remplacee: []
+  };
+  return allowedTransitions[oldStatus]?.includes(newStatus) || false;
+}
+
+async function handleOrderCancellation(commande, notes, transaction) {
+  // Cancel all related parcels
+  await Colis.update(
+    { statut: 'annulee', motif_annulation: notes },
+    { 
+      where: { commande_id: commande.id },
+      transaction
+    }
+  );
+  
+  // Update order status
+  await commande.update({ 
+    statut: 'annulee',
+    notes_admin: notes 
+  }, { transaction });
+}
+
+async function handleOrderReplacement(commande, notes, transaction) {
+  // Mark all related parcels as returned
+  await Colis.update(
+    { statut: 'retourne' },
+    { 
+      where: { commande_id: commande.id },
+      transaction
+    }
+  );
+  
+  // Update order status
+  await commande.update({ 
+    statut: 'remplacee',
+    notes_admin: notes 
+  }, { transaction });
+}
+
+async function updateRelatedParcels(commande, newStatus, transaction) {
+  const parcelStatusMap = {
+    en_preparation: 'en_preparation',
+    expediee: 'expediee',
+    livree: 'livree'
+  };
+  
+  if (parcelStatusMap[newStatus]) {
+    await Colis.update(
+      { statut: parcelStatusMap[newStatus] },
+      { 
+        where: { commande_id: commande.id },
+        transaction
+      }
+    );
+  }
+}
+
+async function logStatusChange(commande, oldStatus, newStatus, userId, notes, transaction) {
+  return CommandeHistorique.create({
+    commande_id: commande.id,
+    utilisateur_id: userId,
+    action: 'changement_statut',
+    ancienne_valeur: oldStatus,
+    nouvelle_valeur: newStatus,
+    details: notes || `Statut changé de ${oldStatus} à ${newStatus}`
+  }, { transaction });
+}
 
 const genererFacture = async (req, res) => {
   let transaction;
@@ -967,228 +936,6 @@ const genererFacture = async (req, res) => {
     });
   }
 };
-// Enhanced generateColisInvoice function
-/* function generateColisInvoice(doc, commande, colis, deliveryInfo) {
-  // Colors
-  const orange = "#F97316";
-  const black = "#000000";
-  const gray = "#6B7280";
-
-  // Header with orange background
-  doc.rect(0, 0, 612, 80).fill(orange).fillColor(black);
-  doc.fontSize(20).fillColor("white").text("MGM NEGOCES SARL", 0, 20, { align: "center" });
-  doc.fontSize(16).text("BON DE LIVRAISON", 0, 45, { align: "center" });
-
-  // Reset colors
-  doc.fillColor(black);
-
-  // Invoice Details
-  doc.fontSize(10).moveDown(2);
-  doc.text(`Référence commande: ${commande.reference}`, 400, 90);
-  doc.text(`Date: ${new Date().toLocaleDateString("fr-FR")}`, 400, 105);
-  doc.text(`Numéro colis: ${colis.numero_suivi}`, 400, 120);
-  doc.moveDown(2);
-
-  // Border around content
-  doc
-    .lineWidth(2)
-    .strokeColor(orange)
-    .rect(30, 140, 552, 400)
-    .stroke()
-    .strokeColor(black);
-
-  // Company Info
-  doc.fontSize(12).moveTo(50, 160);
-  doc.text("MGM Négoces Sarl", 50, 160);
-  doc.text("123 Rue des Entrepreneurs", 50, 175);
-  doc.text("1002 Tunis, Tunisie", 50, 190);
-  doc.text("Tél: +216 70 123 456", 50, 205);
-  doc.moveDown();
-
-  // Delivery Information
-  const deliveryY = 230;
-  doc.fontSize(14).fillColor(orange).text("Informations de livraison:", 50, deliveryY);
-  doc.fillColor(black).fontSize(12);
-  doc.text(`Transporteur: ${colis.transporteur || deliveryInfo.description}`, 50, deliveryY + 20);
-  doc.text(`Numéro de suivi: ${colis.numero_suivi}`, 50, deliveryY + 35);
-  doc.text(`Date d'expédition: ${colis.date_expedition?.toLocaleDateString("fr-FR") || new Date().toLocaleDateString("fr-FR")}`, 50, deliveryY + 50);
-  doc.text(`Méthode: ${commande.methode_livraison === 'express' ? 'Express' : 'Standard'}`, 50, deliveryY + 65);
-  doc.moveDown(2);
-
-  // Customer Information
-  const customerY = deliveryY + 90;
-  doc.fontSize(14).fillColor(orange).text("Livrer à:", 50, customerY);
-  doc.fillColor(black).fontSize(12);
-  doc.text(`${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`, 50, customerY + 20);
-  doc.text(`${commande.adresse.adresse}`, 50, customerY + 35);
-  doc.text(`${commande.adresse.code_postal} ${commande.adresse.ville}`, 50, customerY + 50);
-  doc.text(`${commande.adresse.gouvernorat}`, 50, customerY + 65);
-  doc.moveDown(2);
-
-  // QR Code for delivery confirmation
-  if (colis.qr_code_data) {
-    const qrY = customerY + 90;
-    doc.fontSize(14).fillColor(orange).text("QR Code pour confirmation:", 50, qrY);
-    doc.fillColor(black).moveDown(0.5);
-    doc.image(colis.qr_code_data, 50, qrY + 20, { width: 120 });
-    doc.fontSize(10).text("Scannez pour confirmer la livraison", 50, qrY + 150);
-  }
-
-  // Items List (without prices)
-  const itemsY = colis.qr_code_data ? customerY + 180 : customerY + 90;
-  doc.fontSize(14).fillColor(orange).text("Articles:", 50, itemsY);
-  doc.fillColor(black).moveDown(0.5);
-  
-  let currentY = itemsY + 20;
-  commande.commande_articles.forEach((commandeArticle) => {
-    const article = commandeArticle.article;
-    doc.text(
-      `${article.nom_produit} - Quantité: ${commandeArticle.quantite}`,
-      50,
-      currentY
-    );
-    currentY += 20;
-    
-    // Add size and color if available
-    if (commandeArticle.taille_id || commandeArticle.couleur_id) {
-      const details = [];
-      if (commandeArticle.taille_id) {
-        const taille = article.tailles.find(t => t.id === commandeArticle.taille_id);
-        if (taille) details.push(`Taille: ${taille.libelle}`);
-      }
-      if (commandeArticle.couleur_id) {
-        const couleur = article.couleurs.find(c => c.id === commandeArticle.couleur_id);
-        if (couleur) details.push(`Couleur: ${couleur.libelle}`);
-      }
-      if (details.length > 0) {
-        doc.fontSize(10).fillColor(gray).text(details.join(', '), 70, currentY);
-        currentY += 15;
-        doc.fontSize(12).fillColor(black);
-      }
-    }
-    
-    currentY += 10;
-  });
-
-  // Footer
-  doc
-    .fontSize(10)
-    .text("MGM Négoces Sarl - Livraison sécurisée", 0, 550, { align: "center" })
-    .text("Contactez-nous au +216 70 123 456", 0, 565, { align: "center" });
-}
-
-function generateCommandeInvoice(doc, commande, numeroFacture, deliveryInfo) {
-  const orange = "#F97316";
-  const black = "#000000";
-
-  // Draw the orange header bar
-  doc.rect(0, 0, 612, 80).fill(orange).fillColor(black);
-
-  // Add the company name to the header
-  doc.fontSize(24).fillColor("white").text("MGM NEGOCES SARL", 0, 20, { align: "center" });
-
-  // Add "FACTURE" title under the company name
-  doc.fontSize(18).text("FACTURE", 0, 50, { align: "center" });
-
-  // Set default color and font size for rest of the document
-  doc.fillColor(black);
-  doc.fontSize(10).moveDown(2);
-
-  // Add invoice number and date on the top-right
-  doc.text(`Numéro: ${numeroFacture}`, 400, doc.y);
-  doc.text(`Date: ${new Date().toLocaleDateString("fr-FR")}`, 400, doc.y + 10);
-  doc.moveDown(1);
-
-  // Draw a bordered container for the invoice
-  doc
-    .lineWidth(2)
-    .strokeColor(orange)
-    .rect(30, 120, 552, 580)
-    .stroke()
-    .strokeColor(black);
-
-  // Company contact info (top left)
-  doc.fontSize(12).text("MGM Négoces Sarl", 50, 130);
-  doc.text("123 Rue des Entrepreneurs", 50, 145);
-  doc.text("1002 Tunis, Tunisie", 50, 160);
-  doc.text("Tél: +216 70 123 456", 50, 175);
-  doc.text("Email: contact@mgmnegoces.com", 50, 190);
-
-  // Client info
-  doc.moveDown(1.5);
-  doc.fontSize(14).fillColor(orange).text("Facturé à:", 50);
-  doc.fillColor(black).fontSize(12);
-  doc.text(`${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`, 50);
-  doc.text(`${commande.adresse.adresse}`, 50);
-  doc.text(`${commande.adresse.code_postal} ${commande.adresse.ville}`, 50);
-  doc.text(`${commande.adresse.gouvernorat}`, 50);
-
-  doc.moveDown(1.5);
-
-  // Table headers
-  const tableTop = doc.y;
-  doc
-    .fontSize(12)
-    .fillColor(orange)
-    .text("Description", 50, tableTop)
-    .text("Qté", 280, tableTop)
-    .text("Prix Unitaire", 350, tableTop, { width: 200, align: "right" })
-    .fillColor(black);
-
-  doc
-    .lineWidth(1)
-    .strokeColor(orange)
-    .moveTo(50, tableTop + 15)
-    .lineTo(550, tableTop + 15)
-    .stroke();
-
-  doc.moveDown(0.8);
-
-  // Articles loop - updated to use commande_articles
-  commande.commande_articles.forEach((commandeArticle) => {
-    const article = commandeArticle.article;
-    
-    doc
-      .fontSize(11)
-      .text(article.nom_produit, 50, doc.y)
-      .text(commandeArticle.quantite.toString(), 280, doc.y)
-      .text(`${commandeArticle.prix_unitaire.toFixed(2)} DT`, 350, doc.y, { width: 200, align: "right" });
-
-    doc.moveDown(0.4);
-  });
-
-  // Line below the item list
-  doc
-    .moveDown(0.5)
-    .lineWidth(1)
-    .strokeColor(orange)
-    .moveTo(50, doc.y)
-    .lineTo(550, doc.y)
-    .stroke()
-    .moveDown(0.5);
-
-  // Totals section
-  const left = 340;
-  const topTotal = doc.y;
-  doc
-    .fontSize(12)
-    .fillColor(black)
-    .text(`Sous-total: ${(commande.prix_total - deliveryInfo.fee).toFixed(2)} DT`, left, topTotal)
-    .text(`Frais de livraison: ${deliveryInfo.fee.toFixed(2)} DT`, left, topTotal + 15)
-    .fontSize(14)
-    .fillColor(orange)
-    .text(`Total TTC: ${commande.prix_total.toFixed(2)} DT`, left, topTotal + 30)
-    .fillColor(black)
-    .moveDown();
-
-  // Footer
-  doc
-    .fontSize(10)
-    .text("MGM Négoces Sarl - Merci pour votre confiance!", 0, 680, { align: "center" })
-    .text("Pour toute question, contactez notre service client au +216 70 123 456", 0, 695, {
-      align: "center",
-    });
-} */
 
     function generateColisInvoice(doc, commande, colis, deliveryInfo) {
       // Colors
@@ -1559,7 +1306,7 @@ const modifierAdresseLivraison = async (req, res) => {
 };
 
 // 6. Cancel Order
-const annulerCommande = async (req, res) => {
+/* const annulerCommande = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
@@ -1631,8 +1378,247 @@ const annulerCommande = async (req, res) => {
       debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
     });
   }
+}; */
+
+// controllers/commandeController.js
+
+const annulerCommande = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { raison, rembourser = false } = req.body;
+    const utilisateurId = req.utilisateur.id;
+
+    const commande = await Commande.findByPk(id, { 
+      transaction,
+      include: [
+        {
+          model: Colis,
+          as: 'colis'
+        },
+        {
+          model: Client,
+          as: 'client',
+          include: [{ model: Utilisateur, as: 'utilisateur' }]
+        }
+      ]
+    });
+
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande non trouvée' 
+      });
+    }
+
+    // Check if order can be cancelled
+    const shippedParcels = commande.colis.filter(c => c.statut === 'expediee');
+    if (shippedParcels.length > 0) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: 'Impossible d\'annuler une commande avec des colis déjà expédiés'
+      });
+    }
+
+    // Update order status
+    const ancienStatut = commande.statut;
+    await commande.update({ 
+      statut: 'annulee',
+      raison_annulation: raison
+    }, { transaction });
+
+    // Restock items
+    await restockOrderItems(commande, transaction);
+
+    // Delete unshipped parcels
+    await Colis.destroy({
+      where: { 
+        commande_id: commande.id,
+        statut: { [Op.ne]: 'expediee' }
+      },
+      transaction
+    });
+
+    // Log the cancellation
+    await CommandeHistorique.create({
+      commande_id: commande.id,
+      utilisateur_id: utilisateurId,
+      action: 'annulation_commande',
+      ancienne_valeur: ancienStatut,
+      nouvelle_valeur: 'annulee',
+      details: `Annulée: ${raison || 'Non spécifié'}. Remboursement: ${rembourser ? 'Oui' : 'Non'}`
+    }, { transaction });
+
+    // Initiate refund if requested
+    if (rembourser) {
+      await initierRemboursement(commande, transaction);
+    }
+
+    await transaction.commit();
+
+    // Notify customer
+    await envoyerEmail({
+      to: commande.client.utilisateur.email,
+      subject: `Annulation de votre commande #${commande.reference}`,
+      template: 'commandeAnnulee',
+      context: {
+        PRENOM: commande.client.utilisateur.prenom,
+        NOM: commande.client.utilisateur.nom,
+        ORDER_REF: commande.reference,
+        RAISON: raison || 'Non spécifiée',
+        REMBOURSEMENT: rembourser ? 'Oui' : 'Non'
+      }
+    });
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Commande annulée avec succès'
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur lors de l\'annulation de la commande',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 };
 
+// controllers/commandeController.js
+const remplacerCommande = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { articles, adresse_id, notes } = req.body;
+    const utilisateurId = req.utilisateur?.id;
+
+    // 1. Validate original order
+    const commandeOriginale = await Commande.findByPk(id, {
+      transaction,
+      include: ['colis']
+    });
+
+    if (!commandeOriginale) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande originale non trouvée' 
+      });
+    }
+
+    // 2. Check if replacement is allowed
+    if (!canBeReplaced(commandeOriginale)) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: 'Cette commande ne peut pas être remplacée'
+      });
+    }
+
+    // 3. Create new order
+    const nouvelleCommande = await Commande.create({
+      client_id: commandeOriginale.client_id,
+      adresse_id: adresse_id || commandeOriginale.adresse_id,
+      prix_total: calculateTotal(articles),
+      methode_livraison: commandeOriginale.methode_livraison,
+      methode_paiement: commandeOriginale.methode_paiement,
+      frais_livraison: commandeOriginale.frais_livraison,
+      remplace_commande_id: commandeOriginale.id,
+      statut: 'en_attente'
+    }, { transaction });
+
+    // 4. Add articles to new order
+    await addArticlesToOrder(nouvelleCommande.id, articles, transaction);
+
+    // 5. Mark original order as replaced
+    await commandeOriginale.update({
+      statut: 'remplacee',
+      notes_admin: notes
+    }, { transaction });
+
+    // 6. Handle original parcels
+    await handleOriginalParcels(commandeOriginale, transaction);
+
+    // 7. Log the replacement
+    await logReplacement(commandeOriginale, nouvelleCommande, utilisateurId, notes, transaction);
+
+    await transaction.commit();
+
+    res.status(201).json({ 
+      success: true,
+      message: 'Commande remplacée avec succès',
+      data: {
+        ancienne_commande: commandeOriginale.id,
+        nouvelle_commande: nouvelleCommande.id
+      }
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error in remplacerCommande:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur remplacement commande'
+    });
+  }
+};
+
+// Helper functions
+function canBeReplaced(commande) {
+  return ['en_preparation', 'expediee'].includes(commande.statut) && 
+         commande.statut !== 'annulee' && 
+         commande.statut !== 'remplacee';
+}
+
+async function handleOriginalParcels(commande, transaction) {
+  if (commande.colis && commande.colis.length > 0) {
+    // Mark shipped parcels as returned
+    await Colis.update(
+      { statut: 'retourne', date_retour: new Date() },
+      { 
+        where: { 
+          commande_id: commande.id,
+          statut: 'expediee'
+        },
+        transaction
+      }
+    );
+    
+    // Cancel unshipped parcels
+    await Colis.update(
+      { statut: 'annulee' },
+      { 
+        where: { 
+          commande_id: commande.id,
+          statut: 'en_preparation'
+        },
+        transaction
+      }
+    );
+  }
+}
+
+async function logReplacement(original, replacement, userId, notes, transaction) {
+  const actions = [
+    CommandeHistorique.create({
+      commande_id: original.id,
+      utilisateur_id: userId,
+      action: 'commande_remplacee',
+      details: notes || `Commande remplacée par ${replacement.reference}`
+    }, { transaction }),
+    CommandeHistorique.create({
+      commande_id: replacement.id,
+      utilisateur_id: userId,
+      action: 'commande_remplacement',
+      details: notes || `Commande de remplacement pour ${original.reference}`
+    }, { transaction })
+  ];
+  
+  return Promise.all(actions);
+}
 // 7. Add Admin Note
 // In commandeController.js - update the ajouterNoteAdmin function
 const ajouterNoteAdmin = async (req, res) => {
@@ -2051,5 +2037,5 @@ module.exports = {
   confirmerLivraisonQR,
   notifierExpEdition,
   obtenirCommandesALivrer,
-  
+  remplacerCommande
 };

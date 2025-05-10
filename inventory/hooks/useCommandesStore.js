@@ -276,5 +276,38 @@ export const useCommandesStore = create((set, get) => ({
       set({ loading: false });
     }
   },
+  remplacerCommande: async (id, { articles, adresse_id, notes }) => {
+    if (get().loading) return;
+    
+    set({ loading: true, error: null });
+    try {
+      const res = await api.put(`/remplacerCommande/${id}`, { 
+        articles, 
+        adresse_id, 
+        notes 
+      });
+      
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || 'Failed to replace order');
+      }
+      
+      toast.success(res.data.message || "Order replaced successfully");
+      
+      // Refresh commands list
+      await get().fetchCommandes();
+      
+      return res.data.data;
+    } catch (error) {
+      const message = error.response?.data?.message || 
+                     error.message || 
+                     'Failed to replace order';
+      set({ error: message });
+      toast.error(message);
+      throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
   
 }));
+

@@ -54,7 +54,7 @@ export default function RetoursPage() {
       await processReturn({
         id: selectedReturn.id,
         decision,
-        motif_refus,
+        motif_refus: motifRefus,
         notes
       })
       setOpenDialog(false)

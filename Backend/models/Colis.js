@@ -27,7 +27,8 @@ module.exports = (sequelize) => {
         'en_preparation',
         'expediee',
         'livree',
-        'retourne'
+        'retourne',
+        'annulee'
       ),
       defaultValue: 'en_preparation'
     },
@@ -42,19 +43,14 @@ module.exports = (sequelize) => {
     qr_code_data: DataTypes.TEXT,
     transporteur: DataTypes.STRING,
     url_suivi: DataTypes.STRING,
-    notes: DataTypes.TEXT
+    notes: DataTypes.TEXT,
+    motif_annulation: DataTypes.TEXT
   }, {
     tableName: 'colis',
     timestamps: true,
     paranoid: true,
     hooks: {
       beforeValidate: async (colis) => {
-        if (!colis.numero_suivi) {
-          // Generate tracking number if not provided
-          colis.numero_suivi = `TRK${Date.now().toString(36).toUpperCase()}`;
-        }
-      },
-      beforeCreate: async (colis) => {
         if (!colis.numero_suivi) {
           colis.numero_suivi = `TRK${Date.now().toString(36).toUpperCase()}`;
         }
@@ -66,6 +62,9 @@ module.exports = (sequelize) => {
           }
           if (colis.statut === 'livree' && !colis.date_livraison) {
             colis.date_livraison = new Date();
+          }
+          if (colis.statut === 'retourne' && !colis.date_retour) {
+            colis.date_retour = new Date();
           }
         }
       }

@@ -13,6 +13,7 @@ router.get("/obtenirDetailsCommande/:id", authentifier, commandeController.obten
 router.put("/mettreAJourStatut/:id/statut", authentifier, commandeController.mettreAJourStatut);//est3mltha web
 router.put("/modifierAdresseLivraison/:id/adresse", authentifier, commandeController.modifierAdresseLivraison);
 router.delete("/annulerCommande/:id", authentifier, commandeController.annulerCommande);//est3mltha web
+router.post('/remplacerCommande/:id', authentifier, commandeController.remplacerCommande);
 // In your routes file
 router.post("/ajouterNoteAdmin/:id/notes", authentifier, commandeController.ajouterNoteAdmin);//est3mltha web
 router.get("/genererFacture/:id/facture", authentifier, commandeController.genererFacture);//est3mltha web

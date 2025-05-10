@@ -3,22 +3,34 @@ const fs = require('fs');
 const path = require('path');
 const handlebars = require('handlebars');
 
-// Configure transporter with improved settings
+// Load email templates dynamically
+function loadTemplate(templateName) {
+  try {
+    const templatePath = path.join(__dirname, '../templates', templateName);
+    const templateContent = fs.readFileSync(templatePath, 'utf8');
+    return handlebars.compile(templateContent);
+  } catch (err) {
+    console.error(`Template loading failed for ${templateName}:`, err.message);
+    return null;
+  }
+}
+
+// Configure transporter
 const transporter = nodemailer.createTransport({
   service: "gmail",
   host: "smtp.gmail.com",
   port: 587,
-  secure: false, // true for 465, false for other ports
+  secure: false,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
   tls: {
-    rejectUnauthorized: false // For local development
+    rejectUnauthorized: false
   }
 });
 
-// Verify connection on startup
+// Verify connection
 transporter.verify((error) => {
   if (error) {
     console.error('SMTP Connection Error:', error);
@@ -27,44 +39,47 @@ transporter.verify((error) => {
   }
 });
 
-// Load email templates
+// Templates list
 const templates = {
   commandeExpediee: loadTemplate('commande-expediee.html'),
   commandeAnnulee: loadTemplate('commande-annulee.html'),
   commandeLivree: loadTemplate('commande-livree.html'),
   factureGeneree: loadTemplate('facture-generee.html'),
   welcome: loadTemplate('welcome.html'),
-  otpVerification: loadTemplate('otp-verification.html')
+  otpVerification: loadTemplate('otp-verification.html'),
+  livraisonAssignee: loadTemplate('livraison-assignee.html'),
+  livraisonUnassigned: loadTemplate('livraison-unassigned.html'),
 };
 
-function loadTemplate(templateName) {
-  const templatePath = path.join(__dirname, '../templates', templateName);
-  const templateContent = fs.readFileSync(templatePath, 'utf8');
-  return handlebars.compile(templateContent);
-}
-
-/**
- * Send email with improved error handling
- */
+// Email sender function
 const envoyerEmail = async (options) => {
   try {
     let html = options.html;
-    
-    if (options.template && templates[options.template]) {
-      html = templates[options.template]({
+
+    // Compile template if requested
+    if (options.template) {
+      const templateFn = templates[options.template];
+      if (!templateFn) {
+        throw new Error(`Template "${options.template}" not found`);
+      }
+      html = templateFn({
         ...options.context,
         CURRENT_YEAR: new Date().getFullYear()
       });
+    }
+
+    if (!html) {
+      throw new Error('No email HTML content generated.');
     }
 
     const mailOptions = {
       from: `"MGM Boutique" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
       to: options.to,
       subject: options.subject,
-      text: options.text || html.replace(/<[^>]*>/g, ''), // Fallback text version
+      text: options.text || html.replace(/<[^>]*>/g, ''),
       html: html,
       headers: {
-        'X-Laziness-Level': '1000' // Custom header
+        'X-Laziness-Level': '1000'
       }
     };
 

@@ -1,8 +1,9 @@
 // File: controllers/livraisonController.js
 const { Op, Sequelize } = require('sequelize');
 
-const { Livraison, Commande, CommandeArticle, CommandeHistorique ,Article, Client, Livreur, Utilisateur, Adresse, Colis } = require('../models');
+const { Livraison, Commande,Retour, CommandeArticle, CommandeHistorique ,Article, Client, Livreur, Utilisateur, Adresse, Colis } = require('../models');
 
+const {envoyerEmail} = require('../services/emailService');
 const db = require('../models');
 const sequelize = db.sequelize;
 // Get available deliveries for assignment
@@ -46,7 +47,7 @@ const obtenirLivraisonsDisponibles = async (req, res) => {
 
 
 
-const assignerLivraison = async (req, res) => {
+/* const assignerLivraison = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
@@ -90,6 +91,109 @@ const assignerLivraison = async (req, res) => {
     await livreur.update({
       nombre_livraisons: (livreur.nombre_livraisons || 0) + 1
     }, { transaction });
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Livreur assigné avec succès',
+      data: {
+        livreur_id,
+        livreur_nom: `${livreur.utilisateur.prenom} ${livreur.utilisateur.nom}`,
+        commande: {
+          id: livraison.id,
+          reference: livraison.reference,
+          statut: livraison.statut
+        }
+      }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error assigning delivery:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'assignation du livreur'
+    });
+  }
+}; */
+
+const assignerLivraison = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { livreur_id } = req.body;
+
+    const livraison = await Commande.findByPk(id, { 
+      transaction,
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          include: [{ model: Utilisateur, as: 'utilisateur' }]
+        },
+        { model: Adresse, as: 'adresse' }
+      ]
+    });
+    
+    if (!livraison) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande non trouvée' 
+      });
+    }
+
+    const livreur = await Livreur.findByPk(livreur_id, {
+      include: [{ model: Utilisateur, as: 'utilisateur' }],
+      transaction
+    });
+    
+    if (!livreur) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Livreur non trouvé' 
+      });
+    }
+
+    await livraison.update({
+      livreur_id,
+      statut: 'en_preparation'
+    }, { transaction });
+
+    // Update all related colis records
+    await db.Colis.update(
+      { livreur_id },
+      { 
+        where: { commande_id: id },
+        transaction
+      }
+    );
+
+    await livreur.update({
+      nombre_livraisons: (livreur.nombre_livraisons || 0) + 1
+    }, { transaction });
+
+    // Send notification to the delivery person
+    try {
+      await envoyerEmail({
+        to: livreur.utilisateur.email,
+        template: 'livraisonAssignee',
+        subject: 'Nouvelle livraison assignée - ' + livraison.reference,
+        context: {
+          livreurPrenom: livreur.utilisateur.prenom,
+          reference: livraison.reference,
+          clientNom: `${livraison.client.utilisateur.prenom} ${livraison.client.utilisateur.nom}`,
+          adresseLivraison: livraison.adresse?.adresse || 'Adresse non spécifiée',
+          dateCreation: new Date(livraison.created_at).toLocaleDateString('fr-FR'),
+          statut: 'En préparation',
+          appLink: `${process.env.APP_URL}/livreur/livraisons/${livraison.id}`
+        }
+      });
+    } catch (emailError) {
+      console.error('Failed to send assignment notification:', emailError);
+      // Don't fail the whole operation if email fails
+    }
 
     await transaction.commit();
 
@@ -383,7 +487,6 @@ const obtenirMesLivraisonsAujourdhui = async (req, res) => {
   }
 };
 
-
 const mettreAJourStatutLivraison = async (req, res) => {
   let transaction;
   try {
@@ -436,7 +539,7 @@ const mettreAJourStatutLivraison = async (req, res) => {
     const ancienStatut = commande.statut;
 
     // Autoriser uniquement certains statuts pour le livreur
-    const statutsAutorisés = ['recuperee', 'livree', 'echouee'];
+    const statutsAutorisés = ['recuperee', 'livree', 'annulee'];
     if (!statutsAutorisés.includes(statut)) {
       await transaction.rollback();
       return res.status(400).json({
@@ -852,7 +955,358 @@ const obtenirLivraisonsParDate = async (req, res) => {
 };
 
 
+const modifierLivreurLivraison = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { livreur_id } = req.body;
+
+    if (!livreur_id) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'L\'identifiant du nouveau livreur est requis'
+      });
+    }
+
+    const commande = await Commande.findByPk(id, {
+      transaction,
+      include: [
+        {
+          model: Livreur,
+          as: 'livreur',
+          include: [{ model: Utilisateur, as: 'utilisateur' }]
+        },
+        {
+          model: Client,
+          as: 'client',
+          include: [{ model: Utilisateur, as: 'utilisateur' }]
+        },
+        { model: Adresse, as: 'adresse' }
+      ]
+    });
+
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Commande non trouvée'
+      });
+    }
+
+    // Check if commande status is "en_preparation"
+    if (commande.statut !== 'en_preparation') {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Seules les commandes en préparation peuvent être réassignées'
+      });
+    }
+
+    if (commande.livreur_id === livreur_id) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Cette commande est déjà assignée à ce livreur'
+      });
+    }
+
+    const nouveauLivreur = await Livreur.findByPk(livreur_id, {
+      include: [{ model: Utilisateur, as: 'utilisateur' }],
+      transaction
+    });
+
+    if (!nouveauLivreur) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Nouveau livreur non trouvé'
+      });
+    }
+
+    const ancienLivreurId = commande.livreur_id;
+
+    await commande.update({ livreur_id }, { transaction });
+    await Colis.update({ livreur_id }, { where: { commande_id: id }, transaction });
+
+    // Prepare common email context
+    const emailContext = {
+      reference: commande.reference || 'N/A',
+      clientNom: commande.client?.utilisateur 
+        ? `${commande.client.utilisateur.prenom || ''} ${commande.client.utilisateur.nom || ''}`.trim()
+        : 'Client inconnu',
+      adresseLivraison: commande.adresse?.adresse || 'Adresse non spécifiée',
+      dateCreation: commande.created_at 
+        ? new Date(commande.created_at).toLocaleDateString('fr-FR') 
+        : new Date().toLocaleDateString('fr-FR'),
+      statut: commande.statut || 'N/A',
+      CURRENT_YEAR: new Date().getFullYear(),
+      currentYear: new Date().getFullYear(), // Both versions for compatibility
+      appLink: `${process.env.APP_URL || 'https://yourdomain.com'}/livreur/livraisons/${commande.id}`
+    };
+
+    // Send email to new delivery person
+    if (nouveauLivreur.utilisateur?.email) {
+      try {
+        await envoyerEmail({
+          to: nouveauLivreur.utilisateur.email,
+          template: 'livraison-assignee', // Match the template file name
+          subject: `Nouvelle livraison assignée - ${emailContext.reference}`,
+          context: {
+            ...emailContext,
+            livreurPrenom: nouveauLivreur.utilisateur.prenom || 'Livreur'
+          }
+        });
+      } catch (emailError) {
+        console.error('Failed to send email to new delivery person:', emailError.message);
+      }
+    }
+
+    // Send email to old delivery person if exists
+    if (commande.livreur?.utilisateur?.email) {
+      try {
+        await envoyerEmail({
+          to: commande.livreur.utilisateur.email,
+          template: 'livraison-unassigned', // Match the template file name
+          subject: `Livraison réassignée - ${emailContext.reference}`,
+          context: {
+            ...emailContext,
+            livreurPrenom: commande.livreur.utilisateur.prenom || 'Livreur',
+            nouveauLivreur: `${nouveauLivreur.utilisateur.prenom || ''} ${nouveauLivreur.utilisateur.nom || ''}`.trim() || 'Nouveau Livreur'
+          }
+        });
+      } catch (emailError) {
+        console.error('Failed to send email to old delivery person:', emailError.message);
+      }
+    }
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Livreur modifié avec succès',
+      data: {
+        ancien_livreur_id: ancienLivreurId,
+        nouveau_livreur_id: livreur_id,
+        nouveau_livreur_nom: `${nouveauLivreur.utilisateur.prenom || ''} ${nouveauLivreur.utilisateur.nom || ''}`.trim(),
+        commande_id: commande.id,
+        reference: commande.reference
+      }
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error in modifierLivreurLivraison:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors du changement de livreur',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+const signalerProblemeLivraison = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    console.log('Starting problem reporting process...');
+    console.log('Request params:', req.params);
+    console.log('Request body:', req.body);
+    console.log('Authenticated livreur:', req.livreur);
+
+    const { id } = req.params; // commande_id
+    const { type, notes } = req.body;
+    const livreurId = req.livreur?.utilisateur_id;
+
+    // Validate required fields
+    if (!type) {
+      console.error('Missing problem type');
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: 'Le type de problème est requis',
+        details: {
+          received_body: req.body,
+          required_fields: ['type']
+        }
+      });
+    }
+
+    // Validate problem type
+    const validProblemTypes = ['livraison_echouee', 'produit_endommage', 'adresse_incorrecte'];
+    if (!validProblemTypes.includes(type)) {
+      console.error('Invalid problem type:', type);
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: 'Type de problème invalide',
+        details: {
+          received_type: type,
+          valid_types: validProblemTypes
+        }
+      });
+    }
+
+    console.log('Fetching commande...');
+    const commande = await Commande.findByPk(id, {
+      transaction,
+      include: [{
+        model: Colis,
+        as: 'colis'
+      }]
+    });
+
+    if (!commande) {
+      console.error('Commande not found:', id);
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande non trouvée',
+        details: {
+          commande_id: id
+        }
+      });
+    }
+
+    // Verify the delivery person is assigned to this command
+    if (commande.livreur_id !== livreurId) {
+      console.error('Livreur mismatch:', {
+        commande_livreur: commande.livreur_id,
+        authenticated_livreur: livreurId
+      });
+      await transaction.rollback();
+      return res.status(403).json({ 
+        success: false,
+        message: 'Vous n\'êtes pas assigné à cette commande',
+        details: {
+          commande_id: id,
+          livreur_id: livreurId
+        }
+      });
+    }
+
+    // Determine new status based on problem type
+    let newOrderStatus = 'remplacee'; // Default to replaced for failed deliveries
+    let shouldCreateReplacement = true;
+    let action = 'signalement_probleme';
+
+    if (type === 'adresse_incorrecte') {
+      newOrderStatus = 'annulee';
+      shouldCreateReplacement = false;
+    }
+
+    console.log('Creating return record...');
+    const retour = await Retour.create({
+      commande_id: commande.id,
+      colis_id: commande.colis?.[0]?.id || null,
+      motif: type,
+      type: 'livreur',
+      statut: 'en_attente',
+      notes_livreur: notes,
+      date_demande: new Date()
+    }, { transaction });
+
+    console.log('Updating command and colis status...');
+    await commande.update({
+      statut: newOrderStatus,
+      notes_admin: `Problème signalé: ${type} - ${notes || 'Aucun détail fourni'}`
+    }, { transaction });
+
+    if (commande.colis && commande.colis.length > 0) {
+      await Promise.all(commande.colis.map(colis => 
+        colis.update({
+          statut: 'retourne',
+          date_retour: new Date(),
+          notes: `Problème signalé: ${type}`
+        }, { transaction })
+      ));
+    }
+
+    // Create replacement order if needed
+    let replacementOrder = null;
+    if (shouldCreateReplacement) {
+      console.log('Creating replacement order...');
+      replacementOrder = await createReplacementOrder(commande, transaction);
+    }
+
+    console.log('Creating history record...');
+    await CommandeHistorique.create({
+      commande_id: commande.id,
+      utilisateur_id: livreurId,
+      action: action,
+      details: notes || `Problème signalé: ${type}`,
+      ancienne_valeur: commande.statut,
+      nouvelle_valeur: newOrderStatus
+    }, { transaction });
+
+    await transaction.commit();
+    console.log('Problem reported successfully');
+
+    const responseData = {
+      commande_id: commande.id,
+      retour_id: retour.id,
+      nouveau_statut: newOrderStatus
+    };
+
+    if (replacementOrder) {
+      responseData.replacement_order_id = replacementOrder.id;
+    }
+
+    // Make sure to return here to prevent any further execution
+    return res.status(200).json({ 
+      success: true,
+      message: 'Problème signalé avec succès',
+      data: responseData
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error in signalerProblemeLivraison:', {
+      error: error.message,
+      stack: error.stack,
+      request: {
+        params: req.params,
+        body: req.body,
+        user: req.livreur
+      }
+    });
+    
+    return res.status(500).json({ 
+      success: false,
+      message: 'Erreur lors du signalement du problème',
+      error: process.env.NODE_ENV === 'development' ? {
+        message: error.message,
+        stack: error.stack
+      } : undefined
+    });
+  }
+};
+
+async function createReplacementOrder(originalCommande, transaction) {
+  const nouvelleCommande = await Commande.create({
+    client_id: originalCommande.client_id,
+    adresse_id: originalCommande.adresse_id,
+    prix_total: originalCommande.prix_total,
+    methode_livraison: originalCommande.methode_livraison,
+    methode_paiement: originalCommande.methode_paiement,
+    frais_livraison: originalCommande.frais_livraison,
+    remplace_commande_id: originalCommande.id,
+    statut: 'en_attente'
+  }, { transaction });
+
+  // Copy articles
+  const articles = await originalCommande.getCommande_articles({ transaction });
+  await Promise.all(articles.map(article => 
+    nouvelleCommande.addCommande_articles(article, { transaction })
+  ));
+
+  return nouvelleCommande;
+}
+
+
 module.exports = {
+  modifierLivreurLivraison,
+  signalerProblemeLivraison,
+
   obtenirLivraisonParId,
   obtenirLivraisonsDisponibles,
   assignerLivraison,

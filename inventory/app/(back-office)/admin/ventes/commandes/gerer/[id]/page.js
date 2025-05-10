@@ -56,6 +56,7 @@ import {
   useUpdateCommandeStatus,
   useCancelCommande,
   useGenerateInvoice,
+  useReplaceCommande,
 } from "@/hooks/useCommandes";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useLivraison } from "@/hooks/useLivraison";
@@ -67,6 +68,7 @@ const statusOptions = [
   { value: "expediee", label: "Expédiée", color: "bg-orange-500" },
   { value: "livree", label: "Livrée", color: "bg-green-500" },
   { value: "annulee", label: "Annulée", color: "bg-red-500" },
+  { value: "remplacee", label: "Remplacée", color: "bg-blue-500" },
 ];
 
 export default function GereCommandePage() {
@@ -75,14 +77,16 @@ export default function GereCommandePage() {
   const { token } = useAuth();
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showReplaceDialog, setShowReplaceDialog] = useState(false);
   const [refundChecked, setRefundChecked] = useState(true);
   const [showAllArticles, setShowAllArticles] = useState(false);
   const [notesAdmin, setNotesAdmin] = useState("");
   const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [showChangeLivreurDialog, setShowChangeLivreurDialog] = useState(false);
   const [selectedLivreur, setSelectedLivreur] = useState("");
+  const [newLivreurId, setNewLivreurId] = useState("");
   const [localLoading, setLocalLoading] = useState(false);
 
-  // Use the stores
   const { 
     livreurs,
     obtenirTousLivreurs,
@@ -103,11 +107,9 @@ export default function GereCommandePage() {
   const fraisLivraison = commande?.methode_livraison === "express" ? 15 : 7;
   const sousTotal = commande?.prix_total ? (commande.prix_total - fraisLivraison).toFixed(2) : 0;
 
-  // Auto-refresh system
   useEffect(() => {
     const handleRefresh = () => {
       refetch();
-      // Force re-render of dependent components
       setLocalLoading(false);
     };
 
@@ -126,15 +128,10 @@ export default function GereCommandePage() {
       return;
     }
 
-    if (!isLoading && !isError && !commande) {
-      toast.error("Commande non trouvée");
-    }
-
     if (commande?.notes_admin) {
       setNotesAdmin(commande.notes_admin);
     }
 
-    // Fetch livreurs
     const fetchLivreurs = async () => {
       try {
         await obtenirTousLivreurs({}, token);
@@ -150,6 +147,7 @@ export default function GereCommandePage() {
   const updateStatusMutation = useUpdateCommandeStatus();
   const cancelCommandeMutation = useCancelCommande();
   const generateInvoiceMutation = useGenerateInvoice();
+  const replaceCommandeMutation = useReplaceCommande();
 
   const handleStatusChange = async (newStatus) => {
     setLocalLoading(true);
@@ -173,6 +171,34 @@ export default function GereCommandePage() {
       dispatchRefresh();
     } catch (error) {
       toast.error(error.message || "Erreur lors de l'assignation du livreur");
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  const handleChangeLivreur = async () => {
+    setLocalLoading(true);
+    try {
+      const response = await fetch(`http://localhost:5000/livraisons/${commande.id}/modifierLivreurLivraison`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ livreur_id: newLivreurId })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to change delivery person');
+      }
+
+      toast.success("Livreur changé avec succès");
+      setShowChangeLivreurDialog(false);
+      dispatchRefresh();
+    } catch (error) {
+      console.error('Error changing delivery person:', error);
+      toast.error(error.message || "Erreur lors du changement de livreur");
     } finally {
       setLocalLoading(false);
     }
@@ -205,6 +231,24 @@ export default function GereCommandePage() {
     }
   };
 
+  const handleReplaceCommande = async () => {
+    setLocalLoading(true);
+    try {
+      const response = await replaceCommandeMutation.mutateAsync({
+        id,
+        notes: notesAdmin,
+      });
+      toast.success("Commande remplacée avec succès");
+      setShowReplaceDialog(false);
+      dispatchRefresh();
+      router.push(`/admin/ventes/commandes/gere/${response.id}`);
+    } catch (error) {
+      toast.error(error.message || "Erreur lors du remplacement de la commande");
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
   const handleSaveNotes = async () => {
     setLocalLoading(true);
     try {
@@ -232,7 +276,8 @@ export default function GereCommandePage() {
     }
   };
 
-  if (isLoading || loadingLivreurs || updateStatusMutation.isLoading || cancelCommandeMutation.isLoading || loadingLivraison || localLoading) {
+  if (isLoading || loadingLivreurs || updateStatusMutation.isLoading || 
+      cancelCommandeMutation.isLoading || loadingLivraison || localLoading) {
     return (
       <div className="space-y-4 p-4">
         <Skeleton className="h-10 w-1/3" />
@@ -254,6 +299,10 @@ export default function GereCommandePage() {
 
   if (isError) return <div className="p-4 text-red-500">Erreur lors du chargement de la commande</div>;
   if (!commande) return <div className="p-4">Commande non trouvée</div>;
+
+  const canChangeLivreur = commande.statut === "en_preparation";
+  const canCancel = !["annulee", "livree", "remplacee"].includes(commande.statut);
+  const canReplace = ["en_preparation", "expediee"].includes(commande.statut);
 
   return (
     <div className="space-y-6 p-4">
@@ -303,6 +352,39 @@ export default function GereCommandePage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Replace Dialog */}
+      <AlertDialog open={showReplaceDialog} onOpenChange={setShowReplaceDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remplacer cette commande</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action créera une nouvelle commande identique et marquera celle-ci comme remplacée.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="replaceNotes">Notes (optionnel)</Label>
+              <Textarea
+                id="replaceNotes"
+                value={notesAdmin}
+                onChange={(e) => setNotesAdmin(e.target.value)}
+                placeholder="Raison du remplacement..."
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleReplaceCommande}
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={localLoading}
+            >
+              {localLoading ? "Traitement..." : "Confirmer le remplacement"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Assign Livreur Dialog */}
       <AlertDialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
         <AlertDialogContent>
@@ -341,6 +423,46 @@ export default function GereCommandePage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Change Livreur Dialog */}
+      <AlertDialog open={showChangeLivreurDialog} onOpenChange={setShowChangeLivreurDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Changer de livreur</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sélectionnez un nouveau livreur pour cette commande
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4">
+            <Select onValueChange={setNewLivreurId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionnez un nouveau livreur" />
+              </SelectTrigger>
+              <SelectContent>
+                {livreurs
+                  .filter(l => l.utilisateur_id !== commande.livreur?.utilisateur_id)
+                  .map((livreur) => (
+                    <SelectItem 
+                      key={livreur.utilisateur_id} 
+                      value={livreur.utilisateur_id}
+                    >
+                      {livreur.utilisateur?.prenom} {livreur.utilisateur?.nom} - {livreur.type_vehicule}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleChangeLivreur}
+              disabled={!newLivreurId || localLoading || !canChangeLivreur}
+            >
+              {localLoading ? "Changement en cours..." : "Confirmer le changement"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex items-center gap-4">
         <Button
           variant="outline"
@@ -351,6 +473,11 @@ export default function GereCommandePage() {
         </Button>
         <h1 className="text-2xl font-bold">
           Commande #{commande.reference}
+          {commande.remplace_commande_id && (
+            <span className="text-sm text-muted-foreground ml-2">
+              (Remplace #{commande.remplace_commande_id})
+            </span>
+          )}
         </h1>
         <Badge className={`ml-auto ${statusOptions.find(s => s.value === commande.statut)?.color} text-white`}>
           {statusOptions.find(s => s.value === commande.statut)?.label}
@@ -399,6 +526,15 @@ export default function GereCommandePage() {
                       {commande.livreur.utilisateur?.prenom} {commande.livreur.utilisateur?.nom}
                     </p>
                     <Badge variant="outline">{commande.livreur.type_vehicule}</Badge>
+                    {canChangeLivreur && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => setShowChangeLivreurDialog(true)}
+                      >
+                        Changer
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
@@ -468,7 +604,7 @@ export default function GereCommandePage() {
                 <Select
                   value={commande.statut}
                   onValueChange={handleStatusChange}
-                  disabled={commande.statut === "annulee" || localLoading}
+                  disabled={commande.statut === "annulee" || commande.statut === "remplacee" || localLoading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un statut" />
@@ -480,6 +616,7 @@ export default function GereCommandePage() {
                         value={status.value}
                         disabled={
                           commande.statut === "annulee" ||
+                          commande.statut === "remplacee" ||
                           (status.value === "en_attente" && commande.statut !== "en_attente") ||
                           localLoading
                         }
@@ -523,11 +660,21 @@ export default function GereCommandePage() {
                 <MailIcon className="mr-2 h-4 w-4" />
                 Envoyer un email
               </Button>
+              {canReplace && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReplaceDialog(true)}
+                  disabled={localLoading}
+                >
+                  <RefreshCwIcon className="mr-2 h-4 w-4" />
+                  Remplacer la commande
+                </Button>
+              )}
               <Button
                 variant="destructive"
                 className="ml-auto"
                 onClick={() => setShowCancelDialog(true)}
-                disabled={commande.statut === "annulee" || commande.statut === "livree" || localLoading}
+                disabled={!canCancel || localLoading}
               >
                 Annuler la commande
               </Button>

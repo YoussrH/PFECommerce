@@ -1,9 +1,11 @@
-const { Reclamation, Utilisateur } = require("../models");
 const fs = require('fs');
 const path = require('path');
 const cloudinary = require('../config/cloudinaryConfig');
 const nodemailer = require('nodemailer');
 const handlebars = require('handlebars');
+// controllers/reclamationController.js
+const { Reclamation, Commande, Utilisateur } = require("../models");
+const { envoyerEmail } = require("../services/emailService");
 
 // Email transporter
 const transporter = nodemailer.createTransport({
@@ -283,10 +285,165 @@ const mettreAJourReclamation = async (req, res) => {
   }
 };
 
+
+const traiterReclamation = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { statut, reponse, action } = req.body;
+
+    const reclamation = await Reclamation.findByPk(id, {
+      transaction,
+      include: ['commande']
+    });
+
+    if (!reclamation) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Réclamation non trouvée' 
+      });
+    }
+
+    // Update reclamation status
+    await reclamation.update({ 
+      statut,
+      reponse,
+      traite_par: req.utilisateur.id
+    }, { transaction });
+
+    let result = { reclamation };
+
+    // Handle specific actions
+    if (action === 'remplacement' && reclamation.commande) {
+      const replacementResult = await handleReplacementRequest(
+        reclamation.commande, 
+        req.utilisateur.id,
+        reponse,
+        transaction
+      );
+      result = { ...result, ...replacementResult };
+    } else if (action === 'annulation' && reclamation.commande) {
+      await handleCancellationRequest(
+        reclamation.commande,
+        req.utilisateur.id,
+        reponse,
+        transaction
+      );
+    }
+
+    // Send response to client
+    await sendReclamationResponse(reclamation, reponse);
+
+    await transaction.commit();
+
+    res.status(200).json({ 
+      success: true,
+      data: result
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error in traiterReclamation:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur traitement réclamation'
+    });
+  }
+};
+
+async function handleReplacementRequest(commande, userId, notes, transaction) {
+  // Check if order can be replaced
+  if (commande.statut !== 'en_preparation' && commande.statut !== 'expediee') {
+    throw new Error('La commande ne peut pas être remplacée dans son état actuel');
+  }
+
+  // Create new order with same details
+  const nouvelleCommande = await Commande.create({
+    client_id: commande.client_id,
+    adresse_id: commande.adresse_id,
+    prix_total: commande.prix_total,
+    methode_livraison: commande.methode_livraison,
+    methode_paiement: commande.methode_paiement,
+    frais_livraison: commande.frais_livraison,
+    remplace_commande_id: commande.id,
+    statut: 'en_attente'
+  }, { transaction });
+
+  // Copy articles from original order
+  const articles = await commande.getCommande_articles({ transaction });
+  await Promise.all(articles.map(article => 
+    nouvelleCommande.addCommande_articles(article, { transaction })
+  ));
+
+  // Mark original order as replaced
+  await commande.update({
+    statut: 'remplacee',
+    notes_admin: notes
+  }, { transaction });
+
+  // Handle original parcels
+  const colis = await commande.getColis({ transaction });
+  await Promise.all(colis.map(colis => {
+    const newStatus = colis.statut === 'expediee' ? 'retourne' : 'annulee';
+    return colis.update({ 
+      statut: newStatus,
+      ...(newStatus === 'retourne' && { date_retour: new Date() })
+    }, { transaction });
+  }));
+
+  return {
+    nouvelle_commande: nouvelleCommande,
+    ancienne_commande: commande
+  };
+}
+
+async function handleCancellationRequest(commande, userId, notes, transaction) {
+  // Check if order can be canceled
+  if (commande.statut !== 'en_attente' && commande.statut !== 'en_preparation') {
+    throw new Error('La commande ne peut pas être annulée dans son état actuel');
+  }
+
+  // Cancel order
+  await commande.update({
+    statut: 'annulee',
+    notes_admin: notes
+  }, { transaction });
+
+  // Cancel all parcels
+  await Colis.update(
+    { statut: 'annulee' },
+    { 
+      where: { commande_id: commande.id },
+      transaction
+    }
+  );
+}
+
+async function sendReclamationResponse(reclamation, reponse) {
+  const templateData = {
+    sujet: reclamation.sujet,
+    message: reclamation.message,
+    reponse: reponse,
+    date: new Date().toLocaleDateString('fr-FR'),
+    reference: reclamation.numero_commande || 'N/A'
+  };
+
+  await envoyerEmail({
+    to: reclamation.email,
+    subject: `Réponse à votre réclamation #${reclamation.id.slice(0, 8)}`,
+    template: 'reponseReclamation',
+    context: templateData
+  });
+}
+
+
 module.exports = {
   creerReclamation,
   obtenirToutesReclamations,
   obtenirMesReclamations,
   obtenirReclamationParId,
-  mettreAJourReclamation
+  mettreAJourReclamation,
+  traiterReclamation,
+
 };

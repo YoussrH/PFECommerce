@@ -45,7 +45,8 @@ const statusVariant = {
   preparation: 'secondary',
   expediee: 'default',
   livre: 'success',
-  retourne: 'destructive'
+  retourne: 'destructive',
+  annulee: 'destructive'
 }
 
 export default function ColisPage() {
@@ -91,6 +92,7 @@ export default function ColisPage() {
                 <SelectItem value="expediee">Expédié</SelectItem>
                 <SelectItem value="livre">Livré</SelectItem>
                 <SelectItem value="retourne">Retourné</SelectItem>
+                <SelectItem value="annulee">Annulé</SelectItem>
               </SelectContent>
             </Select>
 
@@ -176,6 +178,17 @@ export default function ColisPage() {
                       >
                         Télécharger Facture Colis
                       </Button>
+
+                      {/* View Order Button */}
+                      {colis.commande_id && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => window.open(`/admin/ventes/commandes/gere/${colis.commande_id}`, '_blank')}
+                        >
+                          Voir Commande
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

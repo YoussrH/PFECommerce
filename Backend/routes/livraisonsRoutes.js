@@ -9,6 +9,7 @@ router.get("/disponibles", authentifier, verifierAdmin, livraisonController.obte
 
 // Assign delivery to a delivery person
 router.put("/:id/assigner", authentifier, verifierAdmin, livraisonController.assignerLivraison);
+router.put("/:id/modifierLivreurLivraison", authentifier, verifierAdmin, livraisonController.modifierLivreurLivraison);
 
 // Get deliveries by delivery person ID
 router.get("/livreur/:id", authentifier, livraisonController.obtenirLivraisonsParLivreur);
@@ -26,4 +27,5 @@ router.get("/mes-livraisons/aujourdhui", authentifierLivreur, livraisonControlle
 router.get("/mes-statistiques", authentifierLivreur, livraisonController.obtenirMesStatistiquesLivraison);
 router.get("/obtenirLivraisonParId/:id", authentifier, livraisonController.obtenirLivraisonParId);
 router.get("/mes-livraisons/par-date", authentifierLivreur, livraisonController.obtenirLivraisonsParDate);
+router.post('/signaler-probleme/:id', authentifierLivreur, livraisonController.signalerProblemeLivraison);
 module.exports = router;
