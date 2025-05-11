@@ -69,6 +69,8 @@ const statusOptions = [
   { value: "livree", label: "Livrée", color: "bg-green-500" },
   { value: "annulee", label: "Annulée", color: "bg-red-500" },
   { value: "remplacee", label: "Remplacée", color: "bg-blue-500" },
+    { value: "retourne", label: "Retournée", color: "bg-red-800" },
+
 ];
 
 export default function GereCommandePage() {
@@ -315,7 +317,7 @@ export default function GereCommandePage() {
               Êtes-vous sûr de vouloir annuler cette commande? Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 ">
             <div className="space-y-2">
               <Label htmlFor="cancelReason">Raison de l&apos;annulation</Label>
               <Textarea
@@ -604,7 +606,7 @@ export default function GereCommandePage() {
                 <Select
                   value={commande.statut}
                   onValueChange={handleStatusChange}
-                  disabled={commande.statut === "annulee" || commande.statut === "remplacee" || localLoading}
+                  disabled={commande.statut === "annulee" || commande.statut === "remplacee"|| localLoading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un statut" />
@@ -616,6 +618,7 @@ export default function GereCommandePage() {
                         value={status.value}
                         disabled={
                           commande.statut === "annulee" ||
+                          
                           commande.statut === "remplacee" ||
                           (status.value === "en_attente" && commande.statut !== "en_attente") ||
                           localLoading

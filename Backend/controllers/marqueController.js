@@ -1,6 +1,10 @@
 const db = require('../models');
 const Marque = db.Marque;
-
+const Article = db.Article;
+const Categorie = db.Categorie;
+const Genre = db.Genre;
+const ImageArticleCouleur = db.ImageArticleCouleur;
+const sequelize = db.sequelize;
 const ajouterMarque = async (req, res) => {
   try {
     if (!req.body.libelle) {
@@ -126,11 +130,230 @@ const supprimerToutesLesMarques = async (req, res) => {
   }
 };
 
+/* // In marqueController.js, replace the popular marques query with:
+const obtenirMarquesPopulaires = async (req, res) => {
+  try {
+    // Use raw query for better performance and PostgreSQL compatibility
+    const marques = await sequelize.query(`
+      SELECT 
+        m.id,
+        m.libelle,
+        COUNT(a.id) as "article_count",
+        (
+          SELECT iac.image_url 
+          FROM image_article_couleur iac
+          JOIN article a2 ON a2.id = iac.article_id
+          WHERE a2.marque_id = m.id
+          LIMIT 1
+        ) as "featured_image"
+      FROM marque m
+      JOIN article a ON a.marque_id = m.id
+      JOIN image_article_couleur iac ON iac.article_id = a.id
+      GROUP BY m.id
+      HAVING COUNT(a.id) > 0
+      ORDER BY COUNT(a.id) DESC
+    `, {
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    res.json({
+      success: true,
+      data: marques
+    });
+  } catch (error) {
+    console.error("Error getting popular marques:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching popular marques",
+      error: error.message
+    });
+  }
+};
+const obtenirMarquesParGenre = async (req, res) => {
+  try {
+    const { genre } = req.params;
+
+    // First try to find genre by ID, then by name if not found
+    const genreRecord = await sequelize.query(`
+      SELECT id, libelle FROM genre 
+      WHERE id = :genre OR libelle ILIKE :genreLike
+      LIMIT 1
+    `, {
+      replacements: { 
+        genre: isNaN(genre) ? null : parseInt(genre),
+        genreLike: `%${genre}%` 
+      },
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    if (!genreRecord || genreRecord.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Genre non trouvé"
+      });
+    }
+
+    const marques = await sequelize.query(`
+      SELECT 
+        m.id,
+        m.libelle,
+        (
+          SELECT iac.image_url 
+          FROM image_article_couleur iac
+          JOIN article a2 ON a2.id = iac.article_id
+          WHERE a2.marque_id = m.id AND a2.genre_id = :genreId
+          LIMIT 1
+        ) as "featured_image"
+      FROM marque m
+      JOIN article a ON a.marque_id = m.id
+      WHERE a.genre_id = :genreId
+      AND (
+        SELECT COALESCE(SUM(quantite), 0)
+        FROM article_taille
+        WHERE article_taille.article_id = a.id
+      ) > 0
+      GROUP BY m.id
+      ORDER BY m.libelle ASC
+    `, {
+      replacements: { genreId: genreRecord[0].id },
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    res.json({
+      success: true,
+      data: {
+        genre: genreRecord[0],
+        marques: marques
+      }
+    });
+  } catch (error) {
+    console.error("Erreur lors de la récupération des marques par genre:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des marques",
+      error: error.message
+    });
+  }
+}; */
+
+// Remove the obtenirMarquesAvecArticleAleatoire function completely
+// Keep only the following functions:
+const obtenirMarquesPopulaires = async (req, res) => {
+  try {
+    const marques = await sequelize.query(`
+      SELECT 
+        m.id,
+        m.libelle,
+        COUNT(a.id) as "article_count",
+        (
+          SELECT iac.image_url 
+          FROM image_article_couleur iac
+          WHERE iac.article_id = a.id
+          LIMIT 1
+        ) as "featured_image"
+      FROM marque m
+      JOIN article a ON a.marque_id = m.id
+      WHERE EXISTS (
+        SELECT 1 FROM article_taille at
+        WHERE at.article_id = a.id
+        AND at.quantite > 0
+      )
+      GROUP BY m.id, a.id
+      HAVING COUNT(a.id) > 0
+      ORDER BY COUNT(a.id) DESC
+      LIMIT 12
+    `, {
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    res.json(marques);
+  } catch (error) {
+    console.error("Error getting popular marques:", error);
+    res.status(500).json({
+      message: "Error fetching popular marques",
+      error: error.message
+    });
+  }
+};
+
+const obtenirMarquesParGenre = async (req, res) => {
+  try {
+    const { genre } = req.params;
+
+    const genreRecord = await sequelize.query(`
+      SELECT id, libelle FROM genre 
+      WHERE id = :genre OR libelle ILIKE :genreLike
+      LIMIT 1
+    `, {
+      replacements: { 
+        genre: isNaN(genre) ? null : parseInt(genre),
+        genreLike: `%${genre}%` 
+      },
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    if (!genreRecord || genreRecord.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Genre non trouvé"
+      });
+    }
+
+    const marques = await sequelize.query(`
+      SELECT 
+        m.id,
+        m.libelle,
+        (
+          SELECT iac.image_url 
+          FROM image_article_couleur iac
+          JOIN article a2 ON a2.id = iac.article_id
+          WHERE a2.marque_id = m.id AND a2.genre_id = :genreId
+          LIMIT 1
+        ) as "featured_image"
+      FROM marque m
+      JOIN article a ON a.marque_id = m.id
+      WHERE a.genre_id = :genreId
+      AND (
+        SELECT COALESCE(SUM(quantite), 0)
+        FROM article_taille
+        WHERE article_taille.article_id = a.id
+      ) > 0
+      GROUP BY m.id
+      ORDER BY m.libelle ASC
+    `, {
+      replacements: { genreId: genreRecord[0].id },
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    res.json({
+      success: true,
+      data: {
+        genre: genreRecord[0],
+        marques: marques
+      }
+    });
+  } catch (error) {
+    console.error("Erreur lors de la récupération des marques par genre:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des marques",
+      error: error.message
+    });
+  }
+};
+
+
 module.exports = {
+
+
   ajouterMarque,
   obtenirToutesLesMarques,
   obtenirMarqueParId,
   mettreAJourMarque,
   supprimerMarque,
-  supprimerToutesLesMarques
+  supprimerToutesLesMarques,
+  obtenirMarquesPopulaires,
+  obtenirMarquesParGenre,
+  
+
 };

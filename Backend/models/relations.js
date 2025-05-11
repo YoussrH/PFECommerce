@@ -609,60 +609,6 @@ module.exports = function(models) {
       onDelete: 'CASCADE'
     });
 
-/*     /* ==============================================
-     * 19. EXPEDITION & SHIPPING RELATIONS
-     * ============================================== *
-    Commande.hasMany(Colis, {
-      foreignKey: 'commande_id',
-      as: 'colis',
-      onDelete: 'CASCADE'
-    });
-
-    Colis.belongsTo(Commande, {
-      foreignKey: 'commande_id',
-      as: 'commande',
-      onDelete: 'CASCADE'
-    });
-
-    Commande.hasMany(Retour, {
-      foreignKey: 'commande_id',
-      as: 'retours',
-      onDelete: 'CASCADE'
-    });
-
-    Retour.belongsTo(Commande, {
-      foreignKey: 'commande_id',
-      as: 'commande',
-      onDelete: 'CASCADE'
-    });
-
-    Livreur.hasMany(Colis, {
-      foreignKey: 'livreur_id',
-      as: 'colis_livres',
-      onDelete: 'SET NULL'
-    });
-
-    Colis.belongsTo(Livreur, {
-      foreignKey: 'livreur_id',
-      as: 'livreur',
-      onDelete: 'SET NULL'
-    });
-
-    Utilisateur.hasMany(Retour, {
-      foreignKey: 'traite_par',
-      as: 'retours_traites',
-      onDelete: 'SET NULL'
-    });
-
-    Retour.belongsTo(Utilisateur, {
-      foreignKey: 'traite_par',
-      as: 'traite_par_utilisateur',
-      onDelete: 'SET NULL'
-    }); */
-      /* ==============================================
-      * 19. SHIPPING & RETURNS RELATIONS (Optimized)
-      * ============================================== */
-
       // Command -> Packages (1:N)
       Commande.hasMany(Colis, {
         foreignKey: 'commande_id',

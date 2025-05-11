@@ -16,13 +16,10 @@ export default function Header({ isFilterBarPresent }) {
   // State for submenus
   const [submenuOpen, setSubmenuOpen] = useState(false);
   const [petitPrixOpen, setPetitPrixOpen] = useState(false);
-  const [filleOpen, setFilleOpen] = useState(false);
+  const [femmeOpen, setFemmeOpen] = useState(false);
   const [garconOpen, setGarconOpen] = useState(false);
-  const [chaussuresOpen, setChaussuresOpen] = useState(false);
   const [marquesOpen, setMarquesOpen] = useState(false);
-  const [tendancesOpen, setTendancesOpen] = useState(false);
   const [outletOpen, setOutletOpen] = useState(false);
-  const [secondeMainOpen, setSecondeMainOpen] = useState(false);
   const [luxeOpen, setLuxeOpen] = useState(false);
 
   const timeoutRef = useRef(null);
@@ -64,20 +61,14 @@ export default function Header({ isFilterBarPresent }) {
       case "PETITS PRIX":
         setPetitPrixOpen(true);
         break;
-      case "Fille":
-        setFilleOpen(true);
+      case "Femme":
+        setFemmeOpen(true);
         break;
       case "Garçon":
         setGarconOpen(true);
         break;
-      case "Chaussures":
-        setChaussuresOpen(true);
-        break;
       case "Marques":
         setMarquesOpen(true);
-        break;
-      case "Tendances":
-        setTendancesOpen(true);
         break;
       case "Outlet":
         setOutletOpen(true);
@@ -98,20 +89,14 @@ export default function Header({ isFilterBarPresent }) {
       case "PETITS PRIX":
         setPetitPrixOpen(false);
         break;
-      case "Fille":
-        setFilleOpen(false);
+      case "Femme":
+        setFemmeOpen(false);
         break;
       case "Garçon":
         setGarconOpen(false);
         break;
-      case "Chaussures":
-        setChaussuresOpen(false);
-        break;
       case "Marques":
         setMarquesOpen(false);
-        break;
-      case "Tendances":
-        setTendancesOpen(false);
         break;
       case "Outlet":
         setOutletOpen(false);
@@ -132,34 +117,27 @@ export default function Header({ isFilterBarPresent }) {
         {!isScrolled && (
           <>
             <TopNav onMenuClick={toggleMobileMenu} isMobileMenuOpen={isMobileMenuOpen} />
-            <div className="mt-10 flex flex-col items-center">
-              <nav className="hidden md:flex gap-6">
+            <div className="mt-5 flex flex-col items-center">
+              <nav className="hidden md:flex gap-12">
                 {[
                   "Nouveautés",
                   "PETITS PRIX",
-                  "Fille",
-                  "Garçon",
-                 
-                  "Chaussures",
+                  "Femme",
+                  "Garçon",                 
                   "Marques",
-                  "Tendances",
                   "Outlet",
-                  "SECONDE MAIN",
                   "| Luxe",
                 ].map((item) => (
                   <div key={item} className="relative group">
-                    <h6
+                    <h4
                       className={`cursor-pointer font-mono pb-1 text-xs lg:text-sm ${
                         (item === "Nouveautés" && submenuOpen) ||
                         (item === "PETITS PRIX" && petitPrixOpen) ||
-                        (item === "Fille" && filleOpen) ||
+                        (item === "Femme" && femmeOpen) ||
                         (item === "Garçon" && garconOpen) ||
                         (item === "Bébé" && bebeOpen) ||
-                        (item === "Chaussures" && chaussuresOpen) ||
                         (item === "Marques" && marquesOpen) ||
-                        (item === "Tendances" && tendancesOpen) ||
                         (item === "Outlet" && outletOpen) ||
-                        (item === "SECONDE MAIN" && secondeMainOpen) ||
                         (item === "| Luxe" && luxeOpen)
                           ? "border-b-2 border-black"
                           : ""
@@ -169,8 +147,8 @@ export default function Header({ isFilterBarPresent }) {
                       onClick={() => handleClick(item)}
                     >
                       {item}
-                    </h6>
-                    {["Fille", "Garçon"].includes(item) && (
+                    </h4>
+                    {["PETITS PRIX"].includes(item) && (
                       <span className="whitespace-nowrap absolute bottom-full left-1/2 -translate-x-1/2 mb-1 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition">
                        2-16 ans
                       </span>
@@ -185,37 +163,31 @@ export default function Header({ isFilterBarPresent }) {
         {isScrolled && !isFilterBarPresent && (
           <div className="sticky-nav ">
             <div className="pt-5  flex items-center justify-between bg-white shadow-sm">
-              <nav className="flex gap-6">
-                <Link href="/">
-                  <Image src="/mgm1.svg" alt="MGM Logo" width={66} height={36}   style={{ width: 'auto', height: 'auto' }}
-  priority className="h-9 pb-4  mr-36 pl-5 cursor-pointer" />
+               <Link href="/">
+                  <Image src="/mgm1.svg" alt="MGM Logo" width={66} height={40} priority className="h-12 w-28 pb-5  mr-36 pl-5 cursor-pointer" />
                 </Link>
+              <nav className="flex gap-9 pb-4">
+               
 
                 {[
                   "Nouveautés",
                   "PETITS PRIX",
-                  "Fille",
+                  "Femme",
                   "Garçon",
-                  "Chaussures",
                   "Marques",
-                  "Tendances",
                   "Outlet",
-                  "SECONDE MAIN",
                   "| Luxe",
                 ].map((item) => (
                   <div key={item} className="relative group">
-                    <h5
+                    <h4
                       className={`cursor-pointer pb-1 text-sm ${
                         (item === "Nouveautés" && submenuOpen) ||
                         (item === "PETITS PRIX" && petitPrixOpen) ||
-                        (item === "Fille" && filleOpen) ||
+                        (item === "Femme" && femmeOpen) ||
                         (item === "Garçon" && garconOpen) ||
                         (item === "Bébé" && bebeOpen) ||
-                        (item === "Chaussures" && chaussuresOpen) ||
                         (item === "Marques" && marquesOpen) ||
-                        (item === "Tendances" && tendancesOpen) ||
                         (item === "Outlet" && outletOpen) ||
-                        (item === "SECONDE MAIN" && secondeMainOpen) ||
                         (item === "| Luxe" && luxeOpen)
                           ? "border-b-2 border-black"
                           : ""
@@ -225,10 +197,10 @@ export default function Header({ isFilterBarPresent }) {
                       onClick={() => handleClick(item)}
                     >
                       {item}
-                    </h5>
-                    {["Fille", "Garçon", "Bébé"].includes(item) && (
+                    </h4>
+                    {["PETITS PRIX"].includes(item) && (
                       <span className="whitespace-nowrap absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition">
-                        {item === "Bébé" ? "1-36 mois" : "2-16 ans"}
+                        2-16 ans
                       </span>
                     )}
                   </div>
@@ -242,43 +214,13 @@ export default function Header({ isFilterBarPresent }) {
           </div>
         )}
 
-        {isMobileMenuOpen && (
-          <nav className="md:hidden flex flex-col gap-3 p-2 w-[288px] bg-white border-t text-xs border-gray-300 fixed top-20 left-0 h-screen z-50 overflow-x-hidden overflow-y-auto">
-            {[
-              "Nouveautés",
-              "PETITS PRIX",
-              "Fille",
-              "Garçon",
-              "Bébé",
-              "Chaussures",
-              "Marques",
-              "Tendances",
-              "Outlet",
-              "SECONDE MAIN",
-              "Luxe",
-            ].map((item) => (
-              <div key={item} className="relative group border-b border-gray-200 pb-2">
-                <h5
-                  className={`cursor-pointer pb-1 flex items-center justify-between text-xs sm:text-base`}
-                  onClick={() => handleClick(item)}
-                >
-                  {item}
-                  <CiCirclePlus className="text-gray-500" />
-                </h5>
-              </div>
-            ))}
-          </nav>
-        )}
 
         <SubmenusComponents
           submenuOpen={submenuOpen}
           petitPrixOpen={petitPrixOpen}
-          filleOpen={filleOpen}
-          garconOpen={garconOpen}
-        
-          chaussuresOpen={chaussuresOpen}
+          femmeOpen={femmeOpen}
+          garconOpen={garconOpen}        
           marquesOpen={marquesOpen}
-          tendancesOpen={tendancesOpen}
           outletOpen={outletOpen}
           luxeOpen={luxeOpen}
           handleMouseEnter={handleMouseEnter}

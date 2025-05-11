@@ -1,43 +1,40 @@
-'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { usePanier } from '@/hooks/use-panier'
-import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
-import ResumeCommande from '@/app/components/caisse/CartSummary'
+"use client"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { usePanier } from "@/hooks/use-panier"
+import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
+import ResumeCommande from "@/app/components/caisse/CartSummary"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label } from "@/components/ui/label"
+import { Loader2 } from "lucide-react"
 
 const paymentMethods = [
-  { 
-    id: 'livraison', 
-    name: 'Paiement à la livraison',
-    available: true
+  {
+    id: "livraison",
+    name: "Paiement à la livraison",
+    available: true,
   },
-  { 
-    id: 'carte', 
-    name: 'Carte de crédit',
+  {
+    id: "carte",
+    name: "Carte de crédit",
     available: false,
-    comingSoonText: 'Bientôt disponible' 
+    comingSoonText: "Bientôt disponible",
   },
-  { 
-    id: 'paypal', 
-    name: 'PayPal',
+  {
+    id: "paypal",
+    name: "PayPal",
     available: false,
-    comingSoonText: 'Bientôt disponible'
-  }
+    comingSoonText: "Bientôt disponible",
+  },
 ]
 
 export default function PaiementPage() {
   const router = useRouter()
-  const { 
-    traiterPaiement, 
-    panier, 
-    recupererPanier, 
-    initShipping,
-    shippingMethod,
-    shippingCost
-  } = usePanier()
-  
-  const [selectedMethod, setSelectedMethod] = useState('livraison')
+  const { traiterPaiement, panier, recupererPanier, initShipping, shippingMethod, shippingCost } = usePanier()
+
+  const [selectedMethod, setSelectedMethod] = useState("livraison")
   const [processing, setProcessing] = useState(false)
   const [addressId, setAddressId] = useState(null)
   const [checkoutReady, setCheckoutReady] = useState(false)
@@ -50,19 +47,19 @@ export default function PaiementPage() {
       try {
         // Initialize shipping data
         initShipping()
-        
+
         // Verify required checkout data exists
-        const storedAddressId = sessionStorage.getItem('current_address_id')
+        const storedAddressId = sessionStorage.getItem("current_address_id")
         if (!storedAddressId) {
-          toast.error('Veuillez sélectionner une adresse de livraison')
-          router.push('/caisse/adresse')
+          toast.error("Veuillez sélectionner une adresse de livraison")
+          router.push("/caisse/adresse")
           return
         }
 
         // Verify shipping method is selected
         if (!shippingMethod) {
-          toast.error('Veuillez sélectionner un mode de livraison')
-          router.push('/caisse/livraison')
+          toast.error("Veuillez sélectionner un mode de livraison")
+          router.push("/caisse/livraison")
           return
         }
 
@@ -70,25 +67,24 @@ export default function PaiementPage() {
         if (panier.length === 0) {
           await recupererPanier()
           if (panier.length === 0) {
-            toast.error('Votre panier est vide')
+            toast.error("Votre panier est vide")
             return
           }
         }
 
         setAddressId(storedAddressId)
         setCheckoutReady(true)
-        
+
         // Set debug info
         setDebugInfo({
           cartItemCount: panier.length,
           addressId: storedAddressId,
           shippingMethod,
-          shippingCost
+          shippingCost,
         })
-        
       } catch (error) {
-        console.error('Checkout initialization error:', error)
-        toast.error('Erreur lors de la préparation de la commande')
+        console.error("Checkout initialization error:", error)
+        toast.error("Erreur lors de la préparation de la commande")
       } finally {
         setInitialLoad(false)
       }
@@ -98,54 +94,57 @@ export default function PaiementPage() {
   }, [panier.length, router, recupererPanier, initShipping, shippingMethod])
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    
+    e.preventDefault()
+
     if (!selectedMethod || !addressId) {
-      toast.error('Configuration de commande incomplète');
-      return;
+      toast.error("Configuration de commande incomplète")
+      return
     }
-    
-    setProcessing(true);
+
+    setProcessing(true)
     try {
-      const result = await traiterPaiement(selectedMethod, addressId);
-      
+      const result = await traiterPaiement(selectedMethod, addressId)
+
       if (result?.success) {
         // Clear session storage
-        sessionStorage.removeItem('current_address_id');
-        sessionStorage.removeItem('shipping_method');
-        sessionStorage.removeItem('shipping_cost');
-        
+        sessionStorage.removeItem("current_address_id")
+        sessionStorage.removeItem("shipping_method")
+        sessionStorage.removeItem("shipping_cost")
+
         // Redirect to confirmation
-        router.push(result.etapeSuivante);
+        router.push(result.etapeSuivante)
       }
     } catch (error) {
-      console.error('Payment processing error:', error);
-      
+      console.error("Payment processing error:", error)
+
       // Handle specific error cases
-      if (error.message.includes('panier')) {
-        router.push('/panier');
-      } else if (error.message.includes('adresse')) {
-        router.push('/caisse/adresse');
-      } else if (error.message.includes('stock')) {
-        toast.error('Certains articles ne sont plus disponibles en quantité suffisante');
-        await recupererPanier();
+      if (error.message.includes("panier")) {
+        router.push("/panier")
+      } else if (error.message.includes("adresse")) {
+        router.push("/caisse/adresse")
+      } else if (error.message.includes("stock")) {
+        toast.error("Certains articles ne sont plus disponibles en quantité suffisante")
+        await recupererPanier()
       } else {
-        toast.error(error.message || 'Échec du paiement');
+        toast.error(error.message || "Échec du paiement")
       }
     } finally {
-      setProcessing(false);
+      setProcessing(false)
     }
   }
 
   const handlePrevious = () => {
-    router.push('/caisse/livraison')
+    router.push("/caisse/livraison")
   }
 
   // Loading state
   if (initialLoad) {
     return (
-      <div className="max-w-2xl mx-auto p-4">
-        <p>Préparation de votre commande...</p>
+      <div className="max-w-2xl mx-auto p-4 flex items-center justify-center min-h-[200px]">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-500 mb-2" />
+          <p className="text-sm text-gray-500">Préparation de votre commande...</p>
+        </div>
       </div>
     )
   }
@@ -155,67 +154,64 @@ export default function PaiementPage() {
     return (
       <div className="max-w-2xl mx-auto p-4 text-center">
         <h1 className="text-xl font-bold mb-4">Votre panier est vide</h1>
-        <Button onClick={() => router.push('/store/nouveautes')}>
-          Retour à la boutique
-        </Button>
+        <Button onClick={() => router.push("/store/nouveautes")}>Retour à la boutique</Button>
       </div>
     )
   }
 
   // Main checkout form
   return (
-    <div className="flex flex-col lg:flex-row w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 gap-6 py-8">
+    <div className="flex flex-col lg:flex-row w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 gap-6 py-6 sm:py-8">
       <div className="w-full lg:flex-1 lg:max-w-2xl">
-        <div className="bg-white p-6 rounded-lg shadow-sm">
-          <h2 className="text-lg font-bold mb-6">Méthode de Paiement</h2>
-          
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
+          <h2 className="text-base sm:text-lg font-bold mb-4 sm:mb-6">Méthode de Paiement</h2>
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            {paymentMethods.map(method => (
-              <div 
-                key={method.id} 
-                className={`flex items-center gap-4 p-4 border rounded relative ${
-                  !method.available ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
-                } ${
-                  selectedMethod === method.id ? 'border-black bg-black/5' : 'border-gray-300'
-                }`}
-                onClick={() => method.available && setSelectedMethod(method.id)}
-              >
-                <input
-                  type="radio"
-                  id={method.id}
-                  checked={selectedMethod === method.id}
-                  onChange={() => {}}
-                  disabled={!method.available}
-                  className="cursor-pointer disabled:cursor-not-allowed"
-                />
-                <label htmlFor={method.id} className="cursor-pointer">
-                  {method.name}
-                </label>
-                
-                {!method.available && (
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/10">
-                    <span className="bg-black text-white text-xs px-2 py-1 rounded">
-                      {method.comingSoonText}
-                    </span>
+            <RadioGroup value={selectedMethod} onValueChange={setSelectedMethod}>
+              {paymentMethods.map((method) => (
+                <div
+                  key={method.id}
+                  className={`relative border rounded p-3 sm:p-4 ${
+                    !method.available ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+                  } ${selectedMethod === method.id ? "border-black bg-black/5" : "border-gray-300"}`}
+                >
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <RadioGroupItem
+                      value={method.id}
+                      id={method.id}
+                      disabled={!method.available}
+                      className="cursor-pointer disabled:cursor-not-allowed"
+                    />
+                    <Label
+                      htmlFor={method.id}
+                      className="cursor-pointer text-sm sm:text-base disabled:cursor-not-allowed"
+                    >
+                      {method.name}
+                    </Label>
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {!method.available && (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/10">
+                      <span className="bg-black text-white text-xs px-2 py-1 rounded">{method.comingSoonText}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </RadioGroup>
 
             <div className="flex justify-between pt-4 border-t border-gray-200 mt-6">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={handlePrevious}
-                disabled={processing}
-              >
+              <Button type="button" variant="outline" onClick={handlePrevious} disabled={processing}>
                 Retour
               </Button>
-              <Button 
-                type="submit" 
-                disabled={!selectedMethod || processing || !checkoutReady}
-              >
-                {processing ? 'Traitement...' : 'Confirmer la commande'}
+              <Button type="submit" disabled={!selectedMethod || processing || !checkoutReady}>
+                {processing ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Traitement...
+                  </span>
+                ) : (
+                  "Confirmer la commande"
+                )}
               </Button>
             </div>
           </form>
@@ -223,10 +219,7 @@ export default function PaiementPage() {
       </div>
 
       <div className="w-full lg:w-80">
-        <ResumeCommande 
-          showPromoCode={false}
-          showCheckoutButton={false}
-        />
+        <ResumeCommande showPromoCode={false} showCheckoutButton={false} />
       </div>
     </div>
   )

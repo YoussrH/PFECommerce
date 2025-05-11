@@ -4,6 +4,8 @@ const session = require("express-session");
 const pgSession = require("connect-pg-simple")(session);
 const { Pool } = require("pg");
 const cors = require("cors");
+const http = require("http");
+const socketIo = require("socket.io");
 
 const app = express();
 const articleRoutes = require("./routes/articleRoutes");
@@ -28,6 +30,35 @@ const expeditionsRoutes = require('./routes/expeditionRoutes');
 const livreurRoutes = require('./routes/livreurRoutes');
 const path = require('path');
 const cronJobs = require('./utils/cronJobs'); 
+
+// Create HTTP server for Socket.IO
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: ['http://localhost:3000', 'your-app-url-here'],
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('New client connected:', socket.id);
+  
+  // Handle livreur subscription
+  socket.on('subscribe-livreur', (livreurId) => {
+    socket.join(`livreur-${livreurId}`);
+    console.log(`Livreur ${livreurId} subscribed to notifications`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
+// Make io available in routes
+app.set('io', io);
+
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -57,16 +88,15 @@ app.use(
   })
 );
 
-
 const corsOptions = {
-  origin: ['http://localhost:3000'],
+  origin: ['http://localhost:3000', 'your-app-url-here'],
   credentials: true,
   allowedHeaders: [
     'Content-Type', 
     'Authorization', 
     'X-Requested-With',
-    'X-Guest-Token',  // Make sure this matches the header you're sending
-    'guest-token'     // Alternative header name if needed
+    'X-Guest-Token',
+    'guest-token'
   ],
   exposedHeaders: ['set-cookie'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
@@ -108,13 +138,12 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy' });
 });
 
-
 const PORT = process.env.PORT || 5000;
 const sequelize = require("./config/db");
 
 sequelize.sync({ alter: true })
   .then(() => {
-    app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+    server.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
   })
   .catch((err) => {
     console.error("❌ Error syncing database:", err);

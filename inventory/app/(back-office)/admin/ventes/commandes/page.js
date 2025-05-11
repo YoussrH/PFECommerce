@@ -49,6 +49,9 @@ const statusOptions = [
   { value: "en_preparation", label: "En préparation", color: "bg-purple-500" },
   { value: "expediee", label: "Expédiée", color: "bg-orange-500" },
   { value: "livree", label: "Livrée", color: "bg-green-500" },
+  { value: "remplacee", label: "Remplacée", color: "bg-blue-500" },
+  { value: "retourne", label: "Retournée", color: "bg-red-800" },
+  
   { value: "annulee", label: "Annulée", color: "bg-red-500" },
 ];
 

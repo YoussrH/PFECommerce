@@ -1,57 +1,56 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { usePanier } from '@/hooks/use-panier';
-import { toast } from 'sonner';
+"use client"
 
-const ResumeCommande = ({ 
-  showPromoCode = true,
-  showCheckoutButton = true,
-  onCommanderClick 
-}) => {
-  const { 
-    panier, 
-    codePromo, 
+import { useState, useEffect } from "react"
+import { usePanier } from "@/hooks/use-panier"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+
+const ResumeCommande = ({ showPromoCode = true, showCheckoutButton = true, onCommanderClick }) => {
+  const {
+    panier,
+    codePromo,
     setCodePromo,
     getTotal,
     getSubtotal,
     shippingCost,
     initShipping,
     appliquerCodePromo,
-    chargement
-  } = usePanier();
-  
-  const [applicationEnCours, setApplicationEnCours] = useState(false);
-  const [montantTotal, setMontantTotal] = useState('0.00');
-  const [sousTotal, setSousTotal] = useState('0.00');
-  const [fraisLivraison, setFraisLivraison] = useState('0.00');
+    chargement,
+  } = usePanier()
+
+  const [applicationEnCours, setApplicationEnCours] = useState(false)
+  const [montantTotal, setMontantTotal] = useState("0.00")
+  const [sousTotal, setSousTotal] = useState("0.00")
+  const [fraisLivraison, setFraisLivraison] = useState("0.00")
 
   useEffect(() => {
-    initShipping(); // Initialize shipping data on mount
+    initShipping() // Initialize shipping data on mount
     const calculateTotals = () => {
-      setSousTotal(getSubtotal());
-      setFraisLivraison(shippingCost.toFixed(2));
-      setMontantTotal(getTotal());
-    };
-    calculateTotals();
-  }, [panier, shippingCost, getTotal, getSubtotal, initShipping]);
+      setSousTotal(getSubtotal())
+      setFraisLivraison(shippingCost.toFixed(2))
+      setMontantTotal(getTotal())
+    }
+    calculateTotals()
+  }, [panier, shippingCost, getTotal, getSubtotal, initShipping])
 
   const handleAppliquerCodePromo = async () => {
     if (!codePromo.trim()) {
-      toast.error('Veuillez entrer un code promo');
-      return;
+      toast.error("Veuillez entrer un code promo")
+      return
     }
-    
-    setApplicationEnCours(true);
+
+    setApplicationEnCours(true)
     try {
-      const succes = await appliquerCodePromo(codePromo);
+      const succes = await appliquerCodePromo(codePromo)
       if (succes) {
-        toast.success('Code promo appliqué avec succès');
-        setMontantTotal(getTotal());
+        toast.success("Code promo appliqué avec succès")
+        setMontantTotal(getTotal())
       }
     } finally {
-      setApplicationEnCours(false);
+      setApplicationEnCours(false)
     }
-  };
+  }
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-sm shadow-sm border border-gray-100 h-fit sticky top-4">
@@ -65,22 +64,23 @@ const ResumeCommande = ({
             Code promo
           </label>
           <div className="flex gap-2">
-            <input
+            <Input
               type="text"
               id="promo-code"
-              className="flex-1 min-w-0 p-2 border border-gray-300 rounded focus:ring-black focus:border-black text-xs md:text-sm"
+              className="flex-1 min-w-0 p-2 border border-gray-300 rounded text-xs md:text-sm"
               placeholder="Entrez votre code"
               value={codePromo}
               onChange={(e) => setCodePromo(e.target.value)}
               disabled={applicationEnCours || chargement}
             />
-            <button
+            <Button
               onClick={handleAppliquerCodePromo}
               disabled={applicationEnCours || !codePromo.trim() || chargement}
-              className="px-3 md:px-4 py-2 bg-black text-white text-xs md:text-sm rounded-none hover:border-black border hover:text-black hover:bg-white transition-colors"
+              className="px-2 md:px-4 py-2 bg-black text-white text-xs md:text-sm rounded-none hover:bg-white hover:text-black hover:border-black border border-black transition-colors"
+              size="sm"
             >
-              {applicationEnCours ? '...' : 'Appliquer'}
-            </button>
+              {applicationEnCours ? "..." : "Appliquer"}
+            </Button>
           </div>
         </div>
       )}
@@ -90,12 +90,12 @@ const ResumeCommande = ({
           <span className="text-gray-600">Sous-total</span>
           <span>{sousTotal} DT</span>
         </div>
-        
+
         <div className="flex justify-between text-xs md:text-sm">
           <span className="text-gray-600">Livraison</span>
           <span>{fraisLivraison} DT</span>
         </div>
-        
+
         <div className="flex justify-between text-sm md:text-base font-bold pt-2 border-t border-gray-200 mt-2">
           <span>Total</span>
           <span>{montantTotal} DT</span>
@@ -103,20 +103,17 @@ const ResumeCommande = ({
       </div>
 
       {showCheckoutButton && (
-        <button
+        <Button
           onClick={onCommanderClick}
           disabled={panier.length === 0 || chargement}
-          className={`w-full mt-4 md:mt-6 py-2 md:py-3 px-4 rounded-none text-white text-xs md:text-sm font-medium ${
-            panier.length === 0 || chargement
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-black hover:bg-white border-black border hover:text-black'
-          } transition-colors`}
+          className="w-full mt-4 md:mt-6 py-2 md:py-3 px-4 rounded-none text-white text-xs md:text-sm font-medium border border-black hover:bg-white hover:text-black transition-colors"
+          variant={panier.length === 0 || chargement ? "secondary" : "default"}
         >
-          {chargement ? 'Chargement...' : 'Passer la commande'}
-        </button>
+          {chargement ? "Chargement..." : "Passer la commande"}
+        </Button>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default ResumeCommande;
+export default ResumeCommande

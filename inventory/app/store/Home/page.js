@@ -1,5 +1,4 @@
 import AutoSlider from '@/app/components/AutoSlider/page'
-import FeaturesSection from '@/app/components/Footer/FeaturesSection'
 import Hero from '@/app/components/Hero/page'
 import Collection from '@/app/components/Product/collection'
 import NewProduit from '@/app/components/Product/NewProduit'

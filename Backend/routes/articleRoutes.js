@@ -16,16 +16,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-router.put(
-  "/mettreAJourArticle/:id", 
-  authentifier, 
-  verifierAdmin,
-  upload.array('images'),
-  articleController.validateUpdateArticle,
-  articleController.mettreAJourArticle
-);
+router.put("/mettreAJourArticle/:id",authentifier,verifierAdmin,upload.array('images'),articleController.validateUpdateArticle,articleController.mettreAJourArticle);
 router.get("/obtenirArticleParId/:id", articleController.obtenirArticleParId);
- router.get("/obtenirArticleParSku/:sku", articleController.obtenirArticleParSku);
+router.get("/obtenirArticleParSku/:sku", articleController.obtenirArticleParSku);
 
 router.post("/ajouterArticle", authentifier, verifierAdmin, articleController.ajouterArticle);
 router.get("/", articleController.obtenirTousArticles);
@@ -40,7 +33,14 @@ router.get("/obtenirArticlesPetitPrix", articleController.obtenirArticlesPetitPr
 router.get("/obtenirArticlesFille", articleController.obtenirArticlesFille);
 router.post("/ajouterArticles", authentifier, verifierAdmin, articleController.ajouterArticles);
 router.get("/obtenirArticlesBebe", articleController.obtenirArticlesBebe);
-
 router.get("/ObtenirTousArticleAleatoire", articleController.ObtenirTousArticleAleatoire);
 
+//page marque
+router.get("/obtenirArticlesParMarque/:id", articleController.obtenirArticlesParMarque);
+
+// Get available filters for a brand
+router.get("/obtenirFiltresDisponiblesParMarque/:id", articleController.obtenirFiltresDisponiblesParMarque);
+
+// Get brand collections/categories
+router.get("/obtenirCollectionsParMarque/:id", articleController.obtenirCollectionsParMarque);
 module.exports = router;

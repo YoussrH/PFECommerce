@@ -1,193 +1,270 @@
-"use client";
+"use client"
 
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-
-
-import MarquesProductList from "./MarquesProductList";
-
-const dropdownData = {
-
-  Genres: ["FILLE (1205)", "GARCON (1470)"],
-  Prix: { min: 50, max: 1275 },
-  Âges: ["BEBE COUCHE (218)", "ENFANT (1989)", "JUNIOR (130)", "LAYETTE (338)"],
-  Tailles: [
-    "1 mois (102)", "3 mois (307)", "6 mois (469)", "9 mois (499)",
-    "12 mois (503)", "18 mois (529)", "2 ans (1083)", "3 ans (1166)",
-    "4 ans (2060)", "5 ans (1861)", "6 ans (1969)", "8 ans (1961)",
-    "10 ans (1997)", "12 ans (1979)", "14 ans (1776)", "16 ans (1130)",
-    "Taille unique (150)",
-  ],
-  Catégories: [
-    "ACCESSOIRES (375)", "BAIN (111)", "CHAUSSETTES ET COLLANTS (1)", "CHAUSSURES (180)",
-    "CHEMISES, BLOUSES (71)", "ENSEMBLES, COMBINAISONS (111)", "JUPES (54)",
-    "PANTALONS, PANTACOURTS, LEGGINGS (203)", "PARKAS, VESTES, MANTEAUX (115)",
-    "PULLS, GILETS, CARDIGANS (288)", "ROBES (243)", "SHORTS, BERMUDAS (270)",
-    "SOUS-VETEMENTS, BODYS, PYJAMAS (15)", "T-SHIRTS, POLOS, SOUS-PULLS (638)",
-  ],
-  Marques: [
-    "BILLIEBLUSH (307)", "BOSS (584)", "CHLOE (133)", "DKNY (143)", "GIVENCHY (200)",
-    "HUGO (142)", "KARL LAGERFELD KIDS (196)", "KENZO KIDS (328)", "LANVIN (52)",
-    "MARC JACOBS (138)", "MICHAEL KORS (97)", "SONIA RYKIEL (27)", "TIMBERLAND (211)",
-    "ZADIG & VOLTAIRE (117)",
-  ],
-  Couleurs: [
-    "Argent (17)", "Beige (279)", "Blanc (451)", "Bleu (677)", "Gris (65)",
-    "Indéterminé (66)", "Jaune (100)", "Marron (60)", "Noir (359)", "Orange (72)",
-    "Rose (348)", "Rouge (56)", "Vert (116)", "Violet (9)",
-  ],
-};
-const products = [
-  { id: 1, name: "Pull Oversize", price: 25, image: "/DINA-BLANC-1-.jpg" ,categories:"LiLi"},
-  { id: 2, name: "Jean Bleu", price: 50, image: "/BAGGY-BG4L20245.jpg",categories:"LiLi" },
-  { id: 3, name: "Pull Oversize", price: 75, image: "/femme-slider1.jpg" ,categories:"LiLi"},
-  { id: 4, name: " Cargo Jeans ", price: 40, image: "/CRISTAL3.jpg" ,categories:"LiLi"},
-  { id: 5, name: "Jean Bleu", price: 50, image: "/BAGGY-BG4L20245.jpg",categories:"LiLi" },
-  { id: 6, name: "Pull Oversize", price: 25, image: "/DINA-BLANC-1-.jpg" ,categories:"LiLi"},
-  { id: 7, name: "Pull Oversize", price: 75, image: "/femme-slider1.jpg" ,categories:"LiLi"},
-  { id: 8, name: " Cargo Jeans ", price: 40, image: "/CRISTAL3.jpg" ,categories:"LiLi"},
-  { id: 9, name: "Jean Bleu", price: 50, image: "/BAGGY-BG4L20245.jpg",categories:"LiLi" },
-  { id: 10, name: "Pull Oversize", price: 75, image: "/femme-slider1.jpg" ,categories:"LiLi"},
-  { id: 11, name: " Cargo Jeans ", price: 40, image: "/CRISTAL3.jpg" ,categories:"LiLi"},
-  { id: 12, name: "Jean Bleu", price: 50, image: "/BAGGY-BG4L20245.jpg",categories:"LiLi" },
-  { id: 13, name: "Pull Oversize", price: 25, image: "/DINA-BLANC-1-.jpg" ,categories:"LiLi"},
-  { id: 14, name: "Pull Oversize", price: 25, image: "/DINA-BLANC-1-.jpg" ,categories:"LiLi"},
-  { id: 15, name: "Jean Bleu", price: 50, image: "/BAGGY-BG4L20245.jpg",categories:"LiLi" },
-  { id: 16, name: "Pull Oversize", price: 75, image: "/femme-slider1.jpg" ,categories:"LiLi"},
-  { id: 17, name: " Cargo Jeans ", price: 40, image: "/CRISTAL3.jpg" ,categories:"LiLi"},
-  { id: 18, name: "Jean Bleu", price: 50, image: "/BAGGY-BG4L20245.jpg",categories:"LiLi" },
-  { id: 19, name: "Pull Oversize", price: 25, image: "/DINA-BLANC-1-.jpg" ,categories:"LiLi"},
-  { id: 20, name: "Pull Oversize", price: 75, image: "/femme-slider1.jpg" ,categories:"LiLi"},
-  { id: 21, name: " Cargo Jeans ", price: 40, image: "/CRISTAL3.jpg" ,categories:"LiLi"},
-  { id: 22, name: "Jean Bleu", price: 50, image: "/BAGGY-BG4L20245.jpg",categories:"LiLi" },
-  { id: 23, name: "Pull Oversize", price: 75, image: "/femme-slider1.jpg" ,categories:"LiLi"},
-  { id: 24, name: " Cargo Jeans ", price: 40, image: "/CRISTAL3.jpg" ,categories:"LiLi"},
-  { id: 25, name: "Jean Bleu", price: 50, image: "/BAGGY-BG4L20245.jpg",categories:"LiLi" },
-  { id: 26, name: "Pull Oversize", price: 25, image: "/DINA-BLANC-1-.jpg" ,categories:"LiLi"},
-
-];
+import { useState, useEffect } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Search, Loader2 } from "lucide-react"
+import useMarques from "@/hooks/useMarques"
+import Breadcrumb from "@/app/components/Breadcrumb/Breadcrumb"
 
 export default function MarquePage() {
-  const pathname = usePathname() || "";
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeCategory, setActiveCategory] = useState("all")
+  
+  const {
+    randomMarques,
+    popularMarques,
+    marquesByGenre,
+    isLoadingRandom,
+    isLoadingPopular,
+    isLoadingByGenre,
+    errorRandom,
+    errorPopular,
+    errorByGenre,
+    getMarquesByGenre
+  } = useMarques()
 
-  const segments = pathname
-  .split("/")
-  .filter((segment) => segment && segment !== "store");
-
-  const [isScrolling, setIsScrolling] = useState(false);
-
+  // Fetch marques by genre when tab changes
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolling(window.scrollY > 50);
-    };
+    if (activeCategory !== "all") {
+      getMarquesByGenre(activeCategory)
+    }
+  }, [activeCategory, getMarquesByGenre])
 
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-  const [openDropdown, setOpenDropdown] = useState(null);
-  const [priceRange, setPriceRange] = useState(50);
+  // Filter brands based on search query
+  const filterBrands = (brands) => {
+    if (!searchQuery) return brands
+    return brands.filter(brand => 
+      brand.libelle.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  }
 
-  const toggleDropdown = (name) => {
-    setOpenDropdown(openDropdown === name ? null : name);
-  };
+  // Group brands alphabetically
+  const groupBrandsAlphabetically = (brands) => {
+    const grouped = {}
+    brands.forEach(brand => {
+      const firstLetter = brand.libelle.charAt(0).toUpperCase()
+      if (!grouped[firstLetter]) {
+        grouped[firstLetter] = []
+      }
+      grouped[firstLetter].push(brand)
+    })
+    return Object.entries(grouped)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([letter, brands]) => ({ letter, brands }))
+  }
 
-  const handleMouseLeave = () => {
-    setOpenDropdown(null);
-  };
-
-  const handlePriceChange = (event) => {
-    setPriceRange(event.target.value);
-  };
-
-  const renderDropdownList = (items, title) => (
-    <div className="absolute bg-white border border-gray-300 mt-1 p-2 rounded-md shadow-lg z-50 w-48 max-h-40 overflow-y-auto"
-      onMouseLeave={handleMouseLeave}
-    >
-      <span className="block font-semibold text-sm mb-2">{title}</span>
-      <ul>
-        {items.slice(0,items.length).map((item, index) => (
-          <li key={index} className="text-xs py-1 cursor-pointer hover:bg-gray-100 px-2">{item}</li>
-        ))}
-        {items.length > 4 && (
-          <div className="text-center text-xs text-blue-500 cursor-pointer mt-1">
-           
+  // Get content for current tab
+  const getTabContent = () => {
+    switch (activeCategory) {
+      case "femme":
+      case "homme":
+      case "garcon":
+      case "fille":
+        const genreData = marquesByGenre(activeCategory)
+        if (isLoadingByGenre(activeCategory)) {
+          return (
+            <div className="flex justify-center py-10">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          )
+        }
+        if (errorByGenre(activeCategory)) {
+          return (
+            <div className="text-center py-10">
+              <p className="text-red-500">{errorByGenre(activeCategory)}</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => getMarquesByGenre(activeCategory)}
+              >
+                Réessayer
+              </Button>
+            </div>
+          )
+        }
+        if (!genreData?.marques?.length) {
+          return (
+            <div className="text-center py-10">
+              <p className="text-gray-500">Aucune marque trouvée pour cette catégorie</p>
+            </div>
+          )
+        }
+        const filteredGenreBrands = filterBrands(genreData.marques)
+        if (!filteredGenreBrands.length) {
+          return (
+            <div className="text-center py-10">
+              <p className="text-gray-500">Aucune marque trouvée pour &quot;{searchQuery}&quot;</p>
+              <Button variant="outline" className="mt-4" onClick={() => setSearchQuery("")}>
+                Réinitialiser la recherche
+              </Button>
+            </div>
+          )
+        }
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {filteredGenreBrands.map((brand) => (
+              <BrandCard key={brand.id} brand={brand} />
+            ))}
           </div>
-        )}
-      </ul>
-    </div>
-  );
+        )
+      
+      default: // "all"
+        const allBrands = [...(popularMarques || []), ...(randomMarques || [])]
+        const uniqueBrands = Array.from(new Map(allBrands.map(brand => [brand.id, brand])).values())
+        const filteredBrands = filterBrands(Array.from(uniqueBrands))
+        const groupedBrands = groupBrandsAlphabetically(filteredBrands)
+        
+        if (!groupedBrands.length) {
+          return (
+            <div className="text-center py-10">
+              <p className="text-gray-500">Aucune marque trouvée pour &quot;{searchQuery}&quot;</p>
+              <Button variant="outline" className="mt-4" onClick={() => setSearchQuery("")}>
+                Réinitialiser la recherche
+              </Button>
+            </div>
+          )
+        }
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {groupedBrands.map((group) => (
+              <div key={group.letter} className="border-t pt-4">
+                <h3 className="text-lg font-semibold mb-3">{group.letter}</h3>
+                <ul className="space-y-2">
+                  {group.brands.map((brand) => (
+                    <li key={brand.id}>
+                      <Link
+                        href={`/marque/${brand.id}`}
+                        className="text-sm hover:text-gray-600 hover:underline"
+                      >
+                        {brand.libelle}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )
+    }
+  }
 
   return (
-   <section>
-     <div className="px-10 py-6 font-serif flex flex-col items-center">
-      <div className="border border-gray-300 px-4 py-1 text-gray-500 text-sm mb-4 rounded-md">
-      <span className="text-gray-500">Accueil</span>
-      {segments.map((segment, index) => {
-        const formattedSegment = segment.replace(/-/g, " ");
-        const isLast = index === segments.length - 1;
-        return (
-          <span key={index} className="text-gray-500">
-            {" / "}
-            <span className={isLast ? "font-semibold" : "hover:underline cursor-pointer"}>
-              {formattedSegment.charAt(0).toUpperCase() + formattedSegment.slice(1)}
-            </span>
-          </span>
-        );
-      })}
+    <>
+    <Breadcrumb/>
+    <div className="min-h-screen ">
+      {/* Hero Section */}
+      <section className="relative lg:w-[96%] lg:ml-9 w-full   h-[300px] sm:h-[400px] overflow-hidden">
 
-      </div>
-
-      <h1 className="text-sm font-semibold text-center mb-2 uppercase">Nouvelles collections</h1>
-      
-  
-      <p className="font-mono text-xs text-center max-w-2xl mx-auto mb-6">
-        Découvrez les nouvelles collections Printemps-Été 2025 des plus belles
-        marques de la mode enfant et bébé :{" "}
-        <span className="text-xs font-mono font-normal">
-          Billieblush, BOSS, Chloé, DKNY, Givenchy, HUGO, KARL LAGERFELD KIDS,
-          KENZO Kids, Lanvin, Marc Jacobs, Michael Kors, Sonia Rykiel,
-          Timberland et Zadig&Voltaire.
-        </span>
-      </p>
-
- 
-      <div
-  className={`w-full max-w-5xl flex justify-between items-center border-b border-gray-300 pb-2 transition-all duration-300 ease-in-out ${ 
-    pathname.startsWith("/store") && isScrolling? "fixed top-0 py-3 px-5  w-full bg-white  bg-[url('/background.svg')] bg-cover bg-centershadow-md z-50" : ""
-  }`}
->        <div className="flex space-x-6 text-xs font-normal">
-          {Object.keys(dropdownData).map((key) => (
-            <div key={key} className="relative">
-              <span
-                className="cursor-pointer  hover:uppercase hover:border-b-2 hover:border-black"
-                onClick={() => toggleDropdown(key)}
-              >
-                {key}
-              </span>
-              {openDropdown === key && key !== "Prix" && renderDropdownList(dropdownData[key], key)}
-              {openDropdown === "Prix" && key === "Prix" && (
-                <div className="absolute bg-white border border-gray-300 mt-1 p-2 rounded-md shadow-lg z-50 w-48"
-                  onMouseLeave={handleMouseLeave}
-                >
-                  <span className="block font-semibold text-sm mb-2">Prix</span>
-                  <input
-                    type="range"
-                    min="50"
-                    max="1275"
-                    value={priceRange}
-                    onChange={handlePriceChange}
-                    className="w-full"
-                  />
-                  <div className="text-xs">De {priceRange} € à 1275 €</div>
-                </div>
-              )}
-            </div>
-          ))}
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-black p-4">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 text-center  font-serif">Nos Marques</h1>
+          <p className="text-sm sm:text-base md:text-lg max-w-2xl text-center mb-6">
+            Découvrez notre sélection de marques prestigieuses et trouvez les produits qui vous correspondent.
+          </p>
+          <div className="relative w-full max-w-md">
+            <Input
+              type="text"
+              placeholder="Rechercher une marque..."
+              className="pl-10 pr-4 py-2 rounded-full bg-white/90 text-black"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+          </div>
         </div>
-        <span className="text-xs font-normal cursor-pointer hover:underline">2675 Produit(s)</span>
-      </div>
+      </section>
+
+      {/* Featured Brands Section */}
+      <section className="py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-6">Marques Populaires</h2>
+        {isLoadingPopular ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : errorPopular ? (
+          <div className="text-center py-10">
+            <p className="text-red-500">{errorPopular}</p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => window.location.reload()}
+            >
+              Réessayer
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {filterBrands(popularMarques).slice(0, 6).map((brand) => (
+              <BrandCard key={brand.id} brand={brand} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* All Brands Section */}
+      <section className="py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-6">Toutes les Marques</h2>
+
+        <Tabs defaultValue="all" className="w-full" onValueChange={setActiveCategory}>
+          <div className="overflow-x-auto pb-2">
+            <TabsList className="w-full justify-start border-b rounded-none h-auto">
+              <TabsTrigger value="all" className="text-sm py-2 px-4">
+                Toutes
+              </TabsTrigger>
+              <TabsTrigger value="homme" className="text-sm py-2 px-4">
+                Homme
+              </TabsTrigger>
+              <TabsTrigger value="femme" className="text-sm py-2 px-4">
+                Femme
+              </TabsTrigger>
+              <TabsTrigger value="garcon" className="text-sm py-2 px-4">
+                Garçon
+              </TabsTrigger>
+              <TabsTrigger value="fille" className="text-sm py-2 px-4">
+                Fille
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="all" className="mt-6">
+            {getTabContent()}
+          </TabsContent>
+          
+          {["homme", "femme", "garcon", "fille"].map((category) => (
+            <TabsContent key={category} value={category} className="mt-6">
+              {getTabContent()}
+            </TabsContent>
+          ))}
+        </Tabs>
+      </section>
     </div>
-    <MarquesProductList products={products}/>
-   </section>
-  );
+    </>
+  )
+}
+
+function BrandCard({ brand }) {
+  return (
+    <Link
+      href={`/marque/${brand.id}`}
+      className="group flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+    >
+      {brand.featured_image && (
+        <div className="relative w-full h-16 mb-3">
+          <Image 
+            src={brand.featured_image} 
+            alt={brand.libelle} 
+            fill 
+            className="object-contain" 
+          />
+        </div>
+      )}
+      <h3 className="text-sm font-medium text-center">{brand.libelle}</h3>
+      {brand.article_count !== undefined && (
+        <p className="text-xs text-gray-500 mt-1">{brand.article_count} produits</p>
+      )}
+    </Link>
+  )
 }

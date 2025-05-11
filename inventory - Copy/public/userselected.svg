@@ -1,0 +1,6 @@
+<svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="25" cy="25" r="25" fill="black"/>
+<circle cx="24.9998" cy="25" r="20" transform="rotate(91.008 24.9998 25)" fill="white"/>
+<circle cx="24.7407" cy="21.4286" r="3.42857" stroke="black" stroke-width="1.5"/>
+<path d="M30.7407 30.8571C30.7407 28.9636 28.0544 27.4286 24.7407 27.4286C21.427 27.4286 18.7407 28.9636 18.7407 30.8571" stroke="black" stroke-width="1.5"/>
+</svg>

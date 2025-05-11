@@ -36,6 +36,7 @@ module.exports = (sequelize, DataTypes) => {
         'en_preparation',
         'expediee',
         'livree',
+        'retourne',
         'annulee',
         'remplacee'
       ),

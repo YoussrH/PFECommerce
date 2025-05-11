@@ -9,6 +9,7 @@ const { envoyerEmail } = require('../services/emailService');
 const db = require('../models');
 const sequelize = db.sequelize;
 
+const { v4: uuidv4 } = require('uuid');
 
 
 const {
@@ -52,6 +53,7 @@ const DELIVERY_FEES = {
   standard: 7.00,
   express: 15.00
 };
+
 
 // Helper to get delivery info
 const getDeliveryInfo = (method) => ({
@@ -442,143 +444,7 @@ const obtenirDetailsCommande = async (req, res) => {
 };
 
 
-
-// Updated mettreAJourStatut function with shipping notification
 /* const mettreAJourStatut = async (req, res) => {
-  let transaction;
-  try {
-    const { id } = req.params;
-    const { statut } = req.body;
-    const utilisateurId = req.utilisateur?.id;
-
-    transaction = await sequelize.transaction({
-      isolationLevel: Sequelize.Transaction.ISOLATION_LEVELS.READ_COMMITTED
-    });
-
-    const commande = await Commande.findByPk(id, {
-      transaction,
-      include: [{
-        model: Client,
-        as: 'client',
-        include: [{ 
-          model: Utilisateur, 
-          as: 'utilisateur',
-          attributes: ['id', 'prenom', 'nom', 'email']
-        }]
-      }]
-    });
-
-    if (!commande) {
-      await transaction.rollback();
-      return res.status(404).json({ success: false, message: 'Commande non trouvée' });
-    }
-
-    console.log(`Changing status from ${commande.statut} to ${statut}`);
-
-    // Update command status
-    await commande.update({ statut }, { transaction });
-
-    const existingColis = await sequelize.models.Colis.findOne({
-      where: { commande_id: id },
-      transaction
-    });
-
-    if (statut === 'en_preparation' || statut === 'expediee') {
-      console.log(`Creating/updating colis for ${statut} status`);
-
-      const isExpediee = statut === 'expediee';
-      const colisData = {
-        commande_id: id,
-        livreur_id: commande.livreur_id,
-        statut: isExpediee ? 'expediee' : 'en_preparation',
-        transporteur: commande.methode_livraison === 'express' ? 'Express' : 'Standard',
-        numero_suivi: `TRK${Date.now().toString(36).toUpperCase()}`,
-        url_suivi: `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`,
-        ...(isExpediee && { date_expedition: new Date() })
-      };
-
-      let colis;
-      if (existingColis) {
-        colis = await existingColis.update(colisData, { transaction });
-      } else {
-        colis = await sequelize.models.Colis.create(colisData, { transaction });
-      }
-
-      // Generate QR code
-      const qrToken = require('uuid').v4();
-      const qrData = JSON.stringify({
-        colisId: colis.id,
-        commandeId: commande.id,
-        token: qrToken
-      });
-      const qrCodeData = await QRCode.toDataURL(qrData);
-
-      await colis.update({
-        qr_token: qrToken,
-        qr_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-        qr_code_data: qrCodeData
-      }, { transaction });
-
-      // Send shipping notification if status is 'expediee'
-      if (isExpediee) {
-        await sendShippingNotification(commande, colis, utilisateurId);
-      }
-    }
-
-    // Set date_livraison if statut is 'livree'
-    if (statut === 'livree' && existingColis) {
-      await existingColis.update({
-        statut: 'livree',
-        date_livraison: new Date()
-      }, { transaction });
-    }
-
-    // Log status change
-    await CommandeHistorique.create({
-      commande_id: commande.id,
-      utilisateur_id: utilisateurId,
-      action: 'changement_statut',
-      ancienne_valeur: commande.statut,
-      nouvelle_valeur: statut,
-      details: `Statut changé de ${commande.statut} à ${statut}`
-    }, { transaction });
-
-    await transaction.commit();
-
-    console.log(`Status changed successfully for command ${commande.id}`);
-
-    res.status(200).json({
-      success: true,
-      message: 'Statut mis à jour',
-      data: {
-        ancienStatut: commande.statut,
-        nouveauStatut: statut
-      }
-    });
-
-  } catch (error) {
-    console.error('Error in mettreAJourStatut:', error);
-
-    if (transaction) {
-      try {
-        await transaction.rollback();
-        console.log('Transaction rolled back');
-      } catch (rollbackError) {
-        console.error('Rollback error:', rollbackError);
-      }
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Erreur changement statut',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-}; */
-
-// controllers/commandeController.js
-
-const mettreAJourStatut = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
@@ -587,7 +453,11 @@ const mettreAJourStatut = async (req, res) => {
 
     const commande = await Commande.findByPk(id, {
       transaction,
-      include: ['colis']
+      include: ['colis', {
+        model: Client,
+        as: 'client',
+        include: [{ model: Utilisateur, as: 'utilisateur' }]
+      }]
     });
 
     if (!commande) {
@@ -605,11 +475,11 @@ const mettreAJourStatut = async (req, res) => {
       await transaction.rollback();
       return res.status(400).json({ 
         success: false,
-        message: 'Transition de statut non autorisée' 
+        message: `Transition de statut non autorisée de ${ancienStatut} à ${statut}`
       });
     }
 
-    // Special handling for canceled/replaced orders
+    // Special handling for different statuses
     if (statut === 'annulee') {
       await handleOrderCancellation(commande, notes, transaction);
     } else if (statut === 'remplacee') {
@@ -623,7 +493,24 @@ const mettreAJourStatut = async (req, res) => {
       await updateRelatedParcels(commande, statut, transaction);
     }
 
+    // Log status change
     await logStatusChange(commande, ancienStatut, statut, utilisateurId, notes, transaction);
+
+    // If status is 'remplacee', create replacement order
+    if (statut === 'remplacee') {
+      const replacementOrder = await createReplacementOrder(commande, transaction);
+      await transaction.commit();
+      
+      return res.status(200).json({ 
+        success: true,
+        message: 'Commande marquée comme remplacée et nouvelle commande créée',
+        data: { 
+          ancienStatut,
+          nouveauStatut: statut,
+          replacementOrderId: replacementOrder.id
+        }
+      });
+    }
 
     await transaction.commit();
 
@@ -641,22 +528,229 @@ const mettreAJourStatut = async (req, res) => {
     console.error('Error in mettreAJourStatut:', error);
     res.status(500).json({ 
       success: false,
-      message: 'Erreur changement statut'
+      message: 'Erreur changement statut',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
-};
+}; */
 
-// Helper functions
+const mettreAJourStatut = async (req, res) => {
+  let transaction;
+  try {
+    const { id } = req.params;
+    const { statut, notes } = req.body;
+    const utilisateurId = req.utilisateur?.id;
+
+    transaction = await sequelize.transaction({
+      isolationLevel: Sequelize.Transaction.ISOLATION_LEVELS.READ_COMMITTED
+    });
+
+    const commande = await Commande.findByPk(id, {
+      transaction,
+      include: [
+        'colis',
+        {
+          model: Client,
+          as: 'client',
+          include: [{ model: Utilisateur, as: 'utilisateur' }]
+        }
+      ]
+    });
+
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Commande non trouvée'
+      });
+    }
+
+    const ancienStatut = commande.statut;
+
+    if (!isValidStatusTransition(ancienStatut, statut)) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Transition de statut non autorisée de ${ancienStatut} à ${statut}`
+      });
+    }
+
+    if (statut === 'annulee') {
+      await handleOrderCancellation(commande, notes, transaction);
+    } else if (statut === 'remplacee') {
+      await handleOrderReplacement(commande, notes, transaction);
+    } else {
+      await commande.update({ statut }, { transaction });
+    }
+
+    // Colis creation / update logic
+    const existingColis = await sequelize.models.Colis.findOne({
+      where: { commande_id: id },
+      transaction
+    });
+
+    if (statut === 'en_preparation' || statut === 'expediee') {
+      const isExpediee = statut === 'expediee';
+
+      const colisData = {
+        commande_id: id,
+        livreur_id: commande.livreur_id,
+        statut: isExpediee ? 'expediee' : 'en_preparation',
+        transporteur: commande.methode_livraison === 'express' ? 'Express' : 'Standard',
+        numero_suivi: `TRK${Date.now().toString(36).toUpperCase()}`,
+        url_suivi: `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`,
+        ...(isExpediee && { date_expedition: new Date() })
+      };
+
+      let colis;
+      if (existingColis) {
+        colis = await existingColis.update(colisData, { transaction });
+      } else {
+        colis = await sequelize.models.Colis.create(colisData, { transaction });
+      }
+
+      const qrToken = uuidv4();
+      const qrData = JSON.stringify({
+        colisId: colis.id,
+        commandeId: commande.id,
+        token: qrToken
+      });
+      const qrCodeData = await QRCode.toDataURL(qrData);
+
+      await colis.update({
+        qr_token: qrToken,
+        qr_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
+        qr_code_data: qrCodeData
+      }, { transaction });
+    }
+
+    if (statut === 'livree' && existingColis) {
+      await existingColis.update({
+        statut: 'livree',
+        date_livraison: new Date()
+      }, { transaction });
+    }
+
+    // Update related parcels (if needed)
+    if (shouldUpdateParcels(ancienStatut, statut)) {
+      await updateRelatedParcels(commande, statut, transaction);
+    }
+
+    // Log status change
+    await logStatusChange(commande, ancienStatut, statut, utilisateurId, notes, transaction);
+
+    // Special handling: replaced order
+    if (statut === 'remplacee') {
+      const replacementOrder = await createReplacementOrder(commande, transaction);
+      await transaction.commit();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Commande marquée comme remplacée et nouvelle commande créée',
+        data: {
+          ancienStatut,
+          nouveauStatut: statut,
+          replacementOrderId: replacementOrder.id
+        }
+      });
+    }
+
+    await transaction.commit();
+
+    res.status(200).json({
+      success: true,
+      message: 'Statut mis à jour',
+      data: {
+        ancienStatut,
+        nouveauStatut: statut
+      }
+    });
+
+  } catch (error) {
+    if (transaction) await transaction.rollback();
+    console.error('Error in mettreAJourStatut:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur changement statut',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+}; 
+async function createReplacementOrder(originalCommande, transaction) {
+  // Create new order with same details as original
+  const nouvelleCommande = await Commande.create({
+    client_id: originalCommande.client_id,
+    adresse_id: originalCommande.adresse_id,
+    prix_total: originalCommande.prix_total,
+    methode_livraison: originalCommande.methode_livraison,
+    methode_paiement: originalCommande.methode_paiement,
+    frais_livraison: originalCommande.frais_livraison,
+    remplace_commande_id: originalCommande.id,
+    statut: 'en_attente'
+  }, { transaction });
+
+  // Copy articles from original order
+  const articles = await originalCommande.getCommande_articles({ transaction });
+  await Promise.all(articles.map(article => 
+    nouvelleCommande.addCommande_articles(article, { transaction })
+  ));
+
+  return nouvelleCommande;
+}
+
+async function restockOrderItems(commande, transaction) {
+  // Find all items in the order
+  const articles = await CommandeArticle.findAll({
+    where: { commande_id: commande.id },
+    transaction
+  });
+
+  // Restock each item
+  await Promise.all(articles.map(async (article) => {
+    await ArticleTaille.increment('quantite', {
+      by: article.quantite,
+      where: {
+        article_id: article.article_id,
+        taille_id: article.taille_id,
+        couleur_id: article.couleur_id
+      },
+      transaction
+    });
+  }));
+}
+
+async function initierRemboursement(commande, transaction) {
+  // Implement your refund logic here
+  // This is just a placeholder
+  await CommandeHistorique.create({
+    commande_id: commande.id,
+    action: 'demande_remboursement',
+    details: 'Remboursement initié'
+  }, { transaction });
+}
+
 function isValidStatusTransition(oldStatus, newStatus) {
   const allowedTransitions = {
     en_attente: ['en_preparation', 'annulee'],
-    en_preparation: ['expediee', 'annulee', 'remplacee'],
+    en_preparation: ['expediee', 'annulee', 'remplacee', 'retourne'],
     expediee: ['livree', 'retourne', 'remplacee'],
     livree: ['retourne'],
     annulee: [],
-    remplacee: []
+    remplacee: [],
+    retourne: ['remplacee', 'annulee']
   };
   return allowedTransitions[oldStatus]?.includes(newStatus) || false;
+}
+
+function shouldUpdateParcels(oldStatus, newStatus) {
+  // Only update parcels for these status transitions
+  const statusesThatAffectParcels = [
+    'en_preparation',
+    'expediee', 
+    'livree'
+  ];
+  
+  return statusesThatAffectParcels.includes(newStatus);
 }
 
 async function handleOrderCancellation(commande, notes, transaction) {

@@ -337,20 +337,30 @@ export default function DetailsProduit() {
                     <span className="text-xs text-gray-500">{taillesSelectionnees.length} sélectionné(s)</span>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {taillesDisponibles.map((taille) => (
-                      <button
-                        key={taille.id}
-                        onClick={() => basculerSelectionTaille(taille)}
-                        disabled={taille.quantite <= 0}
-                        className={`py-1.5 px-0.5 w-12 border rounded text-xs transition-colors ${
-                          taillesSelectionnees.some((t) => t.id === taille.id)
-                            ? "bg-primary text-white border-primary"
-                            : "border-gray-300 hover:bg-gray-50"
-                        } ${taille.quantite <= 0 ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                      >
-                        {taille.libelle}
-                      </button>
-                    ))}
+                    {taillesDisponibles.map((taille) => {
+                      const isDisabled = taille.quantite <= 0;
+                      const isSelected = taillesSelectionnees.some(t => t.id === taille.id);
+                      
+                      return (
+                        <button
+                          key={taille.id}
+                          onClick={() => !isDisabled && basculerSelectionTaille(taille)}
+                          disabled={isDisabled}
+                          className={`py-1.5 px-0.5 w-12 border rounded text-xs transition-colors ${
+                            isSelected
+                              ? "bg-primary text-white border-primary"
+                              : "border-gray-300 hover:bg-gray-50"
+                          } ${
+                            isDisabled
+                              ? "opacity-50 cursor-not-allowed bg-gray-100"
+                              : "cursor-pointer"
+                          }`}
+                          aria-disabled={isDisabled}
+                        >
+                          {taille.libelle}
+                        </button>
+                      );
+                    })}
                   </div>
                   {verifierStatutStock()}
                   {afficherErreurTaille && <p className="text-xs text-red-500">Veuillez sélectionner au moins une taille</p>}
@@ -369,6 +379,7 @@ export default function DetailsProduit() {
                           onClick={() => mettreAJourQuantiteTaille(taille.id, taille.quantite - 1)}
                           className="px-2 py-0.5 text-lg hover:bg-gray-100 transition-colors"
                           disabled={taille.quantite <= 1}
+                          aria-disabled={taille.quantite <= 1}
                         >
                           -
                         </button>
@@ -377,6 +388,7 @@ export default function DetailsProduit() {
                           onClick={() => mettreAJourQuantiteTaille(taille.id, taille.quantite + 1)}
                           className="px-2 py-0.5 text-lg hover:bg-gray-100 transition-colors"
                           disabled={taille.quantite >= taille.stockDisponible}
+                          aria-disabled={taille.quantite >= taille.stockDisponible}
                         >
                           +
                         </button>
