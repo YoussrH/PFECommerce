@@ -126,36 +126,35 @@ export default function LuxePage() {
     activeTab === "all" ? featuredProducts : featuredProducts.filter((product) => product.category === activeTab)
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen ">
       {/* Hero Section */}
       <section
         ref={heroRef}
-        className="relative w-full h-[70vh] min-h-[500px] overflow-hidden flex items-center justify-center"
+        className="relative w-full h-[70vh] min-h-[500px] overflow-hidden flex items-center justify-center "
       >
-        <Image
-          src="/placeholder.svg?height=1080&width=1920"
-          alt="Luxury Banner"
-          fill
-          className="object-cover"
-          priority
-        />
-        <div className="absolute inset-0 bg-black/30" />
-        <div className="relative z-10 text-center text-white px-4 max-w-3xl">
-          <Badge className="bg-white/20 backdrop-blur-sm text-white border-none mb-4">COLLECTION LUXE</Badge>
+
+        <div className="absolute inset-0" />
+        <div className="relative z-10 text-center text-black px-4 max-w-3xl">
+          <Badge className="bg-black backdrop-blur-sm text-white border-none mb-4">COLLECTION LUXE</Badge>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">L&apos;Excellence du Luxe</h1>
           <p className="text-sm sm:text-base md:text-lg mb-8 max-w-2xl mx-auto">
             Découvrez notre sélection exclusive des plus grandes maisons de luxe. Des pièces d&apos;exception pour une
             élégance intemporelle.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button className="bg-white text-black hover:bg-gray-100">Découvrir la collection</Button>
-            <Button variant="outline" className="text-white border-white hover:bg-white/20">
+            <Link href="/store/nouveautes">
+             <Button className="bg-black text-white hover:bg-black border border-black hover:text-white">Découvrir la collection</Button>           
+            </Link>
+            <Link href="/store/marques">
+
+            <Button variant="outline" className="text-black  hover:bg-white hover:text-black border">
               Nos marques
             </Button>
+            </Link>
           </div>
         </div>
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-          <ChevronDown className="h-8 w-8 text-white" />
+          <ChevronDown className="h-8 w-8 " />
         </div>
       </section>
 
@@ -175,29 +174,6 @@ export default function LuxePage() {
           </div>
         </div>
       </div>
-
-      {/* Featured Brands */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12">Nos Maisons de Luxe</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6 items-center">
-          {luxuryBrands
-            .filter((brand) => brand.featured)
-            .map((brand) => (
-              <Link key={brand.id} href={`/luxe/brands/${brand.id}`} className="group flex flex-col items-center">
-                <div className="relative w-full h-16 mb-3 grayscale transition-all duration-300 group-hover:grayscale-0">
-                  <Image src={brand.logo || "/placeholder.svg"} alt={brand.name} fill className="object-contain" />
-                </div>
-                <h3 className="text-sm font-medium text-center">{brand.name}</h3>
-              </Link>
-            ))}
-        </div>
-        <div className="text-center mt-10">
-          <Button variant="outline" className="group">
-            Voir toutes nos marques
-            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Button>
-        </div>
-      </section>
 
       {/* Luxury Collections */}
       <section className="py-16 bg-gray-50">

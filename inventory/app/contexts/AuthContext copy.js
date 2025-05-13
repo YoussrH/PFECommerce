@@ -63,9 +63,10 @@ export const AuthProvider = ({ children }) => {
     window.addEventListener('visibilitychange', handleVisibilityChange);
     return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [checkAuth]);
-  
+
   const register = async (userData) => {
     try {
+      console.log('Starting registration with data:', userData); // Debug log
       setAuthLoading(true);
       const response = await axios.post(
         'http://localhost:5000/auth/inscription',
@@ -73,12 +74,19 @@ export const AuthProvider = ({ children }) => {
         { withCredentials: true }
       );
       
+      console.log('Registration response:', response.data); // Debug log
+      
       if (response.data.success) {
         toast.success(response.data.message);
-        return { success: true };
+        return { 
+          success: true,
+          requiresOtp: true,
+          message: response.data.message
+        };
       }
       throw new Error(response.data.message || "Échec de l'inscription");
     } catch (error) {
+      console.error('Registration error:', error); // Debug log
       const errorMessage = error.response?.data?.message || error.message || "Échec de l'inscription";
       toast.error(errorMessage);
       return { success: false, error: errorMessage };

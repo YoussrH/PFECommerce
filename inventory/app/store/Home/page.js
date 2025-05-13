@@ -1,7 +1,6 @@
 import AutoSlider from '@/app/components/AutoSlider/page'
 import Hero from '@/app/components/Hero/page'
 import Collection from '@/app/components/Product/collection'
-import NewProduit from '@/app/components/Product/NewProduit'
 import Produit from '@/app/components/Product/Produit'
 import React from 'react'
 
@@ -12,7 +11,6 @@ export default function Accueil() {
         <AutoSlider/>
         <Hero/>
         <Produit/>
-        <NewProduit/>
         <Collection/>
     </div>
   )

@@ -14,7 +14,7 @@ export default function Hero() {
         <div className="relative flex flex-col items-center">
           <div className="overflow-hidden w-full h-auto aspect-square md:aspect-[3/4] cursor-pointer">
             <Image 
-              src="/KANE-BLG23D45-A1.jpg" 
+              src="https://res.cloudinary.com/dnkd2ksye/image/upload/v1744144999/ecommerce/CHEMISE-CROPPED-1.jpg"
               alt="VESTES | FEMME" 
               width={500} 
               height={500} 
@@ -22,13 +22,13 @@ export default function Hero() {
             />
           </div>
           <div className="relative -mt-8 md:-mt-10 bg-white p-3 sm:p-4 shadow-md w-[90%] md:w-[80%] text-center">
-            <h3 className="text-sm md:text-base font-serif">VESTES | FEMME</h3>
+            <h3 className="text-sm md:text-base font-serif">CHEMISE | FEMME</h3>
             <p className="text-xs md:text-sm mt-1 font-mono font-thin">
-              Explorez des vêtements garçons pratiques et stylés
+              Explorez des vêtements femme pratiques et stylés
             </p>
             <button
               className="mt-3 px-3 py-1.5 sm:px-4 sm:py-2 border-black border-2 text-black font-mono font-semibold text-xs hover:bg-gray-200 transition"
-              onClick={() => router.push("/store/products")}
+              onClick={() => router.push("/store/femme")}
             >
               VOIR LA SÉLECTION
             </button>
@@ -41,7 +41,7 @@ export default function Hero() {
           <div className="relative flex flex-col items-center w-full">
             <div className="overflow-hidden w-full h-auto aspect-[4/3] md:aspect-[5/4] cursor-pointer">
               <Image 
-                src="/slider-homme-scaled.jpg" 
+                src="https://res.cloudinary.com/dnkd2ksye/image/upload/v1747090329/slider-homme-scaled_wbov41.jpg" 
                 alt="PANTALONS | HOMME" 
                 width={500} 
                 height={500} 
@@ -52,7 +52,7 @@ export default function Hero() {
               <h3 className="text-sm md:text-base font-serif">PANTALONS | HOMME</h3>
               <button
                 className="mt-1 font-semibold px-4 pt-1 text-black font-mono text-xs md:text-sm border-b-2 border-black hover:text-gray-500 transition"
-                onClick={() => router.push("/store/products")}
+                onClick={() => router.push("/store/homme")}
               >
                 VOIR LA SÉLECTION
               </button>
@@ -63,18 +63,18 @@ export default function Hero() {
           <div className="relative flex flex-col items-center w-full">
             <div className="overflow-hidden w-full h-auto aspect-[4/3] md:aspect-[5/4] cursor-pointer">
               <Image 
-                src="/CHEMISE-B5-2.jpg" 
+                src="https://res.cloudinary.com/dnkd2ksye/image/upload/v1747090378/CHEMISE-B5-2_sg83wa.jpg" 
                 alt="CHEMISE | GARÇON" 
                 width={500} 
                 height={500} 
-                className="shadow-lg w-full h-full object-cover transform scale-100 transition-transform duration-500 ease-out hover:scale-105" 
+                className="shadow-lg w-full h-full object-fill transform scale-100 transition-transform duration-500 ease-out hover:scale-105" 
               />
             </div>
             <div className="text-center mt-2 md:mt-3">
               <h3 className="text-sm md:text-base font-serif">CHEMISE | GARÇON</h3>
               <button
                 className="mt-1 px-4 pt-1 text-black font-mono font-semibold text-xs md:text-sm border-b-2 border-black hover:text-gray-500 transition"
-                onClick={() => router.push("/store/products")}
+                onClick={() => router.push("/store/petits-prix")}
               >
                 VOIR LA SÉLECTION
               </button>

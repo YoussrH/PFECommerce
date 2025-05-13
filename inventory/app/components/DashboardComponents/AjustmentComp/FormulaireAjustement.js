@@ -25,29 +25,45 @@ export default function FormulaireAjustement({
   index = 0,
   produits = [],
   tailles = [],
+  couleurs = [],
   onAdjustmentChange,
   onRemove,
   showRemoveButton = false,
   loading = false
 }) {
   const [localAdjustment, setLocalAdjustment] = useState(adjustment);
+  const [filteredTailles, setFilteredTailles] = useState([]);
 
   useEffect(() => {
     setLocalAdjustment(adjustment);
   }, [adjustment]);
 
+  useEffect(() => {
+    if (localAdjustment.idCouleur && tailles.length > 0) {
+      const filtered = tailles.filter(taille => 
+        taille.ArticleTaille?.couleur_id?.toString() === localAdjustment.idCouleur.toString()
+      );
+      setFilteredTailles(filtered);
+    } else {
+      setFilteredTailles([]);
+    }
+  }, [localAdjustment.idCouleur, tailles]);
+
   const handleChange = (field, value) => {
     const updatedAdjustment = { ...localAdjustment, [field]: value };
     
-    // Special handling for certain fields
     if (field === 'idProduit') {
       updatedAdjustment.idTaille = "";
+      updatedAdjustment.idCouleur = "";
       updatedAdjustment.stockActuel = 0;
     } else if (field === 'raison' && value !== 'Autre') {
       updatedAdjustment.raison_autre = "";
-    } else if (field === 'idTaille' && updatedAdjustment.idProduit) {
-      const stockKey = `${updatedAdjustment.idProduit}_${value}`;
-      updatedAdjustment.stockActuel = tailles.find(t => t.id.toString() === value.toString())?.ArticleTaille?.quantite || 0;
+    } else if (field === 'idCouleur') {
+      updatedAdjustment.idTaille = "";
+      updatedAdjustment.stockActuel = 0;
+    } else if (field === 'idTaille' && localAdjustment.idCouleur) {
+      const selectedTaille = tailles.find(t => t.id.toString() === value.toString());
+      updatedAdjustment.stockActuel = selectedTaille?.ArticleTaille?.quantite || 0;
     }
 
     setLocalAdjustment(updatedAdjustment);
@@ -89,7 +105,7 @@ export default function FormulaireAjustement({
         </RadioGroup>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div>
           <Label>Produit *</Label>
           <select
@@ -109,16 +125,34 @@ export default function FormulaireAjustement({
         </div>
 
         <div>
+          <Label>Couleur *</Label>
+          <select
+            className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+            value={localAdjustment.idCouleur}
+            onChange={(e) => handleChange('idCouleur', e.target.value)}
+            disabled={!localAdjustment.idProduit || loading}
+            required
+          >
+            <option value="">Sélectionner une couleur</option>
+            {couleurs.map(couleur => (
+              <option key={couleur.id} value={couleur.id}>
+                {couleur.libelle}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
           <Label>Taille *</Label>
           <select
             className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
             value={localAdjustment.idTaille}
             onChange={(e) => handleChange('idTaille', e.target.value)}
-            disabled={!localAdjustment.idProduit || loading}
+            disabled={!localAdjustment.idCouleur || loading}
             required
           >
             <option value="">Sélectionner une taille</option>
-            {tailles.map(taille => (
+            {filteredTailles.map(taille => (
               <option key={taille.id} value={taille.id}>
                 {taille.libelle} (Stock: {taille.ArticleTaille?.quantite || 0})
               </option>
@@ -148,7 +182,7 @@ export default function FormulaireAjustement({
               ? "Entrez la nouvelle valeur absolue du stock"
               : "Positif pour ajouter, négatif pour retirer"}
           </p>
-          {localAdjustment.idTaille && (
+          {localAdjustment.idTaille && localAdjustment.idCouleur && (
             <p className="text-sm mt-1">
               Stock actuel: {localAdjustment.stockActuel} → Nouveau stock:{" "}
               {localAdjustment.type === 'correction'

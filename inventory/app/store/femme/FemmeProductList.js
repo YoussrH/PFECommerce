@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import axios from "axios"
@@ -22,11 +22,12 @@ import ProductDetailsModel from "../productsModel/[id]/page"
 const FemmeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) => {
   const [pageCourante, setPageCourante] = useState(1)
   const [produitAchatRapide, setProduitAchatRapide] = useState(null)
+  const [isLoading, setIsLoading] = useState(false)
   const produitsParPage = 12
 
   // Get primary image for each product
   const getPrimaryImage = (produit) => {
-    if (!produit) return "/placeholder-image.jpg"
+    if (!produit) return "/placeholder-image.png"
 
     if (produit.images_couleurs?.length > 0) {
       return produit.images_couleurs[0].image_url
@@ -140,6 +141,14 @@ const FemmeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
     }
   }
 
+  if (isLoading) {
+    return (
+      <div className="w-full flex justify-center py-12">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="w-full">
       {produitsCourants.length > 0 ? (
@@ -154,7 +163,7 @@ const FemmeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                   <div className="aspect-square overflow-hidden rounded-md bg-gray-50 relative">
                     <Link href={`/store/products/${produit.id}`} className="block h-full w-full">
                       <Image
-                        src={primaryImage || "/placeholder.svg"}
+                        src={primaryImage || "/placeholder.png"}
                         alt={produit.nom_produit || "Image du produit"}
                         width={400}
                         height={400}
@@ -171,16 +180,7 @@ const FemmeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                   </div>
 
                   <div className="mt-3 text-center relative">
-                  {/*   <p className="text-xs text-gray-600 font-mono tracking-wider uppercase">
-                      {marque || "Marque inconnue"}
-                    </p>
-                    <h3 className="mt-1 text-sm font-medium text-gray-900 font-mono">
-                      {produit.nom_produit || "Produit sans nom"}
-                    </h3>
-                    <p className="mt-1 text-sm font-semibold text-gray-900 font-mono">
-                      {produit.prix_final || produit.prix || 0} DT
-                    </p> */}
-                    <p className="text-xs text-gray-600 font-mono tracking-wider uppercase  transition-opacity duration-300">
+                    <p className="text-xs text-gray-600 font-mono tracking-wider uppercase transition-opacity duration-300">
                       {marque || "Marque inconnue"}
                     </p>
                     <h3 className="mt-1 text-sm font-medium text-gray-900 font-mono group-hover:opacity-0 transition-opacity duration-300">
@@ -190,13 +190,12 @@ const FemmeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                       {produit.prix_final || produit.prix || 0} DT
                     </p>
 
-
-                    <div className="absolute inset-0 flex items-center justify-center p-3 pt-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ">
-                      <div className="flex gap-2 w-full ">
+                    <div className="absolute inset-0 flex items-center justify-center p-3 pt-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="flex gap-2 w-full">
                         <Button
                           variant="default"
                           size="sm"
-                          className="flex-1 bg-black  hover:bg-white hover:text-black border border-black text-white text-xs rounded-full"
+                          className="flex-1 bg-black hover:bg-white hover:text-black border border-black text-white text-xs rounded-full"
                           onClick={(e) => {
                             e.preventDefault()
                             handleClicAchatRapide(produit)
@@ -204,9 +203,9 @@ const FemmeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                         >
                           Achat Rapide
                         </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-white text-orange-500 ">
+                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-white text-orange-500">
                           <Heart className="h-5 w-5" />
-                          <span className="sr-only ">Ajouter aux favoris</span>
+                          <span className="sr-only">Ajouter aux favoris</span>
                         </Button>
                       </div>
                     </div>
@@ -313,16 +312,6 @@ const FemmeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                     className={`flex items-center gap-2 ${
                       !selectedSize || product.stock <= 0 ? "opacity-50 cursor-not-allowed" : ""
                     }`}
-                    onClick={async () => {
-                      const ajoute = await handleAjoutPanier({
-                        produit: product,
-                        tailleSelectionnee: selectedSize,
-                        quantite: 1,
-                      })
-                      if (ajoute) {
-                        setProduitAchatRapide(null)
-                      }
-                    }}
                     disabled={!selectedSize || product.stock <= 0 || isAddingToCart}
                   >
                     {isAddingToCart ? (
@@ -337,9 +326,6 @@ const FemmeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                   <Button
                     variant="secondary"
                     className={`${!selectedSize || product.stock <= 0 ? "opacity-50 cursor-not-allowed" : ""}`}
-                    onClick={async () => {
-                      await handleAchatRapide({ produit: product, tailleSelectionnee: selectedSize })
-                    }}
                     disabled={!selectedSize || product.stock <= 0 || isAddingToCart}
                   >
                     Achetez maintenant

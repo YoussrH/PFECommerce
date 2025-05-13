@@ -25,6 +25,9 @@ router.get("/", articleController.obtenirTousArticles);
 router.delete("/supprimerArticle/:id", authentifier, verifierAdmin, articleController.supprimerArticle);
 router.get("/obtenirDerniersArticles", articleController.obtenirDerniersArticles);
 router.post("/filtrerArticles", articleController.filtrerArticles);
+router.post("/filtrerArticlesGFemme", articleController.filtrerArticlesGFemme);
+router.post("/filtrerArticlesGHomme", articleController.filtrerArticlesGHomme);
+
 router.get("/rechercherArticles", articleController.rechercherArticles);
 router.get("/obtenirMarqueAleatoire/actuel", articleController.obtenirMarqueAleatoire);
 router.get("/obtenirArticlesParGenre/:id", articleController.obtenirArticlesParGenre);
@@ -34,13 +37,12 @@ router.get("/obtenirArticlesFille", articleController.obtenirArticlesFille);
 router.post("/ajouterArticles", authentifier, verifierAdmin, articleController.ajouterArticles);
 router.get("/obtenirArticlesBebe", articleController.obtenirArticlesBebe);
 router.get("/ObtenirTousArticleAleatoire", articleController.ObtenirTousArticleAleatoire);
+router.get("/obtenirArticleQuotidien", articleController.obtenirArticleQuotidien);
 
-//page marque
-router.get("/obtenirArticlesParMarque/:id", articleController.obtenirArticlesParMarque);
-
-// Get available filters for a brand
-router.get("/obtenirFiltresDisponiblesParMarque/:id", articleController.obtenirFiltresDisponiblesParMarque);
 
 // Get brand collections/categories
-router.get("/obtenirCollectionsParMarque/:id", articleController.obtenirCollectionsParMarque);
+router.get('/petits-prix', articleController.obtenirArticlesPetitPrix);
+router.get('/obtenirArticlesFemme', articleController.obtenirArticlesFemme);
+router.get('/obtenirArticlesHomme', articleController.obtenirArticlesHomme);
+
 module.exports = router;

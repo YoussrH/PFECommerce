@@ -1,10 +1,11 @@
-const { Article, Taille, ArticleTaille, AjustementStock, Utilisateur } = require("../models");
+// controllers/ajustementController.js
+const { Article, Taille, Couleur, ArticleTaille, AjustementStock, Utilisateur } = require("../models");
 const sequelize = require('../config/db');
 const { Op } = require('sequelize');
 
 const ajusterStock = async (req, res) => {
   try {
-    const { article_id, taille_id, quantite, raison, raison_autre, type = 'adjustment' } = req.body;
+    const { article_id, taille_id, couleur_id, quantite, raison, raison_autre, type = 'adjustment' } = req.body;
     const admin_id = req.utilisateur?.id;
 
     if (!req.utilisateur || !['admin', 'super_admin'].includes(req.utilisateur?.role)) {
@@ -22,17 +23,18 @@ const ajusterStock = async (req, res) => {
     }
 
     const articleTaille = await ArticleTaille.findOne({ 
-      where: { article_id, taille_id },
+      where: { article_id, taille_id, couleur_id },
       include: [
         { model: Article, as: 'article', attributes: ['id', 'nom_produit'] },
-        { model: Taille, as: 'taille', attributes: ['id', 'libelle'] }
+        { model: Taille, as: 'taille', attributes: ['id', 'libelle'] },
+        { model: Couleur, as: 'couleur', attributes: ['id', 'libelle', 'hexcode'] }
       ]
     });
 
     if (!articleTaille) {
       return res.status(404).json({ 
         success: false, 
-        message: "Association article-taille non trouvée" 
+        message: "Association article-taille-couleur non trouvée" 
       });
     }
 
@@ -58,6 +60,7 @@ const ajusterStock = async (req, res) => {
     const ajustement = await AjustementStock.create({
       article_id,
       taille_id,
+      couleur_id,
       quantite_avant: quantiteAvant,
       quantite_apres: quantiteApres,
       difference,
@@ -73,7 +76,8 @@ const ajusterStock = async (req, res) => {
       data: {
         ajustement,
         currentStock: quantiteApres,
-        taille: articleTaille.taille.libelle
+        taille: articleTaille.taille.libelle,
+        couleur: articleTaille.couleur.libelle
       }
     });
 
@@ -112,28 +116,29 @@ const ajusterStockMultiple = async (req, res) => {
     
     for (const adj of adjustments) {
       try {
-        const { article_id, taille_id, quantite, raison, raison_autre, type } = adj;
+        const { article_id, taille_id, couleur_id, quantite, raison, raison_autre, type } = adj;
         
-        if (!article_id || !taille_id || quantite === undefined || !raison) {
+        if (!article_id || !taille_id || !couleur_id || quantite === undefined || !raison) {
           results.push({
             success: false,
-            message: `Champs manquants pour l'ajustement (article: ${article_id}, taille: ${taille_id})`
+            message: `Champs manquants pour l'ajustement (article: ${article_id}, taille: ${taille_id}, couleur: ${couleur_id})`
           });
           continue;
         }
 
         const articleTaille = await ArticleTaille.findOne({ 
-          where: { article_id, taille_id },
+          where: { article_id, taille_id, couleur_id },
           include: [
             { model: Article, as: 'article' },
-            { model: Taille, as: 'taille' }
+            { model: Taille, as: 'taille' },
+            { model: Couleur, as: 'couleur' }
           ]
         });
 
         if (!articleTaille) {
           results.push({
             success: false,
-            message: `Combinaison article/taille introuvable (article: ${article_id}, taille: ${taille_id})`
+            message: `Combinaison article/taille/couleur introuvable (article: ${article_id}, taille: ${taille_id}, couleur: ${couleur_id})`
           });
           continue;
         }
@@ -148,7 +153,7 @@ const ajusterStockMultiple = async (req, res) => {
         if (newQuantity < 0) {
           results.push({
             success: false,
-            message: `Stock négatif non autorisé (article: ${article_id}, taille: ${taille_id})`
+            message: `Stock négatif non autorisé (article: ${article_id}, taille: ${taille_id}, couleur: ${couleur_id})`
           });
           continue;
         }
@@ -158,6 +163,7 @@ const ajusterStockMultiple = async (req, res) => {
         await AjustementStock.create({
           article_id,
           taille_id,
+          couleur_id,
           quantite_avant: articleTaille.quantite,
           quantite_apres: newQuantity,
           difference: newQuantity - articleTaille.quantite,
@@ -169,7 +175,7 @@ const ajusterStockMultiple = async (req, res) => {
 
         results.push({
           success: true,
-          message: `Ajustement réussi (article: ${article_id}, taille: ${taille_id})`
+          message: `Ajustement réussi (article: ${article_id}, taille: ${taille_id}, couleur: ${couleur_id})`
         });
       } catch (error) {
         console.error('Error processing adjustment:', error);
@@ -196,8 +202,6 @@ const ajusterStockMultiple = async (req, res) => {
   }
 };
 
-
-
 const obtenirHistoriqueAjustements = async (req, res) => {
   try {
     const { 
@@ -216,6 +220,8 @@ const obtenirHistoriqueAjustements = async (req, res) => {
       where[Op.or] = [
         { '$article.nom_produit$': { [Op.iLike]: `%${search}%` } },
         { '$article.sku$': { [Op.iLike]: `%${search}%` } },
+        { '$taille.libelle$': { [Op.iLike]: `%${search}%` } },
+        { '$couleur.libelle$': { [Op.iLike]: `%${search}%` } },
         sequelize.where(
           sequelize.cast(sequelize.col('AjustementStock.raison'), 'TEXT'),
           { [Op.iLike]: `%${search}%` }
@@ -250,6 +256,11 @@ const obtenirHistoriqueAjustements = async (req, res) => {
           model: Taille,
           as: 'taille',
           attributes: ['id', 'libelle']
+        },
+        {
+          model: Couleur,
+          as: 'couleur',
+          attributes: ['id', 'libelle', 'hexcode']
         },
         {
           model: Utilisateur,
@@ -290,7 +301,6 @@ const obtenirHistoriqueAjustements = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   ajusterStock,

@@ -15,4 +15,5 @@ router.delete('/supprimerToutesLesMarques', authentifier, verifierAdmin, marqueC
 
 router.get('/marques-populaires', marqueController.obtenirMarquesPopulaires);
 router.get('/par-genre/:genre', marqueController.obtenirMarquesParGenre);
+router.get('/:id/articles', marqueController.obtenirArticlesParMarque);
 module.exports = router;

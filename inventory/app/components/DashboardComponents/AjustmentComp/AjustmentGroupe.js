@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import axios from "axios";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -13,9 +13,11 @@ export default function AjustmentGroupe() {
   const [chargement, setChargement] = useState(false);
   const [produits, setProduits] = useState([]);
   const [taillesMap, setTaillesMap] = useState({});
+  const [couleursMap, setCouleursMap] = useState({});
   const [ajustements, setAjustements] = useState([{
     idProduit: "",
     idTaille: "",
+    idCouleur: "",
     quantite: 0,
     raison: "",
     raison_autre: "",
@@ -36,8 +38,8 @@ export default function AjustmentGroupe() {
     }
   };
 
-  const chargerTaillesEtStock = async (idProduit) => {
-    if (!idProduit || taillesMap[idProduit]) return;
+  const chargerTaillesEtCouleurs = async (idProduit) => {
+    if (!idProduit || (taillesMap[idProduit] && couleursMap[idProduit])) return;
     
     try {
       const res = await axios.get(
@@ -46,11 +48,48 @@ export default function AjustmentGroupe() {
       );
       
       const article = res.data.donnees;
-      if (article?.tailles) {
-        setTaillesMap(prev => ({ ...prev, [idProduit]: article.tailles }));
-      }
+      
+      // Process tailles with inventory data
+      const inventoryRecords = article?.inventory || [];
+      const uniqueTailles = [];
+      const seenTailles = new Set();
+      
+      inventoryRecords.forEach(record => {
+        if (record.taille && !seenTailles.has(record.taille.id)) {
+          seenTailles.add(record.taille.id);
+          uniqueTailles.push({
+            ...record.taille,
+            ArticleTaille: record
+          });
+        }
+      });
+      
+      setTaillesMap(prev => ({ ...prev, [idProduit]: uniqueTailles }));
+      
+      // Process couleurs from inventory and images
+      const uniqueCouleurs = [];
+      const seenCouleurs = new Set();
+      
+      // Add colors from inventory
+      inventoryRecords.forEach(record => {
+        if (record.couleur && !seenCouleurs.has(record.couleur.id)) {
+          seenCouleurs.add(record.couleur.id);
+          uniqueCouleurs.push(record.couleur);
+        }
+      });
+      
+      // Add colors from images
+      const imageCouleurs = article?.images_couleurs || [];
+      imageCouleurs.forEach(image => {
+        if (image.couleur && !seenCouleurs.has(image.couleur.id)) {
+          seenCouleurs.add(image.couleur.id);
+          uniqueCouleurs.push(image.couleur);
+        }
+      });
+      
+      setCouleursMap(prev => ({ ...prev, [idProduit]: uniqueCouleurs }));
     } catch (error) {
-      toast.error('Erreur de chargement des tailles', {
+      toast.error('Erreur de chargement des tailles et couleurs', {
         description: error.response?.data?.message || "Veuillez réessayer"
       });
     }
@@ -60,6 +99,7 @@ export default function AjustmentGroupe() {
     setAjustements([...ajustements, { 
       idProduit: "", 
       idTaille: "", 
+      idCouleur: "",
       quantite: 0, 
       raison: "", 
       raison_autre: "",
@@ -84,7 +124,7 @@ export default function AjustmentGroupe() {
     setAjustements(newAjustements);
 
     if (updatedAdjustment.idProduit !== ajustements[index]?.idProduit) {
-      chargerTaillesEtStock(updatedAdjustment.idProduit);
+      chargerTaillesEtCouleurs(updatedAdjustment.idProduit);
     }
   };
 
@@ -93,6 +133,13 @@ export default function AjustmentGroupe() {
       if (!adj.idProduit) {
         toast.warning("Produit manquant", {
           description: "Veuillez sélectionner un produit pour tous les ajustements"
+        });
+        return false;
+      }
+      
+      if (!adj.idCouleur) {
+        toast.warning("Couleur manquante", {
+          description: "Veuillez sélectionner une couleur pour tous les ajustements"
         });
         return false;
       }
@@ -153,6 +200,7 @@ export default function AjustmentGroupe() {
           adjustments: ajustements.map(adj => ({
             article_id: adj.idProduit,
             taille_id: adj.idTaille,
+            couleur_id: adj.idCouleur,
             quantite: adj.quantite,
             raison: adj.raison,
             raison_autre: adj.raison === 'Autre' ? adj.raison_autre : null,
@@ -172,6 +220,7 @@ export default function AjustmentGroupe() {
         setAjustements([{
           idProduit: "", 
           idTaille: "", 
+          idCouleur: "",
           quantite: 0, 
           raison: "", 
           raison_autre: "",
@@ -216,6 +265,7 @@ export default function AjustmentGroupe() {
                 adjustment={adjustment}
                 produits={produits}
                 tailles={taillesMap[adjustment.idProduit] || []}
+                couleurs={couleursMap[adjustment.idProduit] || []}
                 onAdjustmentChange={handleAdjustmentChange}
                 onRemove={supprimerAjustement}
                 showRemoveButton={ajustements.length > 1}

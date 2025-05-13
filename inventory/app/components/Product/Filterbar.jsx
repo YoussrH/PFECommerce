@@ -16,7 +16,7 @@ const FilterBar = ({
   onEffacerTousFiltres,
   totalProduits,
   isScrolling,
-  pathname,
+    pathname = "",
 }) => {
   const [openDropdown, setOpenDropdown] = useState(null)
   const [priceRange, setPriceRange] = useState([10, 300])
@@ -370,7 +370,6 @@ const FilterBar = ({
       </div>
     </div>
   )
-
   return (
     <div className="font-mono mb-8">
       {renderDesktopFilters()}

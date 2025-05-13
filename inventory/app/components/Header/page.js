@@ -17,7 +17,7 @@ export default function Header({ isFilterBarPresent }) {
   const [submenuOpen, setSubmenuOpen] = useState(false);
   const [petitPrixOpen, setPetitPrixOpen] = useState(false);
   const [femmeOpen, setFemmeOpen] = useState(false);
-  const [garconOpen, setGarconOpen] = useState(false);
+  const [hommeOpen, setHommeOpen] = useState(false);
   const [marquesOpen, setMarquesOpen] = useState(false);
   const [outletOpen, setOutletOpen] = useState(false);
   const [luxeOpen, setLuxeOpen] = useState(false);
@@ -38,8 +38,13 @@ export default function Header({ isFilterBarPresent }) {
       window.removeEventListener("scroll", handleScroll);
     };
   }, [isFilterBarPresent]);
+  
 
   const handleClick = (menu) => {
+        if (menu === "Acceuil") {
+      router.push("/");
+      return;
+    }
     const route = menu
       .toLowerCase()
       .replace(/\s+/g, "-")
@@ -64,8 +69,8 @@ export default function Header({ isFilterBarPresent }) {
       case "Femme":
         setFemmeOpen(true);
         break;
-      case "Garçon":
-        setGarconOpen(true);
+      case "Homme":
+        setHommeOpen(true);
         break;
       case "Marques":
         setMarquesOpen(true);
@@ -92,8 +97,8 @@ export default function Header({ isFilterBarPresent }) {
       case "Femme":
         setFemmeOpen(false);
         break;
-      case "Garçon":
-        setGarconOpen(false);
+      case "Homme":
+        setHommeOpen(false);
         break;
       case "Marques":
         setMarquesOpen(false);
@@ -120,10 +125,11 @@ export default function Header({ isFilterBarPresent }) {
             <div className="mt-5 flex flex-col items-center">
               <nav className="hidden md:flex gap-12">
                 {[
+                  "Acceuil",
                   "Nouveautés",
                   "PETITS PRIX",
                   "Femme",
-                  "Garçon",                 
+                  "Homme",                 
                   "Marques",
                   "Outlet",
                   "| Luxe",
@@ -131,10 +137,11 @@ export default function Header({ isFilterBarPresent }) {
                   <div key={item} className="relative group">
                     <h4
                       className={`cursor-pointer font-mono pb-1 text-xs lg:text-sm ${
+                        (item === "Acceuil") ||
                         (item === "Nouveautés" && submenuOpen) ||
                         (item === "PETITS PRIX" && petitPrixOpen) ||
                         (item === "Femme" && femmeOpen) ||
-                        (item === "Garçon" && garconOpen) ||
+                        (item === "Homme" && hommeOpen) ||
                         (item === "Bébé" && bebeOpen) ||
                         (item === "Marques" && marquesOpen) ||
                         (item === "Outlet" && outletOpen) ||
@@ -170,10 +177,11 @@ export default function Header({ isFilterBarPresent }) {
                
 
                 {[
+                  "Acceuil",
                   "Nouveautés",
                   "PETITS PRIX",
                   "Femme",
-                  "Garçon",
+                  "Homme",
                   "Marques",
                   "Outlet",
                   "| Luxe",
@@ -181,11 +189,11 @@ export default function Header({ isFilterBarPresent }) {
                   <div key={item} className="relative group">
                     <h4
                       className={`cursor-pointer pb-1 text-sm ${
+                        (item === "Acceuil") ||
                         (item === "Nouveautés" && submenuOpen) ||
                         (item === "PETITS PRIX" && petitPrixOpen) ||
                         (item === "Femme" && femmeOpen) ||
-                        (item === "Garçon" && garconOpen) ||
-                        (item === "Bébé" && bebeOpen) ||
+                        (item === "Homme" && hommeOpen) ||
                         (item === "Marques" && marquesOpen) ||
                         (item === "Outlet" && outletOpen) ||
                         (item === "| Luxe" && luxeOpen)
@@ -219,7 +227,7 @@ export default function Header({ isFilterBarPresent }) {
           submenuOpen={submenuOpen}
           petitPrixOpen={petitPrixOpen}
           femmeOpen={femmeOpen}
-          garconOpen={garconOpen}        
+          hommeOpen={hommeOpen}        
           marquesOpen={marquesOpen}
           outletOpen={outletOpen}
           luxeOpen={luxeOpen}

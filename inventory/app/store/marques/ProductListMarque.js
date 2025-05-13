@@ -22,20 +22,26 @@ const ProductListMarque = ({ produits = [], onEffacerTousFiltres = () => {} }) =
   const [produitAchatRapide, setProduitAchatRapide] = useState(null)
   const produitsParPage = 12
 
-  const getPrimaryImage = (produit) => {
-    if (!produit) return "/placeholder-image.jpg"
+const getPrimaryImage = (produit) => {
+  if (!produit) return "/placeholder-image.png";
 
-    if (produit.images_couleurs?.length > 0) {
-      return produit.images_couleurs[0].image_url
-    }
-
-    if (produit.images?.length > 0) {
-      return Array.isArray(produit.images) ? produit.images[0] : produit.images
-    }
-
-    return "/placeholder-image.jpg"
+  // First try images_couleurs array
+  if (produit.images_couleurs?.length > 0) {
+    return produit.images_couleurs[0].image_url;
   }
 
+  // Then try images array (if exists)
+  if (produit.images?.length > 0) {
+    return Array.isArray(produit.images) ? produit.images[0] : produit.images;
+  }
+
+  // Fallback to featured_image if nothing else
+  if (produit.featured_image) {
+    return produit.featured_image;
+  }
+
+  return "/placeholder-image.png";
+};
   const indexDernierProduit = pageCourante * produitsParPage
   const indexPremierProduit = indexDernierProduit - produitsParPage
   const produitsCourants = produits.slice(indexPremierProduit, indexDernierProduit)
@@ -109,7 +115,7 @@ const ProductListMarque = ({ produits = [], onEffacerTousFiltres = () => {} }) =
                         height={400}
                         className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                         onError={(e) => {
-                          e.currentTarget.src = "/placeholder-image.jpg"
+                          e.currentTarget.src = "/placeholder-image.png"
                         }}
                       />
                     </Link>

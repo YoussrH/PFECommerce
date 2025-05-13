@@ -17,7 +17,7 @@ const BreadcrumbAccount = () => {
         const isLast = index === segments.length - 1;
 
         const displaySegment =
-          segment.toLowerCase() === "customer"
+          segment.toLowerCase() === "client"
             ? "Tableau de bord du compte"
             : formattedSegment.charAt(0).toUpperCase() + formattedSegment.slice(1);
 

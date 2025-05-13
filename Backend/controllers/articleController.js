@@ -1,6 +1,7 @@
 //articelcontroller.js
 const models = require("../models");
 const { Article, Couleur, Taille, Genre, Categorie, Marque, ImageArticleCouleur, ArticleTaille, ArticleCouleur } = models;
+
 const cloudinary = require("../config/cloudinaryConfig");
 const { Op } = require("sequelize");
 const { sequelize } = require("../models");
@@ -559,9 +560,6 @@ const ajouterArticles = async (req, res) => {
 };
 
 
-
-
-
 const mettreAJourArticle = async (req, res) => {
   const transaction = await sequelize.transaction();
   
@@ -1067,7 +1065,272 @@ const obtenirMarqueAleatoire = async (req, res) => {
 };
 
 
+// In your articleController.js
+const filtrerArticlesGFemme = async (req, res) => {
+  try {
+    const { filtres = [], genreId = 4 } = req.body;
+    
+    const where = { [Op.and]: [] };
+    const include = [
+      { 
+        model: Marque, 
+        as: 'marque',
+        attributes: ['id', 'libelle']
+      },
+      { 
+        model: Couleur, 
+        as: 'couleurs', 
+        through: { attributes: [] },
+        attributes: ['id', 'libelle', 'hexcode']
+      },
+      { 
+        model: Taille, 
+        as: 'tailles', 
+        through: { attributes: ['quantite'] },
+        attributes: ['id', 'libelle']
+      },
+      { 
+        model: Genre, 
+        as: 'genre',
+        where: { id: genreId },
+        required: true,
+        attributes: ['id', 'libelle']
+      },
+      { 
+        model: Categorie, 
+        as: 'categorie',
+        attributes: ['id', 'libelle']
+      },
+      {
+        model: ImageArticleCouleur,
+        as: 'images_couleurs',
+        include: [{ model: Couleur, as: 'couleur' }],
+        limit: 1
+      }
+    ];
 
+    // Process filters
+    filtres.forEach(({ category, filter }) => {
+      switch (category) {
+        case "Prix":
+          where[Op.and].push({
+            prix_final: { [Op.between]: [filter.min, filter.max] }
+          });
+          break;
+        case "Catégories":
+          include.push({
+            model: Categorie,
+            as: 'categorie',
+            where: { libelle: filter },
+            required: true
+          });
+          break;
+        case "Tailles":
+          include.push({
+            model: Taille,
+            as: 'tailles',
+            where: { libelle: filter },
+            required: true
+          });
+          break;
+        case "Marques":
+          include.push({
+            model: Marque,
+            as: 'marque',
+            where: { libelle: filter },
+            required: true
+          });
+          break;
+      }
+    });
+
+    const articles = await Article.findAll({ 
+      where,
+      include,
+      order: [['created_at', 'DESC']],
+      distinct: true
+    });
+
+    const formattedArticles = articles.map(article => {
+      const plainArticle = article.get({ plain: true });
+      return {
+        ...plainArticle,
+        stock: calculateTotalStock(plainArticle.tailles),
+        primaryImage: plainArticle.images_couleurs?.length > 0 
+          ? plainArticle.images_couleurs[0].image_url 
+          : null
+      };
+    });
+
+    res.json({
+      success: true,
+      donnees: formattedArticles
+    });
+  } catch (error) {
+    console.error("Error filtering articles:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Error filtering articles",
+      error: error.message
+    });
+  }
+};
+
+// And create a corresponding initial load endpoint
+const obtenirDerniersArticlesFemme = async (req, res) => {
+  try {
+    const articles = await Article.findAll({
+      include: [
+        { 
+          model: Marque, 
+          as: 'marque',
+          attributes: ['id', 'libelle']
+        },
+        { 
+          model: Genre, 
+          as: 'genre',
+          where: { id: 4 }, // Women's category
+          attributes: ['id', 'libelle']
+        },
+        // Include other necessary models...
+      ],
+      order: [['created_at', 'DESC']],
+      limit: 50
+    });
+
+    const formattedArticles = articles.map(article => {
+      const plainArticle = article.get({ plain: true });
+      return {
+        ...plainArticle,
+        stock: calculateTotalStock(plainArticle.tailles),
+        primaryImage: plainArticle.images_couleurs?.length > 0 
+          ? plainArticle.images_couleurs[0].image_url 
+          : null
+      };
+    });
+
+    res.json({
+      success: true,
+      donnees: formattedArticles
+    });
+  } catch (error) {
+    console.error("Error fetching women's articles:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Error fetching women's articles"
+    });
+  }
+};
+const filtrerArticlesGHomme = async (req, res) => {
+  try {
+    const { filtres, genreId = 5 } = req.body; // Default to genreId 4 if not provided
+    
+    const where = { [Op.and]: [] };
+    const include = [
+      { 
+        model: Marque, 
+        as: 'marque',
+        attributes: ['id', 'libelle']
+      },
+      { 
+        model: Couleur, 
+        as: 'couleurs', 
+        through: { attributes: [] },
+        attributes: ['id', 'libelle', 'hexcode']
+      },
+      { 
+        model: Taille, 
+        as: 'tailles', 
+        through: { attributes: ['quantite'] },
+        attributes: ['id', 'libelle']
+      },
+      { 
+        model: Genre, 
+        as: 'genre',
+        where: { id: genreId }, // Fixed genre filter
+        required: true,
+        attributes: ['id', 'libelle']
+      },
+      { 
+        model: Categorie, 
+        as: 'categorie',
+        attributes: ['id', 'libelle']
+      },
+      {
+        model: ImageArticleCouleur,
+        as: 'images_couleurs',
+        include: [{ model: Couleur, as: 'couleur' }],
+        limit: 1
+      }
+    ];
+
+    // Process other filters
+    filtres.forEach(({ category, filter }) => {
+      switch (category) {
+        case "Prix":
+          where[Op.and].push({
+            prix_final: { [Op.between]: [filter.min, filter.max] }
+          });
+          break;
+        case "Catégories":
+          include.push({
+            model: Categorie,
+            as: 'categorie',
+            where: { libelle: filter },
+            required: true
+          });
+          break;
+        case "Tailles":
+          include.push({
+            model: Taille,
+            as: 'tailles',
+            where: { libelle: filter },
+            required: true
+          });
+          break;
+        case "Marques":
+          include.push({
+            model: Marque,
+            as: 'marque',
+            where: { libelle: filter },
+            required: true
+          });
+          break;
+        // Removed Genres case since we're using fixed genre
+      }
+    });
+
+    const articles = await Article.findAll({ 
+      where,
+      include,
+      order: [['created_at', 'DESC']],
+      distinct: true
+    });
+
+    const formattedArticles = articles.map(article => {
+      const plainArticle = article.get({ plain: true });
+      return {
+        ...plainArticle,
+        stock: calculateTotalStock(plainArticle.tailles),
+        primaryImage: plainArticle.images_couleurs.length > 0 
+          ? plainArticle.images_couleurs[0].image_url 
+          : null
+      };
+    });
+
+    res.json({
+      success: true,
+      donnees: formattedArticles
+    });
+  } catch (error) {
+    console.error("Error filtering articles:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Error filtering articles",
+      error: error.message
+    });
+  }
+};
 
 const formatArticleData = (article) => {
   const plainArticle = article.get ? article.get({ plain: true }) : article;
@@ -1564,55 +1827,7 @@ const obtenirArticlesBebe = async (req, res) => {
   }
 };
 
-// Get low price articles
-const obtenirArticlesPetitPrix = async (req, res) => {
-  try {
-    const articles = await Article.findAll({
-      where: {
-        prix_final: { [Op.lte]: 100 } // Articles with price <= 100
-      },
-      include: [
-        { 
-          model: Taille,
-          as: 'tailles',
-          through: { 
-            attributes: ['quantite', 'couleur_id'],
-            as: 'ArticleTaille'
-          }
-        },
-        { 
-          model: Couleur,
-          as: 'couleurs',
-          through: { attributes: [] }
-        },
-        { model: Genre, as: 'genre' },
-        { model: Categorie, as: 'categorie' },
-        { model: Marque, as: 'marque' },
-        {
-          model: ImageArticleCouleur,
-          as: 'images_couleurs',
-          include: [{ model: Couleur, as: 'couleur' }],
-          limit: 1
-        }
-      ],
-      order: [['prix_final', 'ASC']]
-    });
 
-    const formattedArticles = articles.map(article => formatArticleData(article));
-
-    res.json({
-      success: true,
-      donnees: formattedArticles
-    });
-  } catch (error) {
-    console.error("Error fetching low price articles:", error);
-    res.status(500).json({ 
-      success: false,
-      message: "Error fetching low price articles",
-      error: error.message
-    });
-  }
-};
 
 // Get article count
 const obtenirNombreArticles = async (req, res) => {
@@ -1632,256 +1847,379 @@ const obtenirNombreArticles = async (req, res) => {
 };
 
 
-//marquepage
-const obtenirArticlesParMarque = async (req, res) => {
+
+
+const obtenirArticlesPetitPrix = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { genre, categorie, prixMin, prixMax, tailles, couleurs, tri } = req.query;
+    // Define maximum price for "petits prix" (adjust as needed)
 
-    // First get the marque details
-    const marque = await Marque.findByPk(id);
-    if (!marque) {
-      return res.status(404).json({
-        success: false,
-        message: "Marque non trouvée"
-      });
-    }
-
-    // Build the query conditions
-    const where = { marque_id: id };
-    const include = [
-      {
-        model: ArticleTaille,
-        as: 'inventory',
-        include: [
-          { model: Taille, as: 'taille' },
-          { model: Couleur, as: 'couleur' }
-        ]
+    const articles = await Article.findAll({
+      where: {
+        genre_id: {
+          [Op.in]: [2, 3] // Garçon (2) et Fille (3)
+        }
       },
-      {
-        model: ImageArticleCouleur,
-        as: 'images_couleurs',
-        include: [{ model: Couleur, as: 'couleur' }]
-      },
-      { model: Genre, as: 'genre' },
-      { model: Categorie, as: 'categorie' }
-    ];
-
-    // Apply filters
-    if (genre) {
-      if (!isNaN(genre)) {
-        where.genre_id = genre;
-      } else {
-        include.push({
+      include: [
+        {
+          model: ArticleTaille,
+          as: 'inventory',
+          attributes: [],
+          where: { quantite: { [Op.gt]: 0 } },
+          required: true
+        },
+        {
+          model: ImageArticleCouleur,
+          as: 'images_couleurs',
+          attributes: ['image_url']
+        },
+        {
           model: Genre,
           as: 'genre',
-          where: { libelle: { [Op.iLike]: `%${genre}%` } },
-          required: true
-        });
-      }
-    }
-
-    if (categorie) {
-      if (!isNaN(categorie)) {
-        where.categorie_id = categorie;
-      } else {
-        include.push({
+          attributes: ['id', 'libelle']
+        },
+        {
           model: Categorie,
           as: 'categorie',
-          where: { libelle: { [Op.iLike]: `%${categorie}%` } },
-          required: true
-        });
-      }
-    }
-
-    if (prixMin || prixMax) {
-      where.prix_final = {
-        [Op.between]: [
-          prixMin || 0,
-          prixMax || 999999
-        ]
-      };
-    }
-
-    // Size filter
-    if (tailles) {
-      const tailleIds = tailles.split(',').map(id => parseInt(id));
-      include[0].include[0].where = { id: { [Op.in]: tailleIds } };
-    }
-
-    // Color filter
-    if (couleurs) {
-      const couleurIds = couleurs.split(',').map(id => parseInt(id));
-      include[0].include[1].where = { id: { [Op.in]: couleurIds } };
-    }
-
-    // Sorting
-    let order = [['created_at', 'DESC']]; // Default sorting
-    if (tri === 'prix-croissant') order = [['prix_final', 'ASC']];
-    else if (tri === 'prix-decroissant') order = [['prix_final', 'DESC']];
-    else if (tri === 'nom') order = [['nom_produit', 'ASC']];
-
-    // Get all articles for this marque with inventory and images
-    const articles = await Article.findAll({
-      where,
-      include,
-      order,
-      distinct: true
+          attributes: ['id', 'libelle']
+        },
+        {
+          model: Marque,
+          as: 'marque',
+          attributes: ['id', 'libelle']
+        }
+      ],
+      order: [
+        ['prix_final', 'ASC'], // Cheapest first
+        ['created_at', 'DESC'] // Newest first
+      ]
     });
 
-    // Format the articles data
-    const formattedArticles = articles.map(article => {
-      const plainArticle = article.get({ plain: true });
-      
-      // Group sizes by color
-      const taillesParCouleur = {};
-      plainArticle.inventory.forEach(inv => {
-        if (!taillesParCouleur[inv.couleur_id]) {
-          taillesParCouleur[inv.couleur_id] = {
-            couleur: inv.couleur,
-            tailles: []
-          };
-        }
-        taillesParCouleur[inv.couleur_id].tailles.push({
-          id: inv.taille.id,
-          libelle: inv.taille.libelle,
-          quantite: inv.quantite
-        });
-      });
+    // Format the response
+    const formattedArticles = articles.map(article => ({
+      id: article.id,
+      nom_produit: article.nom_produit,
+      description: article.description,
+      prix: article.prix,
+      prix_final: article.prix_final,
+      images: article.images_couleurs.map(img => img.image_url),
+      marque: article.marque,
+      genre: article.genre,
+      categorie: article.categorie,
+      created_at: article.created_at
+    }));
 
-      // Group images by color
-      const imagesParCouleur = {};
-      plainArticle.images_couleurs.forEach(image => {
-        if (!imagesParCouleur[image.couleur_id]) {
-          imagesParCouleur[image.couleur_id] = {
-            couleur: image.couleur,
-            images: []
-          };
-        }
-        imagesParCouleur[image.couleur_id].images.push(image.image_url);
-      });
-
-      return {
-        ...plainArticle,
-        stock: plainArticle.inventory.reduce((sum, inv) => sum + inv.quantite, 0),
-        tailles_par_couleur: taillesParCouleur,
-        images_par_couleur: imagesParCouleur,
-        primaryImage: plainArticle.images_couleurs.length > 0 
-          ? plainArticle.images_couleurs[0].image_url 
-          : null
-      };
-    });
-
-    res.json({
+    res.status(200).json({
       success: true,
-      data: {
-        marque,
-        articles: formattedArticles
-      }
+      data: formattedArticles
     });
-
   } catch (error) {
-    console.error("Error getting articles by marque:", error);
+    console.error("Error fetching low-price articles:", error);
     res.status(500).json({
       success: false,
-      message: "Error fetching articles by marque",
+      message: "Error fetching low-price articles",
+      error: error.message
+    });
+  }
+};
+const obtenirArticlesFemme = async (req, res) => {
+  try {
+    const articles = await Article.findAll({
+      where: {
+        genre_id: 4 // Femme
+      },
+      include: [
+        {
+          model: ArticleTaille,
+          as: 'inventory',
+          attributes: [],
+          where: { quantite: { [Op.gt]: 0 } },
+          required: true
+        },
+        {
+          model: ImageArticleCouleur,
+          as: 'images_couleurs',
+          attributes: ['image_url']
+        },
+        {
+          model: Genre,
+          as: 'genre',
+          attributes: ['id', 'libelle']
+        },
+        {
+          model: Categorie,
+          as: 'categorie',
+          attributes: ['id', 'libelle']
+        },
+        {
+          model: Marque,
+          as: 'marque',
+          attributes: ['id', 'libelle']
+        }
+      ],
+      order: [
+        ['created_at', 'DESC'] // Newest first
+      ]
+    });
+
+    const formattedArticles = articles.map(article => ({
+      id: article.id,
+      nom_produit: article.nom_produit,
+      description: article.description,
+      prix: article.prix,
+      prix_final: article.prix_final,
+      images: article.images_couleurs.map(img => img.image_url),
+      marque: article.marque,
+      genre: article.genre,
+      categorie: article.categorie,
+      created_at: article.created_at
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formattedArticles
+    });
+  } catch (error) {
+    console.error("Error fetching women's articles:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching women's articles",
       error: error.message
     });
   }
 };
 
-// Get available filter options for a brand
-const obtenirFiltresDisponiblesParMarque = async (req, res) => {
+const obtenirArticlesHomme = async (req, res) => {
   try {
-    const { id } = req.params;
-
     const articles = await Article.findAll({
-      where: { marque_id: id },
+      where: {
+        genre_id: 5 // Homme
+      },
       include: [
-        { model: Genre, as: 'genre' },
-        { model: Categorie, as: 'categorie' },
-        { model: Taille, as: 'tailles' },
-        { model: Couleur, as: 'couleurs' }
+        {
+          model: ArticleTaille,
+          as: 'inventory',
+          attributes: [],
+          where: { quantite: { [Op.gt]: 0 } },
+          required: true
+        },
+        {
+          model: ImageArticleCouleur,
+          as: 'images_couleurs',
+          attributes: ['image_url']
+        },
+        {
+          model: Genre,
+          as: 'genre',
+          attributes: ['id', 'libelle']
+        },
+        {
+          model: Categorie,
+          as: 'categorie',
+          attributes: ['id', 'libelle']
+        },
+        {
+          model: Marque,
+          as: 'marque',
+          attributes: ['id', 'libelle']
+        }
+      ],
+      order: [
+        ['created_at', 'DESC'] // Newest first
       ]
     });
 
-    // Extract unique values
-    const genres = [...new Set(articles.map(a => a.genre?.libelle).filter(Boolean))];
-    const categories = [...new Set(articles.map(a => a.categorie?.libelle).filter(Boolean))];
-    const tailles = [...new Set(articles.flatMap(a => a.tailles?.map(t => t.libelle)).filter(Boolean))];
-    const couleurs = [...new Set(articles.flatMap(a => a.couleurs?.map(c => c.libelle)).filter(Boolean))];
-
-    // Get price range
-    const prixMin = Math.min(...articles.map(a => a.prix_final));
-    const prixMax = Math.max(...articles.map(a => a.prix_final));
-
-    res.json({
-      succes: true,
-      donnees: {
-        genres,
-        categories,
-        tailles,
-        couleurs,
-        prix: { min: prixMin, max: prixMax }
-      }
-    });
-  } catch (error) {
-    console.error("Erreur lors de la récupération des filtres:", error);
-    res.status(500).json({ 
-      succes: false,
-      message: error.message 
-    });
-  }
-};
-
-// Get brand collections/categories
-const obtenirCollectionsParMarque = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const categories = await Categorie.findAll({
-      include: [{
-        model: Article,
-        as: 'articles',
-        where: { marque_id: id },
-        include: [{
-          model: ImageArticleCouleur,
-          as: 'images_couleurs',
-          limit: 1
-        }]
-      }],
-      where: {
-        '$articles.id$': { [Op.not]: null }
-      }
-    });
-
-    const formattedCategories = categories.map(categorie => ({
-      id: categorie.id,
-      nom: categorie.libelle,
-      image: categorie.articles[0]?.images_couleurs[0]?.image_url || null,
-      nombreArticles: categorie.articles.length
+    const formattedArticles = articles.map(article => ({
+      id: article.id,
+      nom_produit: article.nom_produit,
+      description: article.description,
+      prix: article.prix,
+      prix_final: article.prix_final,
+      images: article.images_couleurs.map(img => img.image_url),
+      marque: article.marque,
+      genre: article.genre,
+      categorie: article.categorie,
+      created_at: article.created_at
     }));
 
-    res.json({
-      succes: true,
-      donnees: formattedCategories
+    res.status(200).json({
+      success: true,
+      data: formattedArticles
     });
   } catch (error) {
-    console.error("Erreur lors de la récupération des collections:", error);
-    res.status(500).json({ 
-      succes: false,
-      message: error.message 
+    console.error("Error fetching men's articles:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching men's articles",
+      error: error.message
     });
   }
 };
 
+const obtenirArticleQuotidien = async (req, res) => {
+  try {
+    // Get today's date as a seed for consistent daily selection
+    const today = new Date().toISOString().split('T')[0];
+    const seed = parseInt(today.replace(/-/g, ''), 10);
+
+    // Find all articles that have at least 4 colors
+    const articles = await Article.findAll({
+      include: [
+        {
+          model: Couleur,
+          as: 'couleurs',
+          through: { attributes: [] }, // No attributes from the join table
+          required: true
+        },
+        {
+          model: Taille,
+          as: 'tailles',
+          through: {
+            attributes: ['quantite', 'couleur_id'],
+            as: 'ArticleTaille'
+          }
+        },
+        {
+          model: ImageArticleCouleur,
+          as: 'images_couleurs',
+          include: [{ model: Couleur, as: 'couleur' }]
+        },
+        { model: Genre, as: 'genre' },
+        { model: Categorie, as: 'categorie' },
+        { model: Marque, as: 'marque' }
+      ]
+    });
+
+    // Filter articles to only those with at least 4 colors
+    const articlesWith4Colors = articles.filter(article => {
+      return article.couleurs && article.couleurs.length >= 4;
+    });
+
+    if (articlesWith4Colors.length === 0) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Aucun article avec 4 couleurs trouvé" 
+      });
+    }
+
+    // Select an article based on today's seed (consistent for the day)
+    const selectedIndex = seed % articlesWith4Colors.length;
+    const selectedArticle = articlesWith4Colors[selectedIndex];
+
+    // Get all colors for this article
+    const uniqueColors = selectedArticle.couleurs;
+
+    // Select 4 colors based on today's seed (consistent for the day)
+    const selectedColors = uniqueColors
+      .sort((a, b) => {
+        // Create a consistent order based on seed + color id
+        const hashA = parseInt(
+          require('crypto')
+            .createHash('md5')
+            .update(`${seed}-${a.id}`)
+            .digest('hex')
+            .substring(0, 8), 
+          16
+        );
+        const hashB = parseInt(
+          require('crypto')
+            .createHash('md5')
+            .update(`${seed}-${b.id}`)
+            .digest('hex')
+            .substring(0, 8), 
+          16
+        );
+        return hashA - hashB;
+      })
+      .slice(0, 4);
+
+    const selectedColorIds = selectedColors.map(c => c.id);
+
+    // Format the article data with only the selected colors
+    const formattedArticle = {
+      id: selectedArticle.id,
+      nom_produit: selectedArticle.nom_produit,
+      description: selectedArticle.description,
+      prix: selectedArticle.prix,
+      prix_final: selectedArticle.prix_final,
+      sku: selectedArticle.sku,
+      seo_titre: selectedArticle.seo_titre,
+      mots_cles_seo: selectedArticle.mots_cles_seo,
+      categorie_id: selectedArticle.categorie_id,
+      marque_id: selectedArticle.marque_id,
+      genre_id: selectedArticle.genre_id,
+      created_at: selectedArticle.created_at,
+      updated_at: selectedArticle.updated_at,
+      genre: selectedArticle.genre,
+      categorie: selectedArticle.categorie,
+      marque: selectedArticle.marque,
+      couleurs: selectedColors,
+      images_couleurs: selectedArticle.images_couleurs
+        .filter(img => selectedColorIds.includes(img.couleur_id)),
+      tailles: selectedArticle.tailles
+        .filter(t => selectedColorIds.includes(t.ArticleTaille.couleur_id)),
+      stock: calculateTotalStock(selectedArticle.tailles
+        .filter(t => selectedColorIds.includes(t.ArticleTaille.couleur_id))),
+      variations: selectedArticle.tailles
+        .filter(t => selectedColorIds.includes(t.ArticleTaille.couleur_id))
+        .map(t => ({
+          taille_id: t.id,
+          couleur_id: t.ArticleTaille.couleur_id,
+          quantite: t.ArticleTaille.quantite
+        }))
+    };
+
+    // Group images by color
+    const imagesByColor = {};
+    formattedArticle.images_couleurs.forEach(img => {
+      if (!imagesByColor[img.couleur_id]) {
+        imagesByColor[img.couleur_id] = [];
+      }
+      imagesByColor[img.couleur_id].push(img.image_url);
+    });
+
+    // Group sizes by color
+    const sizesByColor = {};
+    formattedArticle.tailles.forEach(t => {
+      const colorId = t.ArticleTaille.couleur_id;
+      if (!sizesByColor[colorId]) {
+        sizesByColor[colorId] = {
+          couleur: selectedColors.find(c => c.id === colorId),
+          tailles: []
+        };
+      }
+      sizesByColor[colorId].tailles.push({
+        id: t.id,
+        libelle: t.libelle,
+        quantite: t.ArticleTaille.quantite
+      });
+    });
+
+    // Add the grouped data to the response
+    formattedArticle.images_par_couleur = imagesByColor;
+    formattedArticle.tailles_par_couleur = sizesByColor;
+
+    res.json({
+      success: true,
+      donnees: formattedArticle
+    });
+
+  } catch (error) {
+    console.error("Erreur lors de la récupération de l'article quotidien:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Erreur lors de la récupération de l'article quotidien",
+      error: error.message 
+    });
+  }
+};
 
 module.exports = {
+  obtenirArticlesPetitPrix,
   ajouterArticle,
   obtenirTousArticles,
   obtenirArticlesFille,
-     obtenirArticleParId,
- mettreAJourArticle,
+  obtenirArticleParId,
+  mettreAJourArticle,
   supprimerArticle,
   obtenirDerniersArticles,
   filtrerArticles,
@@ -1895,7 +2233,9 @@ module.exports = {
   obtenirArticlesBebe,
   ObtenirTousArticleAleatoire,
   obtenirArticleParSku,
-  obtenirArticlesParMarque,
-  obtenirFiltresDisponiblesParMarque,
-  obtenirCollectionsParMarque
+  obtenirArticlesFemme,
+  obtenirArticlesHomme,
+  filtrerArticlesGFemme,
+  filtrerArticlesGHomme,
+  obtenirArticleQuotidien
 };

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import axios from "axios";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import FormulaireAjustement from "./FormulaireAjustement";
@@ -12,9 +12,11 @@ export default function AjustementTaille() {
   const [chargement, setChargement] = useState(false);
   const [produits, setProduits] = useState([]);
   const [tailles, setTailles] = useState([]);
+  const [couleurs, setCouleurs] = useState([]);
   const [adjustment, setAdjustment] = useState({
     idProduit: "",
     idTaille: "",
+    idCouleur: "",
     quantite: 0,
     raison: "",
     raison_autre: "",
@@ -33,9 +35,10 @@ export default function AjustementTaille() {
     }
   };
 
-  const chargerTailles = async (idProduit) => {
+  const chargerTaillesEtCouleurs = async (idProduit) => {
     if (!idProduit) {
       setTailles([]);
+      setCouleurs([]);
       return;
     }
 
@@ -45,9 +48,49 @@ export default function AjustementTaille() {
         `http://localhost:5000/articles/obtenirArticleParId/${idProduit}`,
         { withCredentials: true }
       );
-      setTailles(response.data.donnees?.tailles || []);
+      
+      // Process inventory records to get tailles with color info
+      const inventoryRecords = response.data.donnees?.inventory || [];
+      const uniqueTailles = [];
+      const seenTailles = new Set();
+
+      inventoryRecords.forEach(record => {
+        if (record.taille && !seenTailles.has(record.taille.id)) {
+          seenTailles.add(record.taille.id);
+          uniqueTailles.push({
+            ...record.taille,
+            ArticleTaille: record // Preserve the inventory record
+          });
+        }
+      });
+
+      setTailles(uniqueTailles);
+      
+      // Process colors from inventory and images
+      const uniqueCouleurs = [];
+      const seenCouleurs = new Set();
+
+      // Add colors from inventory
+      inventoryRecords.forEach(record => {
+        if (record.couleur && !seenCouleurs.has(record.couleur.id)) {
+          seenCouleurs.add(record.couleur.id);
+          uniqueCouleurs.push(record.couleur);
+        }
+      });
+
+      // Add colors from images
+      const imageCouleurs = response.data.donnees?.images_couleurs || [];
+      imageCouleurs.forEach(image => {
+        if (image.couleur && !seenCouleurs.has(image.couleur.id)) {
+          seenCouleurs.add(image.couleur.id);
+          uniqueCouleurs.push(image.couleur);
+        }
+      });
+
+      setCouleurs(uniqueCouleurs);
     } catch (error) {
-      toast.error("Échec du chargement des tailles");
+      toast.error("Échec du chargement des tailles et couleurs");
+      console.error("Error loading sizes and colors:", error);
     } finally {
       setChargement(false);
     }
@@ -56,13 +99,18 @@ export default function AjustementTaille() {
   const handleAdjustmentChange = (index, updatedAdjustment) => {
     setAdjustment(updatedAdjustment);
     if (updatedAdjustment.idProduit !== adjustment.idProduit) {
-      chargerTailles(updatedAdjustment.idProduit);
+      chargerTaillesEtCouleurs(updatedAdjustment.idProduit);
     }
   };
 
   const validerFormulaire = () => {
     if (!adjustment.idProduit) {
       toast.warning("Sélection du produit requise");
+      return false;
+    }
+
+    if (!adjustment.idCouleur) {
+      toast.warning("Sélection de la couleur requise");
       return false;
     }
 
@@ -107,6 +155,7 @@ export default function AjustementTaille() {
         {
           article_id: adjustment.idProduit,
           taille_id: adjustment.idTaille,
+          couleur_id: adjustment.idCouleur,
           quantite: Number(adjustment.quantite),
           raison: adjustment.raison,
           raison_autre: adjustment.raison === 'Autre' ? adjustment.raison_autre : null,
@@ -122,6 +171,7 @@ export default function AjustementTaille() {
       setAdjustment({
         idProduit: "",
         idTaille: "",
+        idCouleur: "",
         quantite: 0,
         raison: "",
         raison_autre: "",
@@ -129,6 +179,7 @@ export default function AjustementTaille() {
         stockActuel: 0
       });
       setTailles([]);
+      setCouleurs([]);
     } catch (error) {
       console.error('Erreur API:', error);
       toast.error("Échec de l'ajustement");
@@ -154,6 +205,7 @@ export default function AjustementTaille() {
               adjustment={adjustment}
               produits={produits}
               tailles={tailles}
+              couleurs={couleurs}
               onAdjustmentChange={handleAdjustmentChange}
               loading={chargement}
             />

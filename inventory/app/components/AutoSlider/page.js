@@ -27,15 +27,7 @@ export default function AutoSlider() {
         setProducts(data.donnees.slice(0, 6))
       } catch (error) {
         console.error("Error fetching products:", error)
-        // Fallback data in case the API fails
-        setProducts([
-          { id: 1, nom: "Pull Oversize", images_couleurs: [{ image_url: "/DINA-ORANGE-3-.jpg" }] },
-          { id: 2, nom: "Pull Blanc", images_couleurs: [{ image_url: "/DINA-BLANC-1-.jpg" }] },
-          { id: 3, nom: "Pull Marron", images_couleurs: [{ image_url: "/DINA-MARRON-2A-.jpg" }] },
-          { id: 4, nom: "Pull Violet", images_couleurs: [{ image_url: "/DINA-VIOLET-1.jpg" }] },
-          { id: 5, nom: "Pull Orange", images_couleurs: [{ image_url: "/DINA-ORANGE-1-.jpg" }] },
-          { id: 6, nom: "Chemise", images_couleurs: [{ image_url: "/chemise1.jpg" }] },
-        ])
+
       } finally {
         setIsLoading(false)
       }

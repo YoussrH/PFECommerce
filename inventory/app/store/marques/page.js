@@ -137,7 +137,7 @@ export default function MarquePage() {
                   {group.brands.map((brand) => (
                     <li key={brand.id}>
                       <Link
-                        href={`/marque/${brand.id}`}
+                        href={`/store/marques/${brand.id}`}
                         className="text-sm hover:text-gray-600 hover:underline"
                       >
                         {brand.libelle}
@@ -248,7 +248,7 @@ export default function MarquePage() {
 function BrandCard({ brand }) {
   return (
     <Link
-      href={`/marque/${brand.id}`}
+      href={`/store/marques/${brand.id}`}
       className="group flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
     >
       {brand.featured_image && (

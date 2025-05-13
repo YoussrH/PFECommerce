@@ -12,17 +12,18 @@ export const AuthProvider = ({ children }) => {
   const [authLoading, setAuthLoading] = useState(false);
   const router = useRouter();
 
-  const checkAuth = useCallback(async () => {
-    try {
-      setLoading(true);
-      
+// In your AuthContext
+const checkAuth = useCallback(async () => {
+  try {
+    setLoading(true);
+    
+    // Only check auth if we don't already have a user
+    if (!user) {
       // First try with token
       const token = localStorage.getItem('adminToken');
       if (token) {
         const response = await axios.get('http://localhost:5000/auth/utilisateur', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          },
+          headers: { Authorization: `Bearer ${token}` },
           withCredentials: true
         });
         
@@ -43,13 +44,14 @@ export const AuthProvider = ({ children }) => {
       if (sessionResponse.data.utilisateur) {
         setUser(sessionResponse.data.utilisateur);
       }
-    } catch (error) {
-      localStorage.removeItem('adminToken');
-      setUser(null);
-    } finally {
-      setLoading(false);
     }
-  }, []);
+  } catch (error) {
+    localStorage.removeItem('adminToken');
+    setUser(null);
+  } finally {
+    setLoading(false);
+  }
+}, [user]); // Add user as dependency
 
   useEffect(() => {
     checkAuth();

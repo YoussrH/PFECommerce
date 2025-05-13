@@ -45,6 +45,42 @@ const obtenirToutesTailles = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+const obtenirToutesTaillesFemme = async (req, res) => {
+  try {
+    const { categorie_id, genre } = req.query; // Changed genre_id to genre
+    let conditionWhere = {};
+    
+    if (categorie_id) conditionWhere.categorie_id = categorie_id;
+    conditionWhere.genre_id = 4; // Always filter for women's sizes
+    
+    const tailles = await Taille.findAll({ 
+      where: conditionWhere,
+      order: [['libelle', 'ASC']] // Optional: sort sizes
+    });
+    
+    res.json(tailles);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+const obtenirToutesTaillesHomme = async (req, res) => {
+  try {
+    const { categorie_id, genre } = req.query; // Changed genre_id to genre
+    let conditionWhere = {};
+    
+    if (categorie_id) conditionWhere.categorie_id = categorie_id;
+    conditionWhere.genre_id = 5; // Always filter for women's sizes
+    
+    const tailles = await Taille.findAll({ 
+      where: conditionWhere,
+      order: [['libelle', 'ASC']] // Optional: sort sizes
+    });
+    
+    res.json(tailles);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
 const obtenirTailleParId = async (req, res) => {
   try {
@@ -216,5 +252,7 @@ module.exports = {
   supprimerTaille,
   listerTaillesParCategorie,
   listerTaillesParGenre,
-  ajouterTaillesMultiple
+  ajouterTaillesMultiple,
+  obtenirToutesTaillesFemme,
+  obtenirToutesTaillesHomme
 };

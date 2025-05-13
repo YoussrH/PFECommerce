@@ -171,16 +171,7 @@ const HommeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                   </div>
 
                   <div className="mt-3 text-center relative">
-                  {/*   <p className="text-xs text-gray-600 font-mono tracking-wider uppercase">
-                      {marque || "Marque inconnue"}
-                    </p>
-                    <h3 className="mt-1 text-sm font-medium text-gray-900 font-mono">
-                      {produit.nom_produit || "Produit sans nom"}
-                    </h3>
-                    <p className="mt-1 text-sm font-semibold text-gray-900 font-mono">
-                      {produit.prix_final || produit.prix || 0} DT
-                    </p> */}
-                    <p className="text-xs text-gray-600 font-mono tracking-wider uppercase  transition-opacity duration-300">
+                    <p className="text-xs text-gray-600 font-mono tracking-wider uppercase transition-opacity duration-300">
                       {marque || "Marque inconnue"}
                     </p>
                     <h3 className="mt-1 text-sm font-medium text-gray-900 font-mono group-hover:opacity-0 transition-opacity duration-300">
@@ -190,13 +181,12 @@ const HommeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                       {produit.prix_final || produit.prix || 0} DT
                     </p>
 
-
-                    <div className="absolute inset-0 flex items-center justify-center p-3 pt-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ">
-                      <div className="flex gap-2 w-full ">
+                    <div className="absolute inset-0 flex items-center justify-center p-3 pt-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="flex gap-2 w-full">
                         <Button
                           variant="default"
                           size="sm"
-                          className="flex-1 bg-black  hover:bg-white hover:text-black border border-black text-white text-xs rounded-full"
+                          className="flex-1 bg-black hover:bg-white hover:text-black border border-black text-white text-xs rounded-full"
                           onClick={(e) => {
                             e.preventDefault()
                             handleClicAchatRapide(produit)
@@ -204,9 +194,9 @@ const HommeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                         >
                           Achat Rapide
                         </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-white text-orange-500 ">
+                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-white text-orange-500">
                           <Heart className="h-5 w-5" />
-                          <span className="sr-only ">Ajouter aux favoris</span>
+                          <span className="sr-only">Ajouter aux favoris</span>
                         </Button>
                       </div>
                     </div>
@@ -313,16 +303,6 @@ const HommeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                     className={`flex items-center gap-2 ${
                       !selectedSize || product.stock <= 0 ? "opacity-50 cursor-not-allowed" : ""
                     }`}
-                    onClick={async () => {
-                      const ajoute = await handleAjoutPanier({
-                        produit: product,
-                        tailleSelectionnee: selectedSize,
-                        quantite: 1,
-                      })
-                      if (ajoute) {
-                        setProduitAchatRapide(null)
-                      }
-                    }}
                     disabled={!selectedSize || product.stock <= 0 || isAddingToCart}
                   >
                     {isAddingToCart ? (
@@ -337,9 +317,6 @@ const HommeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                   <Button
                     variant="secondary"
                     className={`${!selectedSize || product.stock <= 0 ? "opacity-50 cursor-not-allowed" : ""}`}
-                    onClick={async () => {
-                      await handleAchatRapide({ produit: product, tailleSelectionnee: selectedSize })
-                    }}
                     disabled={!selectedSize || product.stock <= 0 || isAddingToCart}
                   >
                     Achetez maintenant

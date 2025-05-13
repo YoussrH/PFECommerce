@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { toast } from "sonner"
 import Breadcrumb from "@/app/components/Breadcrumb/Breadcrumb";
-import FilterBar from "@/app/components/Product/Filterbar"
 import FemmeProductList from "./FemmeProductList";
+import FilterBarFemme from "@/app/components/Product/FilterBarFemme";
 
 const FemmePage = () => {
   const pathname = usePathname() || ""
@@ -28,7 +28,7 @@ const FemmePage = () => {
     const chargerProduits = async () => {
       try {
         setIsLoading(true)
-        const response = await fetch("http://localhost:5000/articles/obtenirDerniersArticles")
+        const response = await fetch("http://localhost:5000/articles/obtenirArticlesFemme") // Updated endpoint
 
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`)
@@ -91,12 +91,15 @@ const FemmePage = () => {
         return
       }
 
-      const response = await fetch("http://localhost:5000/articles/filtrerArticles", {
+      const response = await fetch("http://localhost:5000/articles/filtrerArticlesGFemme", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ filtres }),
+        body: JSON.stringify({ 
+          filtres,
+          genreId: 4 // Explicitly setting women's category
+        }),
       })
 
       if (!response.ok) {
@@ -122,14 +125,14 @@ const FemmePage = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-4xl mx-auto text-center mb-10">
           <h1 className="text-sm sm:text-base md:text-lg font-serif font-semibold mb-3 uppercase tracking-wider">
-            Nouvelles collections
+            Nouvelles collections FEMME
           </h1>
           <p className="font-mono text-xs md:text-sm text-gray-600 max-w-2xl mx-auto">
-            Découvrez les nouvelles collections Printemps-Été 2025 des plus belles marques
+            Découvrez les nouvelles collections Femme Printemps-Été 2025 des plus belles marques
           </p>
         </div>
 
-        <FilterBar
+        <FilterBarFemme
           filtresSelectionnes={filtresSelectionnes}
           onSelectionFiltre={handleSelectionFiltre}
           onSuppressionFiltre={handleSuppressionFiltre}

@@ -1,10 +1,7 @@
 const db = require('../models');
-const Marque = db.Marque;
-const Article = db.Article;
-const Categorie = db.Categorie;
-const Genre = db.Genre;
-const ImageArticleCouleur = db.ImageArticleCouleur;
+const {Marque, Article, ImageArticleCouleur, Taille,Genre,ArticleTaille,Categorie,} = require('../models');
 const sequelize = db.sequelize;
+const { Op } = require('sequelize');
 const ajouterMarque = async (req, res) => {
   try {
     if (!req.body.libelle) {
@@ -130,35 +127,59 @@ const supprimerToutesLesMarques = async (req, res) => {
   }
 };
 
-/* // In marqueController.js, replace the popular marques query with:
-const obtenirMarquesPopulaires = async (req, res) => {
+
+
+/* const obtenirMarquesPopulaires = async (req, res) => {
   try {
-    // Use raw query for better performance and PostgreSQL compatibility
-    const marques = await sequelize.query(`
-      SELECT 
-        m.id,
-        m.libelle,
-        COUNT(a.id) as "article_count",
-        (
-          SELECT iac.image_url 
-          FROM image_article_couleur iac
-          JOIN article a2 ON a2.id = iac.article_id
-          WHERE a2.marque_id = m.id
-          LIMIT 1
-        ) as "featured_image"
-      FROM marque m
-      JOIN article a ON a.marque_id = m.id
-      JOIN image_article_couleur iac ON iac.article_id = a.id
-      GROUP BY m.id
-      HAVING COUNT(a.id) > 0
-      ORDER BY COUNT(a.id) DESC
-    `, {
-      type: sequelize.QueryTypes.SELECT
+    // Step 1: Get brands with article counts
+    const brands = await Marque.findAll({
+      attributes: ['id', 'libelle'],
+      include: [
+        {
+          model: Article,
+          attributes: [],
+          include: [
+            {
+              model: ArticleTaille,
+              where: { quantite: { [Op.gt]: 0 } },
+              attributes: []
+            }
+          ]
+        }
+      ],
+      group: ['Marque.id'],
+      order: [[sequelize.fn('COUNT', sequelize.col('articles.id')), 'DESC']],
+      limit: 12
     });
 
-    res.json({
+    // Step 2: Get featured images
+    const brandIds = brands.map(b => b.id);
+    const featuredImages = await ImageArticleCouleur.findAll({
+      attributes: ['image_url'],
+      include: [{
+        model: Article,
+        attributes: ['marque_id'],
+        where: { marque_id: { [Op.in]: brandIds } }
+      }],
+      group: ['Article.marque_id']
+    });
+
+    // Step 3: Combine results
+    const result = brands.map(brand => {
+      const image = featuredImages.find(img => 
+        img.article.marque_id === brand.id
+      );
+      return {
+        id: brand.id,
+        libelle: brand.libelle,
+        article_count: brand.articles?.length || 0,
+        featured_image: image?.image_url || null
+      };
+    });
+
+    res.status(200).json({
       success: true,
-      data: marques
+      data: result
     });
   } catch (error) {
     console.error("Error getting popular marques:", error);
@@ -169,113 +190,6 @@ const obtenirMarquesPopulaires = async (req, res) => {
     });
   }
 };
-const obtenirMarquesParGenre = async (req, res) => {
-  try {
-    const { genre } = req.params;
-
-    // First try to find genre by ID, then by name if not found
-    const genreRecord = await sequelize.query(`
-      SELECT id, libelle FROM genre 
-      WHERE id = :genre OR libelle ILIKE :genreLike
-      LIMIT 1
-    `, {
-      replacements: { 
-        genre: isNaN(genre) ? null : parseInt(genre),
-        genreLike: `%${genre}%` 
-      },
-      type: sequelize.QueryTypes.SELECT
-    });
-
-    if (!genreRecord || genreRecord.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Genre non trouvé"
-      });
-    }
-
-    const marques = await sequelize.query(`
-      SELECT 
-        m.id,
-        m.libelle,
-        (
-          SELECT iac.image_url 
-          FROM image_article_couleur iac
-          JOIN article a2 ON a2.id = iac.article_id
-          WHERE a2.marque_id = m.id AND a2.genre_id = :genreId
-          LIMIT 1
-        ) as "featured_image"
-      FROM marque m
-      JOIN article a ON a.marque_id = m.id
-      WHERE a.genre_id = :genreId
-      AND (
-        SELECT COALESCE(SUM(quantite), 0)
-        FROM article_taille
-        WHERE article_taille.article_id = a.id
-      ) > 0
-      GROUP BY m.id
-      ORDER BY m.libelle ASC
-    `, {
-      replacements: { genreId: genreRecord[0].id },
-      type: sequelize.QueryTypes.SELECT
-    });
-
-    res.json({
-      success: true,
-      data: {
-        genre: genreRecord[0],
-        marques: marques
-      }
-    });
-  } catch (error) {
-    console.error("Erreur lors de la récupération des marques par genre:", error);
-    res.status(500).json({
-      success: false,
-      message: "Erreur lors de la récupération des marques",
-      error: error.message
-    });
-  }
-}; */
-
-// Remove the obtenirMarquesAvecArticleAleatoire function completely
-// Keep only the following functions:
-const obtenirMarquesPopulaires = async (req, res) => {
-  try {
-    const marques = await sequelize.query(`
-      SELECT 
-        m.id,
-        m.libelle,
-        COUNT(a.id) as "article_count",
-        (
-          SELECT iac.image_url 
-          FROM image_article_couleur iac
-          WHERE iac.article_id = a.id
-          LIMIT 1
-        ) as "featured_image"
-      FROM marque m
-      JOIN article a ON a.marque_id = m.id
-      WHERE EXISTS (
-        SELECT 1 FROM article_taille at
-        WHERE at.article_id = a.id
-        AND at.quantite > 0
-      )
-      GROUP BY m.id, a.id
-      HAVING COUNT(a.id) > 0
-      ORDER BY COUNT(a.id) DESC
-      LIMIT 12
-    `, {
-      type: sequelize.QueryTypes.SELECT
-    });
-
-    res.json(marques);
-  } catch (error) {
-    console.error("Error getting popular marques:", error);
-    res.status(500).json({
-      message: "Error fetching popular marques",
-      error: error.message
-    });
-  }
-};
-
 const obtenirMarquesParGenre = async (req, res) => {
   try {
     const { genre } = req.params;
@@ -340,9 +254,265 @@ const obtenirMarquesParGenre = async (req, res) => {
       error: error.message
     });
   }
+}; */
+const obtenirMarquesParGenre = async (req, res) => {
+  try {
+    const { genre } = req.params;
+
+    // Find genre by ID or name
+    const genreRecord = await Genre.findOne({
+      where: {
+        [Op.or]: [
+          isNaN(genre) ? null : { id: parseInt(genre) },
+          { libelle: { [Op.iLike]: `%${genre}%` } }
+        ]
+      }
+    });
+
+    if (!genreRecord) {
+      return res.status(404).json({
+        success: false,
+        message: "Genre non trouvé"
+      });
+    }
+
+    // Get brands with articles in this genre that have inventory
+    const marques = await Marque.findAll({
+      attributes: ['id', 'libelle'],
+      include: [
+        {
+          model: Article,
+          as: 'articles',
+          attributes: [],
+          where: { 
+            genre_id: genreRecord.id,
+            '$inventory.quantite$': { [Op.gt]: 0 }
+          },
+          include: [
+            {
+              model: ArticleTaille,
+              as: 'inventory',
+              attributes: [],
+              required: true
+            }
+          ],
+          required: true
+        },
+        {
+          model: Article,
+          as: 'articles',
+          attributes: [],
+          include: [
+            {
+              model: ImageArticleCouleur,
+              as: 'images_couleurs',
+              attributes: ['image_url'],
+              limit: 1,
+              separate: true
+            }
+          ]
+        }
+      ],
+      group: ['Marque.id'],
+      order: [['libelle', 'ASC']]
+    });
+
+    // Format the response
+    const formattedMarques = marques.map(marque => ({
+      id: marque.id,
+      libelle: marque.libelle,
+      featured_image: marque.articles[0]?.images_couleurs[0]?.image_url || null
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        genre: genreRecord,
+        marques: formattedMarques
+      }
+    });
+  } catch (error) {
+    console.error("Erreur lors de la récupération des marques par genre:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des marques",
+      error: error.message
+    });
+  }
 };
+const obtenirMarquesPopulaires = async (req, res) => {
+  try {
+    // Step 1: Get brands with article counts
+    const brands = await Marque.findAll({
+      attributes: [
+        'id',
+        'libelle',
+        [sequelize.fn('COUNT', sequelize.col('articles.id')), 'article_count']
+      ],
+      include: [
+        {
+          model: Article,
+          as: 'articles',
+          attributes: [],
+          required: true,
+          include: [
+            {
+              model: ArticleTaille,
+              as: 'inventory',
+              attributes: [],
+              where: { quantite: { [Op.gt]: 0 } },
+              required: true
+            }
+          ]
+        }
+      ],
+      group: ['Marque.id'],
+      order: [[sequelize.literal('article_count'), 'DESC']],
+      limit: 12,
+      subQuery: false
+    });
 
+    // Step 2: Get featured images for each brand
+    const brandIds = brands.map(brand => brand.id);
+    const featuredImages = await ImageArticleCouleur.findAll({
+      attributes: [
+        'image_url',
+        [sequelize.col('article.marque_id'), 'marque_id']
+      ],
+      include: [
+        {
+          model: Article,
+          as: 'article',
+          attributes: [],
+          where: { marque_id: { [Op.in]: brandIds } }
+        }
+      ],
+      // Use DISTINCT ON instead of GROUP BY for PostgreSQL
+      order: [
+        [sequelize.col('article.marque_id'), 'ASC'],
+        ['id', 'ASC'] // You might want to order by something more meaningful
+      ],
+      raw: true
+    });
 
+    // For PostgreSQL, we need to manually filter to get one image per brand
+    const uniqueImages = {};
+    featuredImages.forEach(img => {
+      if (!uniqueImages[img.marque_id]) {
+        uniqueImages[img.marque_id] = img.image_url;
+      }
+    });
+
+    // Step 3: Combine results
+    const result = brands.map(brand => ({
+      id: brand.id,
+      libelle: brand.libelle,
+      article_count: brand.get('article_count'),
+      featured_image: uniqueImages[brand.id] || null
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error("Error getting popular marques:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching popular marques",
+      error: error.message
+    });
+  }
+};
+const obtenirArticlesParMarque = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const marque = await Marque.findByPk(id);
+    if (!marque) {
+      return res.status(404).json({
+        success: false,
+        message: "Marque non trouvée"
+      });
+    }
+
+    const articles = await Article.findAll({
+      where: { marque_id: id },
+      include: [
+        {
+          model: ArticleTaille,
+          as: 'inventory',
+          attributes: [],
+          where: { quantite: { [Op.gt]: 0 } },
+          required: true
+        },
+        {
+          model: Taille,
+          as: 'tailles',
+          through: { 
+            attributes: ['quantite'],
+            as: 'ArticleTaille'
+          }
+        },
+        {
+          model: ImageArticleCouleur,
+          as: 'images_couleurs',
+          attributes: ['image_url']
+        },
+        {
+          model: Marque,
+          as: 'marque',
+          attributes: ['id', 'libelle']
+        },
+        {
+          model: Genre,
+          as: 'genre',
+          attributes: ['id', 'libelle']
+        },
+        {
+          model: Categorie,
+          as: 'categorie',
+          attributes: ['id', 'libelle']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    const formattedArticles = articles.map(article => ({
+      id: article.id,
+      nom_produit: article.nom_produit,
+      description: article.description,
+      prix: article.prix,
+      prix_final: article.prix_final,
+      images: article.images_couleurs.map(img => img.image_url),
+      images_couleurs: article.images_couleurs,
+      tailles: article.tailles.map(t => ({
+        id: t.id,
+        libelle: t.libelle,
+        quantite: t.ArticleTaille.quantite
+      })),
+      marque: article.marque,
+      genre: article.genre,
+      categorie: article.categorie,
+      created_at: article.created_at
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        marque,
+        articles: formattedArticles
+      }
+    });
+  } catch (error) {
+    console.error("Error getting articles by marque:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching articles by marque",
+      error: error.message
+    });
+  }
+};
 module.exports = {
 
 
@@ -354,6 +524,7 @@ module.exports = {
   supprimerToutesLesMarques,
   obtenirMarquesPopulaires,
   obtenirMarquesParGenre,
+  obtenirArticlesParMarque
   
 
 };
