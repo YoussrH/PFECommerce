@@ -8,7 +8,7 @@ module.exports = function(models) {
       'Marque', 'Couleur', 'Commande', 'Panier', 'RemiseArticle', 'AjustementStock', 'Livreur',
       'RemiseCategorie', 'RemiseUtilisateur', 'RemiseTaille', 'RemiseGenre', 'LivreurLocalisation',
       'CommandeArticle', 'ArticlePanier', 'Adresse', 'ArticleCouleur', 'ArticleTaille', 'Utilisateur',
-      'Facture', 'CommandeHistorique', 'Colis', 'Retour', 'HistoriqueAction'
+      'Facture','ListeEnvies', 'CommandeHistorique', 'Colis', 'Retour', 'HistoriqueAction'
     ];
 
     // Check model availability
@@ -49,7 +49,8 @@ module.exports = function(models) {
       Facture,
       CommandeHistorique,
       Colis,
-      Retour
+      Retour,
+      ListeEnvies
     } = models;
 
     /* ==============================================
@@ -674,6 +675,32 @@ module.exports = function(models) {
         as: 'colis',
         onDelete: 'SET NULL'
       });
+/**Liste denvie */
+// In your relations setup file
+ListeEnvies.belongsTo(Utilisateur, {
+  foreignKey: 'utilisateur_id',
+  as: 'utilisateur',
+  onDelete: 'CASCADE'
+});
+
+ListeEnvies.belongsTo(Article, {
+  foreignKey: 'article_id',
+  as: 'article',
+  onDelete: 'CASCADE'
+});
+
+Utilisateur.hasMany(ListeEnvies, {
+  foreignKey: 'utilisateur_id',
+  as: 'liste_envies',
+  onDelete: 'CASCADE'
+});
+
+Article.hasMany(ListeEnvies, {
+  foreignKey: 'article_id',
+  as: 'dans_liste_envies',
+  onDelete: 'CASCADE'
+});
+
     console.log('✅ All model associations set up successfully');
   } catch (error) {
     console.error('❌ Error setting up model relations:', error);

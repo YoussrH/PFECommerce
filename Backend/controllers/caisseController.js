@@ -4,173 +4,6 @@ const { Commande, ArticleCommande, Utilisateur, Client, Marque, CommandeArticle,
 
 const { generateOrderReference } = require('../services/orderReferenceService');
 
-/* const initialiserCommande = async (req, res) => {
-  const transaction = await sequelize.transaction({
-    isolationLevel: Sequelize.Transaction.REPEATABLE_READ // Changed from SERIALIZABLE for better performance
-  });
-
-  try {
-    const idUtilisateur = req.utilisateur?.id;
-    const guestToken = req.headers['x-guest-token'];
-
-    // Step 1: Try to find existing cart for authenticated user
-    let panier = await Panier.findOne({
-      where: { utilisateur_id: idUtilisateur },
-      transaction
-    });
-
-    // If no cart found for authenticated user but we have a guest token
-    if (!panier && idUtilisateur && guestToken) {
-      // Find and lock the guest cart
-      const guestCart = await Panier.findOne({
-        where: { guest_token: guestToken },
-        include: [{
-          model: ArticlePanier,
-          as: 'panier_articles',
-          required: false // Changed to false to include empty carts
-        }],
-        transaction,
-        lock: true
-      });
-
-      if (guestCart) {
-        // Migrate guest cart to authenticated user
-        await Panier.update(
-          { 
-            utilisateur_id: idUtilisateur, 
-            guest_token: null 
-          },
-          { 
-            where: { id: guestCart.id }, 
-            transaction 
-          }
-        );
-        
-        // Get the migrated cart with items
-        panier = await Panier.findByPk(guestCart.id, { 
-          include: [{ 
-            model: ArticlePanier, 
-            as: 'panier_articles',
-            include: [
-              { model: Article, as: 'article' },
-              { model: Couleur, as: 'couleur' },
-              { model: Taille, as: 'taille' }
-            ]
-          }],
-          transaction
-        });
-      }
-    }
-
-    // If still no cart (either no guest cart or not authenticated)
-    if (!panier) {
-      panier = await Panier.findOne({
-        where: { guest_token: guestToken },
-        include: [{
-          model: ArticlePanier,
-          as: 'panier_articles',
-          required: false
-        }],
-        transaction
-      });
-    }
-
-    if (!panier) {
-      await transaction.rollback();
-      return res.status(400).json({ 
-        success: false,
-        message: "Aucun panier actif trouvé" 
-      });
-    }
-
-    // Get cart items (either from migrated cart or existing cart)
-    const panierArticles = panier.panier_articles || await ArticlePanier.findAll({
-      where: { panier_id: panier.id },
-      include: [
-        { model: Article, as: 'article' },
-        { model: Couleur, as: 'couleur' },
-        { model: Taille, as: 'taille' }
-      ],
-      transaction
-    });
-
-    if (!panierArticles?.length) {
-      await transaction.rollback();
-      return res.status(400).json({ 
-        success: false,
-        message: "Le panier est vide" 
-      });
-    }
-
-    // Verify stock for all items with row locking
-    const articlesAvecStock = await Promise.all(
-      panierArticles.map(async (item) => {
-        const stock = await ArticleTaille.findOne({
-          where: {
-            article_id: item.article_id,
-            couleur_id: item.couleur_id,
-            taille_id: item.taille_id,
-            deleted_at: null
-          },
-          transaction,
-          lock: true
-        });
-        
-        return {
-          ...item.get({ plain: true }),
-          stock_disponible: stock?.quantite || 0,
-          stock_row: stock
-        };
-      })
-    );
-
-    const articlesIndisponibles = articlesAvecStock
-      .filter(item => item.quantite > item.stock_disponible);
-
-    if (articlesIndisponibles.length > 0) {
-      await transaction.rollback();
-      return res.status(400).json({
-        success: false,
-        message: "Certains articles ne sont plus disponibles",
-        data: {
-          unavailableItems: articlesIndisponibles.map(item => ({
-            article_id: item.article_id,
-            quantite_demandee: item.quantite,
-            quantite_disponible: item.stock_disponible
-          }))
-        }
-      });
-    }
-
-    // Determine next step based on auth status
-    const etapeSuivante = idUtilisateur ? '/caisse/adresse' : '/caisse/identification';
-
-    await transaction.commit();
-    return res.status(200).json({
-      success: true,
-      data: {
-        etapeSuivante,
-        panier_id: panier.id,
-        cartItems: panierArticles.map(item => ({
-          id: item.id,
-          article_id: item.article_id,
-          quantite: item.quantite,
-          prix: item.prix_au_moment_ajout
-        }))
-      }
-    });
-
-  } catch (error) {
-    await transaction.rollback();
-    console.error('Checkout init error:', error);
-    return res.status(500).json({
-      success: false,
-      message: "Erreur lors de l'initialisation de la commande",
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-}; */
-
 const initialiserCommande = async (req, res) => {
   const transaction = await sequelize.transaction({
     isolationLevel: Sequelize.Transaction.REPEATABLE_READ
@@ -367,21 +200,38 @@ const initialiserCommande = async (req, res) => {
 };
 
 const obtenirAdresses = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     const adresses = await Adresse.findAll({
-      where: { utilisateur_id: req.utilisateur.id },
-      order: [['est_principale', 'DESC'], ['created_at', 'DESC']]
+      where: { client_id: req.utilisateur.id },
+      order: [
+        ['est_principale', 'DESC'], // Adresse principale en premier
+        ['created_at', 'ASC'] // Plus anciennes en premier
+      ],
+      transaction
     });
 
+    // Si aucune adresse principale mais il y a des adresses
+    if (adresses.length > 0 && !adresses.some(a => a.est_principale)) {
+      // Définir la plus ancienne comme principale
+      await adresses[0].update({ est_principale: true }, { transaction });
+      // Recharger les adresses après mise à jour
+      adresses[0].est_principale = true;
+    }
+
+    await transaction.commit();
+    
     res.status(200).json({
       success: true,
       data: adresses
     });
   } catch (error) {
+    await transaction.rollback();
     console.error('Erreur de récupération des adresses:', error);
     res.status(500).json({
       success: false,
-      message: "Erreur lors de la récupération des adresses"
+      message: "Erreur lors de la récupération des adresses",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -414,24 +264,11 @@ const creerAdresse = async (req, res) => {
       ville, 
       gouvernorat, 
       telephone,
-      est_principale 
+      est_principale = false 
     } = req.body;
 
-    if (est_principale) {
-      await Adresse.update(
-        { est_principale: false },
-        { 
-          where: { 
-            utilisateur_id: req.utilisateur.id,
-            est_principale: true
-          },
-          transaction 
-        }
-      );
-    }
-
     const nouvelleAdresse = await Adresse.create({
-      utilisateur_id: req.utilisateur.id,
+      client_id: req.utilisateur.id,
       nom_complet,
       adresse,
       complement,
@@ -454,7 +291,49 @@ const creerAdresse = async (req, res) => {
     console.error('Erreur de création d\'adresse:', error);
     res.status(500).json({ 
       success: false,
-      message: "Erreur lors de la création de l'adresse"
+      message: "Erreur lors de la création de l'adresse",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+const definirAdressePrincipale = async (req, res) => {
+  const { adresseId } = req.params;
+  const transaction = await sequelize.transaction();
+
+  try {
+    // 1. Trouver l'adresse
+    const adresse = await Adresse.findOne({
+      where: { id: adresseId, client_id: req.utilisateur.id },
+      transaction
+    });
+
+    if (!adresse) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: "Adresse non trouvée" 
+      });
+    }
+
+    // 2. Mettre à jour toutes les adresses (hook beforeSave fera ce travail)
+    await adresse.update({ est_principale: true }, { transaction });
+
+    await transaction.commit();
+    return res.json({ 
+      success: true, 
+      message: "Adresse principale mise à jour",
+      data: {
+        adresse_id: adresse.id,
+        est_principale: true
+      }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Erreur de mise à jour de l\'adresse principale:', error);
+    res.status(500).json({ 
+      success: false,
+      message: "Erreur lors de la mise à jour de l'adresse principale",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -1158,5 +1037,6 @@ module.exports = {
   sauvegarderAdresseLivraison,
   traiterPaiement,
   obtenirConfirmationCommande,
-  sauvegarderMethodeLivraison
+  sauvegarderMethodeLivraison,
+  definirAdressePrincipale
 };

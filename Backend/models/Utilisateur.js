@@ -83,6 +83,12 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'utilisateur_id',
       as: 'modifications',
     });
+    // In Utilisateur.associate
+Utilisateur.hasMany(models.ListeEnvies, {
+  foreignKey: 'utilisateur_id',
+  as: 'liste_envies',
+  onDelete: 'CASCADE'
+});
   };
 
   return Utilisateur;

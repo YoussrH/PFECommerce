@@ -1,5 +1,4 @@
 "use client"
-
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
@@ -14,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useWishlist } from "@/hooks/useWishlist"
 
 export default function DetailsProduit() {
   const { id } = useParams()
@@ -31,6 +31,7 @@ export default function DetailsProduit() {
   const [chargementAjout, setChargementAjout] = useState(false)
 
   const { panier, chargement: chargementPanier, ajouterArticle, recupererPanier } = usePanier()
+  const { basculerListeEnvies, estDansListeEnvies, chargement: chargementWishlist } = useWishlist()
 
   const verifierStatutStock = () => {
     if (!couleurSelectionnee || !produit?.tailles_par_couleur[couleurSelectionnee.id]?.tailles) {
@@ -175,7 +176,6 @@ export default function DetailsProduit() {
 
     setChargementAjout(true)
     try {
-      // Ajouter chaque taille sélectionnée au panier
       for (const taille of taillesSelectionnees) {
         const succes = await ajouterArticle(produit.id, couleurSelectionnee.id, taille.id, taille.quantite)
 
@@ -184,10 +184,8 @@ export default function DetailsProduit() {
         }
       }
 
-      // Rafraîchir le panier
       await recupererPanier()
 
-      // Afficher un message unique avec option pour voir le panier
       const message =
         taillesSelectionnees.length === 1
           ? `${produit.nom_produit} ajouté au panier avec succès`
@@ -205,6 +203,11 @@ export default function DetailsProduit() {
       setChargementAjout(false)
     }
   }
+
+  const handleWishlistClick = async () => {
+    if (!produit?.id) return;
+    await basculerListeEnvies(produit.id);
+  };
 
   const taillesDisponibles = couleurSelectionnee
     ? produit?.tailles_par_couleur[couleurSelectionnee.id]?.tailles || []
@@ -244,7 +247,6 @@ export default function DetailsProduit() {
       <BreadcrumbArticle />
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10">
-          {/* Galerie d'images - Mobile */}
           <div className="md:hidden">
             <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
               {imagesDisponibles.length > 0 ? (
@@ -284,7 +286,6 @@ export default function DetailsProduit() {
             )}
           </div>
 
-          {/* Galerie d'images - Desktop */}
           <div className="hidden md:block">
             <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
               {imagesDisponibles.length > 0 ? (
@@ -322,7 +323,6 @@ export default function DetailsProduit() {
             )}
           </div>
 
-          {/* Détails du produit */}
           <div className="space-y-4">
             <div className="space-y-1">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -355,7 +355,6 @@ export default function DetailsProduit() {
 
               <Separator className="my-3" />
 
-              {/* Sélecteur de couleur */}
               {produit.couleurs.length > 0 && (
                 <div className="space-y-2">
                   <h3 className="text-xs sm:text-sm font-medium">Couleur</h3>
@@ -381,7 +380,6 @@ export default function DetailsProduit() {
                 </div>
               )}
 
-              {/* Sélecteur de taille */}
               {couleurSelectionnee && taillesDisponibles.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
@@ -420,7 +418,6 @@ export default function DetailsProduit() {
                 </div>
               )}
 
-              {/* Sélecteurs de quantité pour chaque taille sélectionnée */}
               {taillesSelectionnees.length > 0 && (
                 <Card className="mt-4">
                   <CardContent className="p-3">
@@ -457,7 +454,6 @@ export default function DetailsProduit() {
                 </Card>
               )}
 
-              {/* Section d'ajout au panier */}
               <div className="flex flex-col sm:flex-row gap-2 pt-3">
                 <Button
                   onClick={handleAjoutAuPanier}
@@ -474,8 +470,17 @@ export default function DetailsProduit() {
                   )}
                 </Button>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="icon" className="p-1.5 aspect-square">
-                    <Heart className="h-4 w-4" />
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="p-1.5 aspect-square"
+                    onClick={handleWishlistClick}
+                    disabled={chargementWishlist}
+                  >
+                    <Heart 
+                      className="h-4 w-4" 
+                      fill={produit?.id && estDansListeEnvies(produit.id) ? "currentColor" : "none"}
+                    />
                   </Button>
                   <Button variant="outline" size="icon" className="p-1.5 aspect-square">
                     <Share2 className="h-4 w-4" />
@@ -483,8 +488,6 @@ export default function DetailsProduit() {
                 </div>
               </div>
 
-
-               {/* Section plus d'informations */}
               <div className="relative pt-1">
                 <button
                   onClick={() => setAfficherConseilsLivraison(!afficherConseilsLivraison)}
@@ -518,4 +521,3 @@ export default function DetailsProduit() {
     </>
   )
 }
-

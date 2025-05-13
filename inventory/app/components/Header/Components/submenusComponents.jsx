@@ -3,7 +3,7 @@ import React from "react";
 import SubmenuNouveautes from "../Submenu/SubmenuNouveautes";
 import SubmenuPetitPrix from "../Submenu/SubmenuPetitPrix";
 import SubmenuFemme from "../Submenu/SubmenuFemme";
-import SubmenuGarçon from "../Submenu/SubmenuGarçon";
+import SubmenuGarçon from "../Submenu/SubmenuHomme";
 import SubmenuMarque from "../Submenu/SubmenuMarque";
 import SubmenuOutlet from "../Submenu/SubmenuOutlet";
 import SubmenuTendance from "../Submenu/SubmenuTendances";

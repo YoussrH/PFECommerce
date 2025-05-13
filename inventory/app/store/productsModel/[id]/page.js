@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { usePanier } from "@/hooks/use-panier";
+import { useWishlist } from "@/hooks/useWishlist";
 
 const ProductDetailsModel = ({ productId }) => {
   const router = useRouter();
@@ -26,6 +27,12 @@ const ProductDetailsModel = ({ productId }) => {
     ajouterArticle,
     recupererPanier
   } = usePanier();
+
+  const {
+    basculerListeEnvies,
+    estDansListeEnvies,
+    chargement: chargementWishlist
+  } = useWishlist();
 
   useEffect(() => {
     const recupererProduit = async () => {
@@ -164,7 +171,6 @@ const ProductDetailsModel = ({ productId }) => {
 
     setChargementAjout(true);
     try {
-      // Ajouter chaque taille sélectionnée au panier
       for (const taille of taillesSelectionnees) {
         const succes = await ajouterArticle(
           produit.id,
@@ -178,10 +184,8 @@ const ProductDetailsModel = ({ productId }) => {
         }
       }
       
-      // Rafraîchir le panier
       await recupererPanier();
       
-      // Afficher un message unique avec option pour voir le panier
       const message = taillesSelectionnees.length === 1
         ? `${produit.nom_produit} ajouté au panier avec succès`
         : `${taillesSelectionnees.length} articles ajoutés au panier avec succès`;
@@ -198,6 +202,11 @@ const ProductDetailsModel = ({ productId }) => {
     } finally {
       setChargementAjout(false);
     }
+  };
+
+  const handleWishlistClick = async () => {
+    if (!produit?.id) return;
+    await basculerListeEnvies(produit.id);
   };
 
   const taillesDisponibles = couleurSelectionnee 
@@ -229,9 +238,7 @@ const ProductDetailsModel = ({ productId }) => {
   return (
     <div className="container px-4 sm:px-6 lg:px-8 py-4">
       <div className="flex flex-col md:flex-row gap-6">
-        {/* Image Gallery - Vertical thumbnails left of main image */}
         <div className="flex flex-row gap-3 w-full md:w-[60%]">
-          {/* Thumbnail column */}
           <div className="flex flex-col gap-2 w-16 flex-shrink-0">
             {imagesDisponibles.map((image, index) => (
               <button
@@ -253,7 +260,6 @@ const ProductDetailsModel = ({ productId }) => {
             ))}
           </div>
 
-          {/* Main image - takes remaining space */}
           <div className="relative aspect-square flex-1 overflow-hidden rounded-lg bg-gray-100">
             {imagesDisponibles.length > 0 ? (
               <Image
@@ -272,7 +278,6 @@ const ProductDetailsModel = ({ productId }) => {
           </div>
         </div>
 
-        {/* Product details - takes about 40% width */}
         <div className="w-full md:w-[40%] space-y-4">
           <div className="space-y-1">
             <h5 className="text-sm font-bold tracking-tight sm:text-base">
@@ -310,7 +315,6 @@ const ProductDetailsModel = ({ productId }) => {
 
             <Separator className="my-2" />
 
-            {/* Sélecteur de couleur */}
             {produit.couleurs.length > 0 && (
               <div className="space-y-1">
                 <h3 className="text-sm font-medium">Couleur</h3>
@@ -336,7 +340,6 @@ const ProductDetailsModel = ({ productId }) => {
               </div>
             )}
 
-            {/* Sélecteur de taille */}
             {couleurSelectionnee && taillesDisponibles.length > 0 && (
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
@@ -380,7 +383,6 @@ const ProductDetailsModel = ({ productId }) => {
               </div>
             )}
 
-            {/* Sélecteurs de quantité pour chaque taille sélectionnée */}
             {taillesSelectionnees.length > 0 && (
               <div className="space-y-2">
                 <h3 className="text-sm font-medium">Quantité par taille</h3>
@@ -420,7 +422,6 @@ const ProductDetailsModel = ({ productId }) => {
               </div>
             )}
 
-            {/* Section d'ajout au panier */}
             <div className="flex gap-2 pt-2">
               <Button
                 onClick={handleAjoutAuPanier}
@@ -429,8 +430,17 @@ const ProductDetailsModel = ({ productId }) => {
               >
                 {chargementAjout ? "Ajout en cours..." : "Ajouter au panier"}
               </Button>
-              <Button variant="outline" size="icon" className="p-1.5">
-                <Heart className="h-4 w-4" />
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="p-1.5"
+                onClick={handleWishlistClick}
+                disabled={chargementWishlist}
+              >
+                <Heart 
+                  className="h-4 w-4" 
+                  fill={produit?.id && estDansListeEnvies(produit.id) ? "currentColor" : "none"}
+                />
               </Button>
               <Button variant="outline" size="icon" className="p-1.5">
                 <Share2 className="h-4 w-4" />

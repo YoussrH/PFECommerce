@@ -1,0 +1,316 @@
+// hooks/useClient.js
+"use client";
+
+import { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+import { useAuth } from '@/app/contexts/AuthContext';
+import { toast } from 'sonner';
+
+export const useClient = () => {
+  const { user, isAuthenticated, token } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Create axios instance with base URL and auth headers
+  const api = axios.create({
+    baseURL: 'http://localhost:5000/clients',
+    withCredentials: true,
+    headers: {
+      Authorization: token ? `Bearer ${token}` : undefined,
+    },
+  });
+
+  // Handle API errors consistently
+  const handleError = (error, defaultMessage = 'Une erreur est survenue') => {
+    const errorMessage = error.response?.data?.message || error.message || defaultMessage;
+    setError(errorMessage);
+    toast.error(errorMessage);
+    return { success: false, error: errorMessage };
+  };
+
+  /**
+   * Update client profile
+   */
+const updateProfile = async (profileData) => {
+  if (!isAuthenticated) return { success: false, error: 'Non authentifié' };
+  
+  try {
+    setLoading(true);
+    setError(null);
+    
+    const response = await api.put('/mettreAJourProfil', profileData);
+    
+    if (response.data.success) {
+      toast.success('Profil mis à jour avec succès');
+      return { success: true, data: response.data.data };
+    }
+    
+    throw new Error(response.data.message || 'Échec de la mise à jour du profil');
+  } catch (error) {
+    return handleError(error, 'Échec de la mise à jour du profil');
+  } finally {
+    setLoading(false);
+  }
+};
+
+  /**
+   * Get client orders with pagination and filters
+   */
+  const getOrders = useCallback(async (page = 1, limit = 10, filters = {}) => {
+    if (!isAuthenticated) return { success: false, error: 'Non authentifié' };
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const params = { page, limit, ...filters };
+      const response = await api.get('/obtenirCommandesClient', { params });
+      
+      if (response.data.success) {
+        return { 
+          success: true, 
+          data: response.data.data,
+          pagination: response.data.data.pagination 
+        };
+      }
+      
+      throw new Error(response.data.message || 'Échec de la récupération des commandes');
+    } catch (error) {
+      return handleError(error, 'Échec de la récupération des commandes');
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, api]);
+
+  /**
+   * Filter orders by status
+   */
+  const filterOrdersByStatus = async (status) => {
+    if (!isAuthenticated) return { success: false, error: 'Non authentifié' };
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await api.get('/filtrerCommandesParStatut', { params: { statut: status } });
+      
+      if (response.data.success) {
+        return { success: true, data: response.data.data };
+      }
+      
+      throw new Error(response.data.message || 'Échec du filtrage des commandes');
+    } catch (error) {
+      return handleError(error, 'Échec du filtrage des commandes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Filter orders by date range
+   */
+  const filterOrdersByDate = async (startDate, endDate) => {
+    if (!isAuthenticated) return { success: false, error: 'Non authentifié' };
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await api.get('/filtrerCommandesParDate', { 
+        params: { 
+          date_debut: startDate.toISOString(),
+          date_fin: endDate.toISOString() 
+        } 
+      });
+      
+      if (response.data.success) {
+        return { success: true, data: response.data.data };
+      }
+      
+      throw new Error(response.data.message || 'Échec du filtrage des commandes');
+    } catch (error) {
+      return handleError(error, 'Échec du filtrage des commandes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Get order details
+   */
+  const getOrderDetails = async (orderId) => {
+    if (!isAuthenticated) return { success: false, error: 'Non authentifié' };
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await api.get(`/obtenirDetailsCommandeClient/${orderId}`);
+      
+      if (response.data.success) {
+        return { success: true, data: response.data.data };
+      }
+      
+      throw new Error(response.data.message || 'Échec de la récupération des détails de la commande');
+    } catch (error) {
+      return handleError(error, 'Échec de la récupération des détails de la commande');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Get client returns
+   */
+  const getReturns = useCallback(async (page = 1, limit = 10) => {
+    if (!isAuthenticated) return { success: false, error: 'Non authentifié' };
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await api.get('/obtenirRetoursClient', { params: { page, limit } });
+      
+      if (response.data.success) {
+        return { 
+          success: true, 
+          data: response.data.data,
+          pagination: response.data.data.pagination 
+        };
+      }
+      
+      throw new Error(response.data.message || 'Échec de la récupération des retours');
+    } catch (error) {
+      return handleError(error, 'Échec de la récupération des retours');
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, api]);
+
+  /**
+   * Get client replacements
+   */
+  const getReplacements = useCallback(async (page = 1, limit = 10) => {
+    if (!isAuthenticated) return { success: false, error: 'Non authentifié' };
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await api.get('/obtenirRemplacementsClient', { params: { page, limit } });
+      
+      if (response.data.success) {
+        return { 
+          success: true, 
+          data: response.data.data,
+          pagination: response.data.data.pagination 
+        };
+      }
+      
+      throw new Error(response.data.message || 'Échec de la récupération des remplacements');
+    } catch (error) {
+      return handleError(error, 'Échec de la récupération des remplacements');
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, api]);
+
+  /**
+   * Request a return
+   */
+  const requestReturn = async (orderId, items, reason) => {
+    if (!isAuthenticated) return { success: false, error: 'Non authentifié' };
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await api.post('/demanderRetour', { 
+        orderId, 
+        items, 
+        reason 
+      });
+      
+      if (response.data.success) {
+        toast.success('Demande de retour envoyée avec succès');
+        return { success: true, data: response.data.data };
+      }
+      
+      throw new Error(response.data.message || 'Échec de la demande de retour');
+    } catch (error) {
+      return handleError(error, 'Échec de la demande de retour');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Request a replacement
+   */
+  const requestReplacement = async (orderId, items, reason) => {
+    if (!isAuthenticated) return { success: false, error: 'Non authentifié' };
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await api.post('/demanderRemplacement', { 
+        orderId, 
+        items, 
+        reason 
+      });
+      
+      if (response.data.success) {
+        toast.success('Demande de remplacement envoyée avec succès');
+        return { success: true, data: response.data.data };
+      }
+      
+      throw new Error(response.data.message || 'Échec de la demande de remplacement');
+    } catch (error) {
+      return handleError(error, 'Échec de la demande de remplacement');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Update newsletter subscription
+   */
+  const updateNewsletterSubscription = async (subscribed) => {
+    if (!isAuthenticated) return { success: false, error: 'Non authentifié' };
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await api.put('/mettreAJourNewsletter', { subscribed });
+      
+      if (response.data.success) {
+        toast.success('Préférences newsletter mises à jour');
+        return { success: true, data: response.data.data };
+      }
+      
+      throw new Error(response.data.message || 'Échec de la mise à jour des préférences newsletter');
+    } catch (error) {
+      return handleError(error, 'Échec de la mise à jour des préférences newsletter');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    loading,
+    error,
+    updateProfile,
+    getOrders,
+    filterOrdersByStatus,
+    filterOrdersByDate,
+    getOrderDetails,
+    getReturns,
+    getReplacements,
+    requestReturn,
+    requestReplacement,
+    updateNewsletterSubscription,
+    // Add other methods as needed
+  };
+};

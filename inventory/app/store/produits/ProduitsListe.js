@@ -18,11 +18,18 @@ import {
 } from "@/components/ui/pagination"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import ProductDetailsModel from "../productsModel/[id]/page"
+import { useWishlist } from "@/hooks/useWishlist"
 
 const ProduitsListe = ({ produits = [], onEffacerTousFiltres = () => {} }) => {
   const [pageCourante, setPageCourante] = useState(1)
   const [produitAchatRapide, setProduitAchatRapide] = useState(null)
   const produitsParPage = 12
+  
+  const { 
+    basculerListeEnvies, 
+    estDansListeEnvies,
+    chargement: chargementListeEnvies
+  } = useWishlist()
 
   // Get primary image for each product
   const getPrimaryImage = (produit) => {
@@ -148,6 +155,7 @@ const ProduitsListe = ({ produits = [], onEffacerTousFiltres = () => {} }) => {
             {produitsCourants.map((produit) => {
               const primaryImage = getPrimaryImage(produit)
               const marque = typeof produit.marque === "object" ? produit.marque?.libelle : produit.marque
+              const estDansListe = estDansListeEnvies(produit.id)
 
               return (
                 <div key={produit.id || Math.random()} className="group relative">
@@ -164,23 +172,13 @@ const ProduitsListe = ({ produits = [], onEffacerTousFiltres = () => {} }) => {
                         }}
                       />
                     </Link>
-
                     {estNouveauProduit(produit) && (
                       <Badge className="absolute top-2 left-2 bg-black text-white font-mono text-xs">NOUVEAU</Badge>
                     )}
                   </div>
 
                   <div className="mt-3 text-center relative">
-                  {/*   <p className="text-xs text-gray-600 font-mono tracking-wider uppercase">
-                      {marque || "Marque inconnue"}
-                    </p>
-                    <h3 className="mt-1 text-sm font-medium text-gray-900 font-mono">
-                      {produit.nom_produit || "Produit sans nom"}
-                    </h3>
-                    <p className="mt-1 text-sm font-semibold text-gray-900 font-mono">
-                      {produit.prix_final || produit.prix || 0} DT
-                    </p> */}
-                    <p className="text-xs text-gray-600 font-mono tracking-wider uppercase  transition-opacity duration-300">
+                    <p className="text-xs text-gray-600 font-mono tracking-wider uppercase transition-opacity duration-300">
                       {marque || "Marque inconnue"}
                     </p>
                     <h3 className="mt-1 text-sm font-medium text-gray-900 font-mono group-hover:opacity-0 transition-opacity duration-300">
@@ -190,13 +188,12 @@ const ProduitsListe = ({ produits = [], onEffacerTousFiltres = () => {} }) => {
                       {produit.prix_final || produit.prix || 0} DT
                     </p>
 
-
-                    <div className="absolute inset-0 flex items-center justify-center p-3 pt-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ">
-                      <div className="flex gap-2 w-full ">
+                    <div className="absolute inset-0 flex items-center justify-center p-3 pt-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="flex gap-2 w-full">
                         <Button
                           variant="default"
                           size="sm"
-                          className="flex-1 bg-black  hover:bg-white hover:text-black border border-black text-white text-xs rounded-full"
+                          className="flex-1 bg-black hover:bg-white hover:text-black border border-black text-white text-xs rounded-full"
                           onClick={(e) => {
                             e.preventDefault()
                             handleClicAchatRapide(produit)
@@ -204,9 +201,23 @@ const ProduitsListe = ({ produits = [], onEffacerTousFiltres = () => {} }) => {
                         >
                           Achat Rapide
                         </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-white text-orange-500 ">
-                          <Heart className="h-5 w-5" />
-                          <span className="sr-only ">Ajouter aux favoris</span>
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          className={`h-8 w-8 rounded-full bg-white ${
+                            estDansListe ? 'text-red-500' : 'text-gray-500'
+                          }`}
+                          onClick={async (e) => {
+                            e.preventDefault()
+                            await basculerListeEnvies(produit.id)
+                          }}
+                          disabled={chargementListeEnvies}
+                        >
+                          <Heart 
+                            className="h-5 w-5" 
+                            fill={estDansListe ? 'currentColor' : 'none'}
+                          />
+                          <span className="sr-only">Ajouter aux favoris</span>
                         </Button>
                       </div>
                     </div>

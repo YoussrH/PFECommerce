@@ -130,9 +130,9 @@ export default function TopNav({ onMenuClick, isMobileMenuOpen }) {
           </div>
         </div>
 
-        <div className="hidden md:flex justify-end text-sm">
+       {/*  <div className="hidden md:flex justify-end text-sm">
           <Link href="#">Nos Boutique</Link>
-        </div>
+        </div> */}
       </div>
 
       <div className="hidden md:grid grid-cols-3 items-center px-8 mt-2 py-3">

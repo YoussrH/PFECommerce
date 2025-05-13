@@ -226,60 +226,6 @@ const checkAuth = useCallback(async () => {
   };
   
 
-
-
-
-  const verifyCurrentPassword = async (currentPassword) => {
-    try {
-      setAuthLoading(true);
-      const response = await axios.post(
-        'http://localhost:5000/mot-de-passe/verifier-mot-de-passe',
-        { mot_de_passe_actuel: currentPassword },
-        { withCredentials: true }
-      );
-      
-      return { 
-        success: true,
-        isValid: response.data.estValide,
-        message: response.data.message 
-      };
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message || "Échec de la vérification du mot de passe";
-      return { success: false, error: errorMessage };
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-  
-  const changePassword = async (currentPassword, newPassword) => {
-    try {
-      setAuthLoading(true);
-      
-      // First verify current password
-      const verification = await verifyCurrentPassword(currentPassword);
-      if (!verification.success || !verification.isValid) {
-        throw new Error(verification.error || "Mot de passe actuel incorrect");
-      }
-  
-      // Then change password
-      const response = await axios.post(
-        'http://localhost:5000/mot-de-passe/changer-mot-de-passe',
-        { nouveau_mot_de_passe: newPassword },
-        { withCredentials: true }
-      );
-      
-      if (response.data.success) {
-        toast.success(response.data.message);
-        return { success: true };
-      }
-      throw new Error(response.data.message || "Échec du changement de mot de passe");
-    } catch (error) {
-      toast.error(error.message);
-      return { success: false, error: error.message };
-    } finally {
-      setAuthLoading(false);
-    }
-  };
 // Mot de passe oublié
 const forgotPassword = async (email) => {
   try {
@@ -347,6 +293,75 @@ const resetPassword = async (token, newPassword) => {
     const errorMessage = error.response?.data?.message || error.message || "Erreur système";
     toast.error(errorMessage);
     return { success: false, error: errorMessage };
+  } finally {
+    setAuthLoading(false);
+  }
+};
+
+
+
+
+  const verifyCurrentPassword = async (currentPassword) => {
+    try {
+      setAuthLoading(true);
+      const response = await axios.post(
+        'http://localhost:5000/mot-de-passe/verifier-mot-de-passe',
+        { mot_de_passe_actuel: currentPassword },
+        { withCredentials: true }
+      );
+      
+      return { 
+        success: true,
+        isValid: response.data.estValide,
+        message: response.data.message 
+      };
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || "Échec de la vérification du mot de passe";
+      return { success: false, error: errorMessage };
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+  
+const changePassword = async (currentPassword, newPassword) => {
+  try {
+    setAuthLoading(true);
+    
+    // Validate inputs
+    if (!currentPassword || !newPassword) {
+      throw new Error("Veuillez fournir le mot de passe actuel et le nouveau mot de passe");
+    }
+
+    if (currentPassword === newPassword) {
+      throw new Error("Le nouveau mot de passe doit être différent de l'actuel");
+    }
+
+    const response = await axios.post(
+      'http://localhost:5000/mot-de-passe/changer-mot-de-passe',
+      { 
+        motDePasseActuel: currentPassword,
+        nouveauMotDePasse: newPassword 
+      },
+      { 
+        withCredentials: true,
+        headers: user?.token ? { Authorization: `Bearer ${user.token}` } : {}
+      }
+    );
+
+    if (response.data.success) {
+      toast.success("Mot de passe changé avec succès");
+      return { success: true };
+    }
+    
+    throw new Error(response.data.message || "Échec du changement de mot de passe");
+  } catch (error) {
+    const errorMessage = error.response?.data?.error || error.message || "Échec du changement de mot de passe";
+    toast.error(errorMessage);
+    return { 
+      success: false, 
+      error: errorMessage,
+      isCurrentPasswordInvalid: error.response?.status === 401
+    };
   } finally {
     setAuthLoading(false);
   }

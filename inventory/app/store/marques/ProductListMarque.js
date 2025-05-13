@@ -14,6 +14,8 @@ import {
   PaginationNext,
   PaginationPrevious
 } from "@/components/ui/pagination"
+import { useWishlist } from "@/hooks/useWishlist"
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import ProductDetailsModel from "../productsModel/[id]/page"
 
@@ -21,6 +23,12 @@ const ProductListMarque = ({ produits = [], onEffacerTousFiltres = () => {} }) =
   const [pageCourante, setPageCourante] = useState(1)
   const [produitAchatRapide, setProduitAchatRapide] = useState(null)
   const produitsParPage = 12
+    const { 
+      basculerListeEnvies, 
+      estDansListeEnvies,
+      chargement: chargementListeEnvies
+    } = useWishlist()
+  
 
 const getPrimaryImage = (produit) => {
   if (!produit) return "/placeholder-image.png";
@@ -103,7 +111,8 @@ const getPrimaryImage = (produit) => {
             {produitsCourants.map((produit) => {
               const primaryImage = getPrimaryImage(produit)
               const marque = typeof produit.marque === "object" ? produit.marque?.libelle : produit.marque
-
+              const estDansListe = estDansListeEnvies(produit.id)
+              
               return (
                 <div key={produit.id || Math.random()} className="group relative">
                   <div className="aspect-square overflow-hidden rounded-md bg-gray-50 relative">
@@ -149,8 +158,18 @@ const getPrimaryImage = (produit) => {
                         >
                           Achat Rapide
                         </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-white text-orange-500">
-                          <Heart className="h-5 w-5" />
+                        <Button variant="outline" size="icon" 
+                          className={`h-8 w-8 rounded-full bg-white ${
+                            estDansListe ? 'text-red-500' : 'text-gray-500'
+                          }`}
+                          onClick={async (e) => {
+                            e.preventDefault()
+                            await basculerListeEnvies(produit.id)
+                          }}
+                          disabled={chargementListeEnvies}>
+                          <Heart className="h-5 w-5" 
+                           fill={estDansListe ? 'currentColor' : 'none'}
+                          />
                           <span className="sr-only">Ajouter aux favoris</span>
                         </Button>
                       </div>

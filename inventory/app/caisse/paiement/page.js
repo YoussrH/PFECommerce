@@ -32,23 +32,31 @@ const paymentMethods = [
 
 export default function PaiementPage() {
   const router = useRouter()
-  const { traiterPaiement, panier, recupererPanier, initShipping, shippingMethod, shippingCost } = usePanier()
+  const { 
+    traiterPaiement, 
+    panier, 
+    recupererPanier, 
+    initShipping, 
+    shippingMethod, 
+    shippingCost,
+    panierId
+  } = usePanier()
 
   const [selectedMethod, setSelectedMethod] = useState("livraison")
   const [processing, setProcessing] = useState(false)
   const [addressId, setAddressId] = useState(null)
   const [checkoutReady, setCheckoutReady] = useState(false)
-  const [debugInfo, setDebugInfo] = useState({})
   const [initialLoad, setInitialLoad] = useState(true)
 
-  // Initialize checkout data
   useEffect(() => {
+    let isMounted = true
+
     const initializeCheckout = async () => {
       try {
         // Initialize shipping data
         initShipping()
 
-        // Verify required checkout data exists
+        // Verify address exists
         const storedAddressId = sessionStorage.getItem("current_address_id")
         if (!storedAddressId) {
           toast.error("Veuillez sélectionner une adresse de livraison")
@@ -56,42 +64,37 @@ export default function PaiementPage() {
           return
         }
 
-        // Verify shipping method is selected
+        // Verify shipping method
         if (!shippingMethod) {
           toast.error("Veuillez sélectionner un mode de livraison")
           router.push("/caisse/livraison")
           return
         }
 
-        // Ensure cart has items
-        if (panier.length === 0) {
-          await recupererPanier()
-          if (panier.length === 0) {
-            toast.error("Votre panier est vide")
-            return
-          }
-        }
+        // Refresh cart data
+        await recupererPanier()
+        
+        if (!isMounted) return
+
+
 
         setAddressId(storedAddressId)
         setCheckoutReady(true)
-
-        // Set debug info
-        setDebugInfo({
-          cartItemCount: panier.length,
-          addressId: storedAddressId,
-          shippingMethod,
-          shippingCost,
-        })
       } catch (error) {
-        console.error("Checkout initialization error:", error)
+        if (!isMounted) return
+        console.error("Erreur d'initialisation:", error)
         toast.error("Erreur lors de la préparation de la commande")
       } finally {
-        setInitialLoad(false)
+        if (isMounted) setInitialLoad(false)
       }
     }
 
     initializeCheckout()
-  }, [panier.length, router, recupererPanier, initShipping, shippingMethod])
+
+    return () => {
+      isMounted = false
+    }
+  }, [router, recupererPanier, initShipping, shippingMethod, panier.length, panierId])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -106,25 +109,21 @@ export default function PaiementPage() {
       const result = await traiterPaiement(selectedMethod, addressId)
 
       if (result?.success) {
-        // Clear session storage
-        sessionStorage.removeItem("current_address_id")
-        sessionStorage.removeItem("shipping_method")
-        sessionStorage.removeItem("shipping_cost")
-
-        // Redirect to confirmation
+        // Don't clear session storage here - confirmation page will handle it
         router.push(result.etapeSuivante)
+      } else {
+        throw new Error(result?.message || "Échec du traitement du paiement")
       }
     } catch (error) {
-      console.error("Payment processing error:", error)
-
-      // Handle specific error cases
+      console.error("Erreur de paiement:", error)
+      
       if (error.message.includes("panier")) {
         router.push("/panier")
       } else if (error.message.includes("adresse")) {
         router.push("/caisse/adresse")
       } else if (error.message.includes("stock")) {
-        toast.error("Certains articles ne sont plus disponibles en quantité suffisante")
         await recupererPanier()
+        toast.error("Certains articles ne sont plus disponibles")
       } else {
         toast.error(error.message || "Échec du paiement")
       }
@@ -137,7 +136,6 @@ export default function PaiementPage() {
     router.push("/caisse/livraison")
   }
 
-  // Loading state
   if (initialLoad) {
     return (
       <div className="max-w-2xl mx-auto p-4 flex items-center justify-center min-h-[200px]">
@@ -149,17 +147,7 @@ export default function PaiementPage() {
     )
   }
 
-  // Empty cart state
-  if (panier.length === 0) {
-    return (
-      <div className="max-w-2xl mx-auto p-4 text-center">
-        <h1 className="text-xl font-bold mb-4">Votre panier est vide</h1>
-        <Button onClick={() => router.push("/store/nouveautes")}>Retour à la boutique</Button>
-      </div>
-    )
-  }
 
-  // Main checkout form
   return (
     <div className="flex flex-col lg:flex-row w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 gap-6 py-6 sm:py-8">
       <div className="w-full lg:flex-1 lg:max-w-2xl">
@@ -167,12 +155,16 @@ export default function PaiementPage() {
           <h2 className="text-base sm:text-lg font-bold mb-4 sm:mb-6">Méthode de Paiement</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <RadioGroup value={selectedMethod} onValueChange={setSelectedMethod}>
+            <RadioGroup 
+              value={selectedMethod} 
+              onValueChange={setSelectedMethod}
+              className="space-y-3"
+            >
               {paymentMethods.map((method) => (
                 <div
                   key={method.id}
-                  className={`relative border rounded p-3 sm:p-4 ${
-                    !method.available ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+                  className={`relative border rounded p-3 sm:p-4 transition-colors ${
+                    !method.available ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:border-gray-400"
                   } ${selectedMethod === method.id ? "border-black bg-black/5" : "border-gray-300"}`}
                 >
                   <div className="flex items-center gap-3 sm:gap-4">
@@ -191,8 +183,10 @@ export default function PaiementPage() {
                   </div>
 
                   {!method.available && (
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/10">
-                      <span className="bg-black text-white text-xs px-2 py-1 rounded">{method.comingSoonText}</span>
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/10 rounded">
+                      <span className="bg-black text-white text-xs px-2 py-1 rounded">
+                        {method.comingSoonText}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -200,10 +194,19 @@ export default function PaiementPage() {
             </RadioGroup>
 
             <div className="flex justify-between pt-4 border-t border-gray-200 mt-6">
-              <Button type="button" variant="outline" onClick={handlePrevious} disabled={processing}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handlePrevious} 
+                disabled={processing}
+              >
                 Retour
               </Button>
-              <Button type="submit" disabled={!selectedMethod || processing || !checkoutReady}>
+              <Button 
+                type="submit" 
+                disabled={!selectedMethod || processing || !checkoutReady}
+                className="min-w-[180px]"
+              >
                 {processing ? (
                   <span className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -221,6 +224,8 @@ export default function PaiementPage() {
       <div className="w-full lg:w-80">
         <ResumeCommande showPromoCode={false} showCheckoutButton={false} />
       </div>
+
+
     </div>
   )
 }

@@ -11,4 +11,12 @@ router.post('/adresse', authentifier, controleurCaisse.sauvegarderAdresseLivrais
 router.post('/livraison', authentifier, controleurCaisse.sauvegarderMethodeLivraison);
 router.post('/paiement', authentifier, controleurCaisse.traiterPaiement);
 router.get('/confirmation/:reference', authentifier, controleurCaisse.obtenirConfirmationCommande);
+
+// Address management
+router.get('/obtenirAdresses', authentifier, controleurCaisse.obtenirAdresses);
+router.put('/definirAdressePrincipale/:adresseId', authentifier, controleurCaisse.definirAdressePrincipale);
+
+
+
+module.exports = router;
 module.exports = router;

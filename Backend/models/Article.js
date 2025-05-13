@@ -105,7 +105,14 @@ module.exports = (sequelize, DataTypes) => {
       as: 'ajustements',
       onDelete: 'CASCADE'
     });
+    // In Article.associate
+Article.hasMany(models.ListeEnvies, {
+  foreignKey: 'article_id',
+  as: 'dans_liste_envies',
+  onDelete: 'CASCADE'
+});
   };
+
 
   return Article;
 };

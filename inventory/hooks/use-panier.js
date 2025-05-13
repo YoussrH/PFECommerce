@@ -1,4 +1,3 @@
-'use client'
 import { create } from 'zustand'
 import axios from 'axios'
 import { toast } from 'sonner'
@@ -177,10 +176,8 @@ export const usePanier = create(
           const guestToken = get().getGuestToken();
           if (guestToken) headers['X-Guest-Token'] = guestToken;
       
-          // First ensure we have the latest cart data
           await get().recupererPanier();
       
-          // Verify we have a cart ID and items
           if (!get().panierId) {
             throw new Error("Aucun panier actif trouvé");
           }
@@ -196,7 +193,6 @@ export const usePanier = create(
           const response = await api.post('/caisse/initialiser', payload, { headers });
           
           if (response.data.success) {
-            // Clear guest token only if we had one and now authenticated
             if (isAuthenticated && guestToken) {
               get().setGuestToken(null);
             }
@@ -205,10 +201,8 @@ export const usePanier = create(
                   (isAuthenticated ? '/caisse/adresse' : '/caisse/identification');
           }
           
-          // Handle specific backend error messages
           const errorMessage = response.data.message || 'Initialization failed';
           if (errorMessage.includes('panier') || errorMessage.includes('stock')) {
-            // Refresh cart if there are cart or stock issues
             await get().recupererPanier();
           }
           
@@ -218,7 +212,6 @@ export const usePanier = create(
           const message = error.response?.data?.message || error.message;
           set({ erreur: message });
           
-          // Special handling for specific error cases
           if (error.response?.status === 400) {
             if (message.includes('panier vide')) {
               await get().recupererPanier();
@@ -233,12 +226,11 @@ export const usePanier = create(
           set({ chargement: false });
         }
       },
+
       sauvegarderAdresseLivraison: async (adresseData) => {
         set({ chargement: true, erreur: null });
         try {
-          console.log('Sending address data:', adresseData);
           const response = await api.post('/caisse/adresse', adresseData);
-          console.log('Address save response:', response.data);
           
           if (response.data.success) {
             return {
@@ -257,7 +249,6 @@ export const usePanier = create(
         }
       },
 
-
       traiterPaiement: async (methodePaiement, adresse_id) => {
         set({ chargement: true, erreur: null });
         try {
@@ -265,7 +256,6 @@ export const usePanier = create(
             throw new Error('Aucune adresse de livraison sélectionnée');
           }
 
-          // Get shipping method from state instead of sessionStorage
           const { shippingMethod, shippingCost } = get();
           
           if (!shippingMethod) {
@@ -288,7 +278,7 @@ export const usePanier = create(
             return {
               success: true,
               commandeId: response.data.data.commandeId,
-            commandeReference: response.data.data.commandeReference, // Added this
+              commandeReference: response.data.data.commandeReference,
               etapeSuivante: `/caisse/confirmation/${response.data.data.commandeReference}`,
               shippingMethod,
               shippingCost
@@ -316,13 +306,11 @@ export const usePanier = create(
         }
       },
 
-      // Update your initShipping function
       initShipping: () => {
         if (typeof window !== 'undefined') {
-          // Try to get from state first, then fall back to sessionStorage
           const currentState = get();
           if (currentState.shippingMethod && currentState.shippingCost) {
-            return; // Already initialized
+            return;
           }
 
           const method = sessionStorage.getItem('shipping_method') || currentState.shippingMethod;
@@ -336,7 +324,6 @@ export const usePanier = create(
           });
         }
       },
-
 
       sauvegarderMethodeLivraison: async (methodeId) => {
         set({ chargement: true });
@@ -377,11 +364,11 @@ export const usePanier = create(
         );
         return (subtotal + shippingCost).toFixed(2);
       },
-      // Add this to your existing usePanier hook
+
       viderPanier: async () => {
         try {
           const panierId = get().panierId;
-          if (!panierId) return;
+          if (!panierId) return true;
       
           const headers = {};
           const guestToken = get().getGuestToken();
@@ -396,7 +383,6 @@ export const usePanier = create(
           return false;
         } catch (error) {
           if (error.response?.status === 404) {
-            // Cart already empty or doesn't exist
             set({ panier: [], panierId: null });
             return true;
           }
@@ -404,25 +390,15 @@ export const usePanier = create(
           return false;
         }
       },
-    obtenirConfirmationCommande: async (reference) => {
+
+      obtenirConfirmationCommande: async (reference) => {
         set({ chargement: true, erreur: null });
         try {
-          // Basic validation
           if (!reference || typeof reference !== 'string') {
             throw new Error('La référence de commande est requise');
           }
       
-          // Remove format validation temporarily for debugging
-          // const referenceRegex = /^CMD-\d{6}-[A-Z0-9]{6}$/;
-          // if (!referenceRegex.test(reference)) {
-          //   throw new Error('Format de référence invalide');
-          // }
-      
-          console.log('Fetching order with reference:', reference); // Debug log
-      
           const response = await api.get(`/caisse/confirmation/${reference}`);
-          
-          console.log('API Response:', response); // Debug log
           
           if (response.data.success) {
             if (!response.data.data?.commande) {
@@ -436,7 +412,7 @@ export const usePanier = create(
           
           throw new Error(response.data.message || 'Échec de la récupération de la commande');
         } catch (error) {
-          console.error('Error fetching order:', error); // Detailed error log
+          console.error('Error fetching order:', error);
           const message = error.response?.data?.message || error.message;
           set({ erreur: message });
           throw error;

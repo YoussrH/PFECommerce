@@ -1,6 +1,5 @@
 "use client"
-
-import { useEffect, useState } from "react"
+import { useEffect, useState, use } from "react"
 import { useRouter } from "next/navigation"
 import { usePanier } from "@/hooks/use-panier"
 import { Button } from "@/components/ui/button"
@@ -16,49 +15,93 @@ export default function ConfirmationPage({ params }) {
   const [commande, setCommande] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [clearingCart, setClearingCart] = useState(false)
+  const [cartCleared, setCartCleared] = useState(false)
 
-  const reference = params?.reference
+  // Safely access params.reference
+  const unwrappedParams = use(params)
+  const reference = unwrappedParams?.reference || ''
 
   useEffect(() => {
+    let isMounted = true
+
     const loadOrder = async () => {
       try {
+        if (!reference) {
+          throw new Error("La référence de commande est manquante")
+        }
+
         setLoading(true)
         setError(null)
 
-        if (!reference) {
-          throw new Error("Reference parameter is missing")
-        }
-
         const orderData = await obtenirConfirmationCommande(reference)
+        
+        if (!isMounted) return
 
         if (!orderData) {
-          throw new Error("Order data not found")
+          throw new Error("Commande non trouvée")
         }
 
         setCommande(orderData)
-
-        // Clear cart and shipping info after successful load
-        await viderPanier()
-        if (typeof window !== "undefined") {
-          sessionStorage.removeItem("shipping_method")
-          sessionStorage.removeItem("shipping_cost")
-        }
-      } catch (error) {
-        console.error("Error loading order:", error)
-        setError(error.message)
-        toast.error(error.message || "Erreur lors du chargement de la commande")
+      } catch (err) {
+        if (!isMounted) return
+        console.error("Erreur lors du chargement de la commande:", err)
+        setError(err.message)
+        toast.error(err.message || "Erreur lors du chargement de la commande")
       } finally {
-        setLoading(false)
+        if (isMounted) setLoading(false)
       }
     }
 
     loadOrder()
-  }, [reference, obtenirConfirmationCommande, viderPanier])
+
+    return () => {
+      isMounted = false
+    }
+  }, [reference, obtenirConfirmationCommande])
+
+  // Clear cart only after confirmation is displayed
+  useEffect(() => {
+    if (commande && !cartCleared) {
+      const clearCart = async () => {
+        try {
+          setClearingCart(true)
+          const success = await viderPanier()
+          
+          if (!success) {
+            console.warn("Le panier n'a pas pu être vidé automatiquement")
+            toast.info("Votre commande est confirmée, mais le panier n'a pas pu être vidé automatiquement")
+          } else {
+            toast.success("Merci pour votre commande!")
+          }
+
+          // Clean up session storage
+          if (typeof window !== "undefined") {
+            sessionStorage.removeItem("shipping_method")
+            sessionStorage.removeItem("shipping_cost")
+            sessionStorage.removeItem("current_address_id")
+          }
+        } catch (err) {
+          console.error("Erreur lors du vidage du panier:", err)
+          toast.error("Erreur lors du vidage du panier")
+        } finally {
+          setClearingCart(false)
+          setCartCleared(true)
+        }
+      }
+
+      // Add slight delay to ensure UI is rendered
+      const timer = setTimeout(() => {
+        clearCart()
+      }, 1500) // Increased delay to ensure page is fully rendered
+
+      return () => clearTimeout(timer)
+    }
+  }, [commande, cartCleared, viderPanier])
 
   const handleDownloadInvoice = () => {
     if (!commande?.reference) return
-
-    const backendUrl = "http://localhost:5000"
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
     window.open(`${backendUrl}/commandes/${commande.reference}/facture`, "_blank")
   }
 
@@ -192,6 +235,17 @@ export default function ConfirmationPage({ params }) {
           ))}
         </div>
       </div>
+
+      {clearingCart && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm">
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <p>Finalisation de votre commande...</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-6">
         <Button onClick={() => router.push("/store/nouveautes")} variant="outline" className="text-xs sm:text-sm">

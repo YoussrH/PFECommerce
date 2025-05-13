@@ -148,6 +148,7 @@ const PetitProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
             {produitsCourants.map((produit) => {
               const primaryImage = getPrimaryImage(produit)
               const marque = typeof produit.marque === "object" ? produit.marque?.libelle : produit.marque
+              const estDansListe = estDansListeEnvies(produit.id)
 
               return (
                 <div key={produit.id || Math.random()} className="group relative">
@@ -171,15 +172,7 @@ const PetitProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                   </div>
 
                   <div className="mt-3 text-center relative">
-                  {/*   <p className="text-xs text-gray-600 font-mono tracking-wider uppercase">
-                      {marque || "Marque inconnue"}
-                    </p>
-                    <h3 className="mt-1 text-sm font-medium text-gray-900 font-mono">
-                      {produit.nom_produit || "Produit sans nom"}
-                    </h3>
-                    <p className="mt-1 text-sm font-semibold text-gray-900 font-mono">
-                      {produit.prix_final || produit.prix || 0} DT
-                    </p> */}
+
                     <p className="text-xs text-gray-600 font-mono tracking-wider uppercase  transition-opacity duration-300">
                       {marque || "Marque inconnue"}
                     </p>
@@ -204,9 +197,23 @@ const PetitProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                         >
                           Achat Rapide
                         </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-white text-orange-500 ">
-                          <Heart className="h-5 w-5" />
-                          <span className="sr-only ">Ajouter aux favoris</span>
+                                              <Button 
+                          variant="outline" 
+                          size="icon" 
+                          className={`h-8 w-8 rounded-full bg-white ${
+                            estDansListe ? 'text-red-500' : 'text-gray-500'
+                          }`}
+                          onClick={async (e) => {
+                            e.preventDefault()
+                            await basculerListeEnvies(produit.id)
+                          }}
+                          disabled={chargementListeEnvies}
+                        >
+                          <Heart 
+                            className="h-5 w-5" 
+                            fill={estDansListe ? 'currentColor' : 'none'}
+                          />
+                          <span className="sr-only">Ajouter aux favoris</span>
                         </Button>
                       </div>
                     </div>

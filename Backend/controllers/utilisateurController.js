@@ -592,6 +592,8 @@ const obtenirLivreursDisponibles = async (req, res) => {
     });
   }
 };
+
+
 module.exports = {
   obtenirTousUtilisateurs,
   obtenirUtilisateurParId,

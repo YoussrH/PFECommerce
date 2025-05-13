@@ -1,6 +1,5 @@
 "use client"
-
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import axios from "axios"
@@ -18,14 +17,20 @@ import {
 } from "@/components/ui/pagination"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import ProductDetailsModel from "../productsModel/[id]/page"
+import { useWishlist } from "@/hooks/useWishlist"
 
 const FemmeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) => {
   const [pageCourante, setPageCourante] = useState(1)
   const [produitAchatRapide, setProduitAchatRapide] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const produitsParPage = 12
+  
+  const { 
+    basculerListeEnvies, 
+    estDansListeEnvies,
+    chargement: chargementListeEnvies
+  } = useWishlist()
 
-  // Get primary image for each product
   const getPrimaryImage = (produit) => {
     if (!produit) return "/placeholder-image.png"
 
@@ -157,6 +162,7 @@ const FemmeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
             {produitsCourants.map((produit) => {
               const primaryImage = getPrimaryImage(produit)
               const marque = typeof produit.marque === "object" ? produit.marque?.libelle : produit.marque
+              const estDansListe = estDansListeEnvies(produit.id)
 
               return (
                 <div key={produit.id || Math.random()} className="group relative">
@@ -203,8 +209,22 @@ const FemmeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                         >
                           Achat Rapide
                         </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-white text-orange-500">
-                          <Heart className="h-5 w-5" />
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          className={`h-8 w-8 rounded-full bg-white ${
+                            estDansListe ? 'text-red-500' : 'text-gray-500'
+                          }`}
+                          onClick={async (e) => {
+                            e.preventDefault()
+                            await basculerListeEnvies(produit.id)
+                          }}
+                          disabled={chargementListeEnvies}
+                        >
+                          <Heart 
+                            className="h-5 w-5" 
+                            fill={estDansListe ? 'currentColor' : 'none'}
+                          />
                           <span className="sr-only">Ajouter aux favoris</span>
                         </Button>
                       </div>
@@ -312,6 +332,16 @@ const FemmeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                     className={`flex items-center gap-2 ${
                       !selectedSize || product.stock <= 0 ? "opacity-50 cursor-not-allowed" : ""
                     }`}
+                    onClick={async () => {
+                      const ajoute = await handleAjoutPanier({
+                        produit: product,
+                        tailleSelectionnee: selectedSize,
+                        quantite: 1,
+                      })
+                      if (ajoute) {
+                        setProduitAchatRapide(null)
+                      }
+                    }}
                     disabled={!selectedSize || product.stock <= 0 || isAddingToCart}
                   >
                     {isAddingToCart ? (
@@ -326,6 +356,9 @@ const FemmeProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                   <Button
                     variant="secondary"
                     className={`${!selectedSize || product.stock <= 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                    onClick={async () => {
+                      await handleAchatRapide({ produit: product, tailleSelectionnee: selectedSize })
+                    }}
                     disabled={!selectedSize || product.stock <= 0 || isAddingToCart}
                   >
                     Achetez maintenant

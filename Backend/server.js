@@ -28,6 +28,8 @@ const commandeRoutes = require('./routes/commandeRoutes');
 const livraisonsRoutes = require('./routes/livraisonsRoutes');
 const expeditionsRoutes = require('./routes/expeditionRoutes');
 const livreurRoutes = require('./routes/livreurRoutes');
+const listeEnviesRoutes = require('./routes/listeEnviesRoutes');
+const clientRoutes = require('./routes/clientRoutes');
 const path = require('path');
 const cronJobs = require('./utils/cronJobs'); 
 
@@ -132,6 +134,8 @@ app.use("/livraisons", livraisonsRoutes);
 app.use("/utilisateurs", utilisateurRoutes);
 app.use("/expeditions", expeditionsRoutes);
 app.use("/livreur", livreurRoutes);
+app.use("/liste-envies", listeEnviesRoutes);
+app.use("/clients", clientRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/health', (req, res) => {

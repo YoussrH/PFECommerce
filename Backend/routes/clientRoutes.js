@@ -2,7 +2,15 @@
 const express = require("express");
 const router = express.Router();
 const clientController = require("../controllers/clientController");
-const { authentifier, verifierAdmin } = require("../Middleware/authMiddleware");
-router.put("/client", authentifier, clientController.mettreAJourClient);
-router.get("/client/commandes", authentifier, clientController.obtenirHistoriqueCommandes);
+const { authentifier, verifierAdmin } = require("../middleware/authMiddleware");
+
+router.put("/mettreAJourProfil", authentifier, clientController.mettreAJourProfil);
+router.get("/obtenirCommandesClient", authentifier, clientController.obtenirCommandesClient);
+router.get("/filtrerCommandesParStatut", authentifier, clientController.filtrerCommandesParStatut);
+router.get("/filtrerCommandesParDate", authentifier, clientController.filtrerCommandesParDate);
+router.get("/obtenirRetoursClient", authentifier, clientController.obtenirRetoursClient);
+router.get("/obtenirRemplacementsClient", authentifier, clientController.obtenirRemplacementsClient);
+router.get("/obtenirDetailsCommandeClient/:id", authentifier, clientController.obtenirDetailsCommandeClient);
+
+
 module.exports = router;

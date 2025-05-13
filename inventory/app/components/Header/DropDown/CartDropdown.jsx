@@ -13,15 +13,15 @@ const PanierDropdown = ({
   userPrenom, 
   isOpen, 
   onMouseEnter, 
-  onMouseLeave, 
-  onClick 
+  onMouseLeave,
+  onClick
 }) => {
   const router = useRouter();
   const pathname = usePathname();
   const dropdownRef = useRef(null);
   const [dropdownOuvert, setDropdownOuvert] = useState(false);
   const [suppressionEnCours, setSuppressionEnCours] = useState(null);
-  const { user } = useAuth(); // Get user from AuthContext
+  const { user } = useAuth();
   
   const {
     panier,
@@ -33,15 +33,37 @@ const PanierDropdown = ({
   } = usePanier();
 
   useEffect(() => {
+    console.log("CartDropdown mounted - fetching cart");
     recupererPanier();
   }, [recupererPanier]);
 
+  useEffect(() => {
+    if (pathname) {
+      console.log("Route changed, closing dropdown");
+      setDropdownOuvert(false);
+    }
+  }, [pathname]);
+
+  const handleCartIconClick = (e) => {
+    e.stopPropagation();
+    console.log("Cart icon clicked");
+    if (panier.length > 0) {
+      console.log("Navigating to cart page");
+      router.push("/caisse/panier");
+    } else {
+      console.log("Cart is empty, opening dropdown");
+      setDropdownOuvert(!dropdownOuvert);
+    }
+  };
+
   const handleSupprimerArticle = async (idArticlePanier) => {
+    console.log(`Removing item ${idArticlePanier}`);
     setSuppressionEnCours(idArticlePanier);
     try {
       await supprimerArticle(idArticlePanier);
       toast.success("Article supprimé du panier");
     } catch (erreur) {
+      console.error("Error removing item:", erreur);
       toast.error("Échec de la suppression");
     } finally {
       setSuppressionEnCours(null);
@@ -67,15 +89,20 @@ const PanierDropdown = ({
       className="relative p-1"
       ref={dropdownRef}
       onMouseEnter={() => {
+        console.log("Mouse entered cart dropdown");
         setDropdownOuvert(true);
         onMouseEnter?.("panier");
       }}
       onMouseLeave={() => {
+        console.log("Mouse left cart dropdown");
         setDropdownOuvert(false);
         onMouseLeave?.();
       }}
     >
-      <div className="cursor-pointer relative" onClick={onClick}>
+      <div 
+        className="cursor-pointer relative" 
+        onClick={handleCartIconClick}
+      >
         <Image
           src={pathname === "/caisse/panier" ? "/cart1.svg" : "/cartnotselected.svg"}
           alt="Icône panier"
@@ -93,11 +120,16 @@ const PanierDropdown = ({
       {dropdownOuvert && (
         <div
           className="absolute right-0 mt-1 w-80 z-50 bg-white border border-gray-300 rounded-md shadow-md"
-          onMouseEnter={() => setDropdownOuvert(true)}
-          onMouseLeave={() => setDropdownOuvert(false)}
+          onMouseEnter={() => {
+            console.log("Mouse entered dropdown content");
+            setDropdownOuvert(true);
+          }}
+          onMouseLeave={() => {
+            console.log("Mouse left dropdown content");
+            setDropdownOuvert(false);
+          }}
         >
           <div className="px-4 py-2 text-xs">
-            {/* Fixed greeting - uses user.prenom if available, otherwise falls back to props */}
             <p className="font-semibold">
               Bonjour {user?.prenom || userPrenom || "invité"}
             </p>
@@ -105,7 +137,6 @@ const PanierDropdown = ({
           </div>
           <hr className="border-t border-gray-300" />
           
-          {/* Rest of your cart dropdown content remains the same */}
           <div className="p-4 max-h-96 overflow-y-auto">
             {chargement && !suppressionEnCours ? (
               <div className="flex flex-col items-center justify-center py-8">
@@ -128,6 +159,7 @@ const PanierDropdown = ({
                 <Link
                   href="/store/nouveautes"
                   className="inline-block px-3 py-2 bg-black text-white text-xs rounded-sm hover:bg-gray-800 transition-colors"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   Voir les produits
                 </Link>
@@ -172,7 +204,11 @@ const PanierDropdown = ({
                               </span>
                             </div>
                             <button 
-                              onClick={() => !suppressionEnCours && handleSupprimerArticle(article.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                console.log(`Remove button clicked for item ${article.id}`);
+                                if (!suppressionEnCours) handleSupprimerArticle(article.id);
+                              }}
                               className="p-1 hover:bg-gray-100 rounded"
                               aria-label="Supprimer"
                               disabled={suppressionEnCours === article.id}
@@ -198,7 +234,11 @@ const PanierDropdown = ({
                   <Link
                     href="/caisse/panier"
                     className="block w-full text-center px-4 py-2 bg-black text-white text-xs rounded-sm hover:bg-gray-800 transition-colors"
-                    onClick={() => setDropdownOuvert(false)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log("View cart button clicked");
+                      setDropdownOuvert(false);
+                    }}
                   >
                     Voir le panier
                   </Link>
