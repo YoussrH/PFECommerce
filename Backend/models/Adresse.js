@@ -1,3 +1,5 @@
+const { Op } = require('sequelize');
+
 module.exports = (sequelize, DataTypes) => {
   const Adresse = sequelize.define('Adresse', {
     id: {
@@ -12,7 +14,7 @@ module.exports = (sequelize, DataTypes) => {
     nom_adresse: {
       type: DataTypes.STRING,
       allowNull: false,
-      defaultValue: 'Adresse Principale'
+      defaultValue: 'Adresse'
     },
     adresse: {
       type: DataTypes.STRING,
@@ -48,10 +50,20 @@ module.exports = (sequelize, DataTypes) => {
     hooks: {
       beforeSave: async (adresse, options) => {
         if (adresse.est_principale) {
+          // Update name when marking as primary
+          adresse.nom_adresse = 'Adresse Principale';
+          
+          // Remove "Principale" from other addresses and unmark them as primary
           await Adresse.update(
-            { est_principale: false },
+            { 
+              est_principale: false,
+              nom_adresse: sequelize.literal(`CASE WHEN nom_adresse = 'Adresse Principale' THEN 'Adresse' ELSE nom_adresse END`)
+            },
             {
-              where: { client_id: adresse.client_id },
+              where: { 
+                client_id: adresse.client_id,
+                id: { [Op.ne]: adresse.id }
+              },
               transaction: options.transaction
             }
           );
@@ -63,8 +75,12 @@ module.exports = (sequelize, DataTypes) => {
           transaction: options.transaction
         });
         
+        // If this is the first address, set it as primary
         if (count === 1) {
-          await adresse.update({ est_principale: true }, { transaction: options.transaction });
+          await adresse.update({ 
+            est_principale: true,
+            nom_adresse: 'Adresse Principale'
+          }, { transaction: options.transaction });
         }
       }
     }

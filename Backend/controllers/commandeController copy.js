@@ -1500,7 +1500,7 @@ const obtenirCommandesALivrer = async (req, res) => {
 
     const { count, rows } = await Commande.findAndCountAll({
       where: {
-        statut: 'en_attente',
+        statut: 'en_preparation',
         methode_livraison: { [Op.in]: ['standard', 'express'] },
         livreur_id: null
       },

@@ -1,0 +1,119 @@
+"use client";
+import React, { useState, useRef ,useCallback} from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useAuth } from '@/app/contexts/AuthContext';
+import AuthModal from "../../Auth/AuthModal";
+import Image from "next/image";
+import { toast } from "sonner";
+const UserDropdown = ({
+  isOpen,
+  onMouseEnter,
+  onMouseLeave,
+  onClick,
+  onAuthModalOpen
+}) => {
+    const { user, logout } = useAuth();
+    const router = useRouter();
+    const pathname = usePathname();
+    const dropdownRef = useRef(null);
+    const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    
+  const handleUserIconClick = useCallback(() => {
+    if (user) {
+      setIsUserDropdownOpen(prev => !prev);
+      router.push("/client");
+    } else {
+      onAuthModalOpen();
+    }
+  }, [user, router, onAuthModalOpen]);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      setIsUserDropdownOpen(false);
+      await logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  }, [logout]);
+
+
+  return (
+    <div
+      className="relative pt-1"
+      ref={dropdownRef}
+      onMouseEnter={() => {
+        setIsUserDropdownOpen(true);
+        if (onMouseEnter) onMouseEnter("user");
+      }}
+      onMouseLeave={() => {
+        setIsUserDropdownOpen(false);
+        if (onMouseLeave) onMouseLeave();
+      }}
+    >
+      <Image
+        src={pathname.startsWith("/client") ? "/userselected.svg" : "/user.svg"}
+        alt="user"
+        width={30}
+        height={30}
+        className="cursor-pointer"
+        onClick={handleUserIconClick}
+      />
+
+      {isUserDropdownOpen && user && (
+        <div className="absolute right-0 mt-1 w-48 z-50 bg-white border border-gray-300 rounded-md shadow-md">
+          <div className="px-4 py-2 text-xs">
+            <p className="font-semibold">Bonjour {user.prenom}</p>
+          </div>
+          <hr className="border-t border-gray-300" />
+          <button
+            onClick={() => {
+              router.push("/client/compte/commande?section=commande");
+              setIsUserDropdownOpen(false);
+            }}
+            className="block w-full text-left px-4 py-2 text-xs font-mono hover:bg-gray-100"
+          >
+            Mes commandes
+          </button>
+          <button
+            onClick={() => {
+              router.push("/client/compte/edit?section=profile");
+              setIsUserDropdownOpen(false);
+            }}
+            className="block w-full text-left px-4 py-2 text-xs hover:bg-gray-100"
+          >
+            Mes infos personnelles
+          </button>
+          <button
+            onClick={() => {
+              router.push("/client/listenvie?section=wishlist");
+              setIsUserDropdownOpen(false);
+            }}
+            className="block w-full text-left px-4 py-2 text-xs hover:bg-gray-100"
+          >
+            Ma liste d&apos;envies
+          </button>
+          <button
+            onClick={handleLogout}
+            className="block w-full text-left px-4 py-2 text-xs hover:bg-gray-100"
+          >
+            Se déconnecter
+          </button>
+        </div>
+      )}
+
+      {isAuthModalOpen && (
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          onAuthSuccess={() => {
+            setIsAuthModalOpen(false);
+            window.dispatchEvent(new Event('authChange'));
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default UserDropdown;

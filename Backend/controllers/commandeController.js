@@ -443,97 +443,6 @@ const obtenirDetailsCommande = async (req, res) => {
   }
 };
 
-
-/* const mettreAJourStatut = async (req, res) => {
-  const transaction = await sequelize.transaction();
-  try {
-    const { id } = req.params;
-    const { statut, notes } = req.body;
-    const utilisateurId = req.utilisateur?.id;
-
-    const commande = await Commande.findByPk(id, {
-      transaction,
-      include: ['colis', {
-        model: Client,
-        as: 'client',
-        include: [{ model: Utilisateur, as: 'utilisateur' }]
-      }]
-    });
-
-    if (!commande) {
-      await transaction.rollback();
-      return res.status(404).json({ 
-        success: false,
-        message: 'Commande non trouvée' 
-      });
-    }
-
-    const ancienStatut = commande.statut;
-    
-    // Validate status transition
-    if (!isValidStatusTransition(ancienStatut, statut)) {
-      await transaction.rollback();
-      return res.status(400).json({ 
-        success: false,
-        message: `Transition de statut non autorisée de ${ancienStatut} à ${statut}`
-      });
-    }
-
-    // Special handling for different statuses
-    if (statut === 'annulee') {
-      await handleOrderCancellation(commande, notes, transaction);
-    } else if (statut === 'remplacee') {
-      await handleOrderReplacement(commande, notes, transaction);
-    } else {
-      await commande.update({ statut }, { transaction });
-    }
-
-    // Update related parcels if needed
-    if (shouldUpdateParcels(ancienStatut, statut)) {
-      await updateRelatedParcels(commande, statut, transaction);
-    }
-
-    // Log status change
-    await logStatusChange(commande, ancienStatut, statut, utilisateurId, notes, transaction);
-
-    // If status is 'remplacee', create replacement order
-    if (statut === 'remplacee') {
-      const replacementOrder = await createReplacementOrder(commande, transaction);
-      await transaction.commit();
-      
-      return res.status(200).json({ 
-        success: true,
-        message: 'Commande marquée comme remplacée et nouvelle commande créée',
-        data: { 
-          ancienStatut,
-          nouveauStatut: statut,
-          replacementOrderId: replacementOrder.id
-        }
-      });
-    }
-
-    await transaction.commit();
-
-    res.status(200).json({ 
-      success: true,
-      message: 'Statut mis à jour',
-      data: { 
-        ancienStatut,
-        nouveauStatut: statut 
-      }
-    });
-
-  } catch (error) {
-    await transaction.rollback();
-    console.error('Error in mettreAJourStatut:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Erreur changement statut',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-}; */
-
 const mettreAJourStatut = async (req, res) => {
   let transaction;
   try {
@@ -686,7 +595,7 @@ async function createReplacementOrder(originalCommande, transaction) {
     methode_paiement: originalCommande.methode_paiement,
     frais_livraison: originalCommande.frais_livraison,
     remplace_commande_id: originalCommande.id,
-    statut: 'en_attente'
+    statut: 'en_preparation' // Changed from ''
   }, { transaction });
 
   // Copy articles from original order
@@ -728,10 +637,8 @@ async function initierRemboursement(commande, transaction) {
     details: 'Remboursement initié'
   }, { transaction });
 }
-
 function isValidStatusTransition(oldStatus, newStatus) {
   const allowedTransitions = {
-    en_attente: ['en_preparation', 'annulee'],
     en_preparation: ['expediee', 'annulee', 'remplacee', 'retourne'],
     expediee: ['livree', 'retourne', 'remplacee'],
     livree: ['retourne'],
@@ -741,7 +648,6 @@ function isValidStatusTransition(oldStatus, newStatus) {
   };
   return allowedTransitions[oldStatus]?.includes(newStatus) || false;
 }
-
 function shouldUpdateParcels(oldStatus, newStatus) {
   // Only update parcels for these status transitions
   const statusesThatAffectParcels = [
@@ -1399,83 +1305,6 @@ const modifierAdresseLivraison = async (req, res) => {
   }
 };
 
-// 6. Cancel Order
-/* const annulerCommande = async (req, res) => {
-  const transaction = await sequelize.transaction();
-  try {
-    const { id } = req.params;
-    const { raison, rembourser = false } = req.body;
-    const utilisateurId = req.utilisateur.id;
-
-    const commande = await Commande.findByPk(id, { 
-      transaction,
-      lock: true 
-    });
-
-    if (!commande) {
-      await transaction.rollback();
-      return res.status(404).json({ 
-        success: false,
-        message: 'Commande non trouvée' 
-      });
-    }
-
-    if (['livree', 'annulee'].includes(commande.statut)) {
-      await transaction.rollback();
-      return res.status(400).json({ 
-        success: false,
-        message: `Impossible d'annuler une commande ${commande.statut}`
-      });
-    }
-
-    const ancienStatut = commande.statut;
-    await commande.update({ statut: 'annulee' }, { transaction });
-
-    await CommandeHistorique.create({
-      commande_id: commande.id,
-      utilisateur_id: utilisateurId,
-      action: 'annulation_commande',
-      ancienne_valeur: ancienStatut,
-      nouvelle_valeur: 'annulee',
-      details: `Annulée: ${raison || 'Non spécifié'}. Remboursement: ${rembourser ? 'Oui' : 'Non'}`
-    }, { transaction });
-
-    if (rembourser) {
-      await CommandeHistorique.create({
-        commande_id: commande.id,
-        utilisateur_id: utilisateurId,
-        action: 'demande_remboursement',
-        details: 'Remboursement initié'
-      }, { transaction });
-    }
-
-    await transaction.commit();
-
-    res.status(200).json({ 
-      success: true,
-      message: 'Commande annulée',
-      data: { 
-        statut: 'annulee',
-        remboursement_initie: rembourser 
-      }
-    });
-
-  } catch (error) {
-    await transaction.rollback();
-    const errorInfo = debugError('annulerCommande', error, {
-      commandeId: req.params.id,
-      body: req.body
-    });
-    res.status(500).json({ 
-      success: false,
-      message: 'Erreur annulation commande',
-      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
-    });
-  }
-}; */
-
-// controllers/commandeController.js
-
 const annulerCommande = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
@@ -1621,7 +1450,7 @@ const remplacerCommande = async (req, res) => {
       methode_paiement: commandeOriginale.methode_paiement,
       frais_livraison: commandeOriginale.frais_livraison,
       remplace_commande_id: commandeOriginale.id,
-      statut: 'en_attente'
+      statut: 'en_preparation'
     }, { transaction });
 
     // 4. Add articles to new order
@@ -2069,7 +1898,7 @@ const genererQRCodePourLivraison = async (commandeId) => {
 };
 
 /**
- * @desc Get orders ready for delivery (en_attente + delivery method + no livreur assigned)
+ * @desc Get orders ready for delivery ( + delivery method + no livreur assigned)
  * @access Admin/SuperAdmin
  */
 const obtenirCommandesALivrer = async (req, res) => {
@@ -2079,7 +1908,7 @@ const obtenirCommandesALivrer = async (req, res) => {
 
     const { count, rows } = await Commande.findAndCountAll({
       where: {
-        statut: 'en_attente',
+        statut: 'en_preparation', // Changed from ''
         methode_livraison: { [Op.in]: ['standard', 'express'] },
         livreur_id: null
       },
@@ -2091,7 +1920,7 @@ const obtenirCommandesALivrer = async (req, res) => {
         },
         { model: Adresse, as: 'adresse' }
       ],
-      order: [['created_at', 'ASC']], // Oldest first
+      order: [['created_at', 'ASC']],
       limit: parseInt(limit),
       offset: parseInt(offset)
     });
@@ -2114,7 +1943,6 @@ const obtenirCommandesALivrer = async (req, res) => {
     });
   }
 };
-
 
 
 module.exports = {

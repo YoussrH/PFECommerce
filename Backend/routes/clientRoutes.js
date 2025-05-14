@@ -12,5 +12,10 @@ router.get("/obtenirRetoursClient", authentifier, clientController.obtenirRetour
 router.get("/obtenirRemplacementsClient", authentifier, clientController.obtenirRemplacementsClient);
 router.get("/obtenirDetailsCommandeClient/:id", authentifier, clientController.obtenirDetailsCommandeClient);
 
+router.get("/obtenirAdresses", authentifier, clientController.obtenirAdresses);
+router.put("/marquerAdressePrincipale/:adresseId", authentifier, clientController.marquerAdressePrincipale);
+router.put("/mettreAJourAdresse/:adresseId", authentifier, clientController.mettreAJourAdresse);
+router.delete("/supprimerAdresse/:adresseId", authentifier, clientController.supprimerAdresse);
+
 
 module.exports = router;

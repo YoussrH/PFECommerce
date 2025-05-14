@@ -32,7 +32,6 @@ module.exports = (sequelize, DataTypes) => {
     },
     statut: {
       type: DataTypes.ENUM(
-        'en_attente',
         'en_preparation',
         'expediee',
         'livree',
@@ -40,7 +39,7 @@ module.exports = (sequelize, DataTypes) => {
         'annulee',
         'remplacee'
       ),
-      defaultValue: 'en_attente',
+      defaultValue: 'en_preparation',
     },
     methode_livraison: DataTypes.STRING,
     methode_paiement: DataTypes.STRING,

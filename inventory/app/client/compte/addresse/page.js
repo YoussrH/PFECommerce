@@ -1,158 +1,120 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
-import { Plus, Edit, Trash2, Home, Briefcase, MapPin } from "lucide-react"
+import { Edit, Trash2, Home, Briefcase, MapPin, Loader2 } from "lucide-react"
+import { useClient } from "@/hooks/useClient"
 
 export default function Adresse() {
-  // Sample addresses data - in a real app, this would come from an API
-  const [addresses, setAddresses] = useState([
-    {
-      id: 1,
-      type: "home",
-      isDefault: true,
-      firstName: "Jean",
-      lastName: "Dupont",
-      address1: "123 Rue de Paris",
-      address2: "Appartement 4B",
-      city: "Paris",
-      postalCode: "75001",
-      country: "France",
-      phone: "01 23 45 67 89",
-    },
-    {
-      id: 2,
-      type: "work",
-      isDefault: false,
-      firstName: "Jean",
-      lastName: "Dupont",
-      address1: "45 Avenue des Champs-Élysées",
-      address2: "Étage 3",
-      city: "Paris",
-      postalCode: "75008",
-      country: "France",
-      phone: "01 98 76 54 32",
-    },
-  ])
+  const {
+    getAddresses,
+    markAddressAsPrimary,
+    updateAddress,
+    deleteAddress,
+    loading: apiLoading,
+    error: apiError
+  } = useClient()
 
+  const [addresses, setAddresses] = useState([])
   const [editingAddress, setEditingAddress] = useState(null)
-  const [isAddingNew, setIsAddingNew] = useState(false)
   const [formData, setFormData] = useState({
     type: "home",
     isDefault: false,
-    firstName: "",
-    lastName: "",
-    address1: "",
-    address2: "",
-    city: "",
-    postalCode: "",
-    country: "France",
-    phone: "",
+    adresse: "",
+    complement: "",
+    ville: "",
+    gouvernorat: "",
+    code_postal: "",
+    telephone: "",
   })
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleEdit = (address) => {
-    setFormData({ ...address })
-    setEditingAddress(address.id)
-    setIsAddingNew(false)
+  // Load addresses on component mount
+  useEffect(() => {
+    fetchAddresses()
+  }, [])
+
+  // Handle API errors
+  useEffect(() => {
+    if (apiError) {
+      toast.error(apiError)
+    }
+  }, [apiError])
+
+  const fetchAddresses = async () => {
+    setIsLoading(true)
+    const { success, data } = await getAddresses()
+    if (success) {
+      // Transform backend data to match frontend structure
+      const transformed = data.adresses.map(addr => ({
+        id: addr.id,
+        type: addr.nom_adresse.toLowerCase().includes('travail') ? 'work' : 'home',
+        isDefault: addr.est_principale,
+        adresse: addr.adresse,
+        complement: addr.complement,
+        ville: addr.ville,
+        gouvernorat: addr.gouvernorat,
+        code_postal: addr.code_postal,
+        telephone: addr.telephone
+      }))
+      setAddresses(transformed)
+    }
+    setIsLoading(false)
   }
 
-  const handleDelete = (id) => {
+  const handleEdit = (address) => {
+    setFormData({ 
+      ...address
+    })
+    setEditingAddress(address.id)
+  }
+
+  const handleDelete = async (id) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer cette adresse ?")) {
-      const updatedAddresses = addresses.filter((address) => address.id !== id)
-
-      // If we're deleting the default address, make the first remaining address the default
-      if (addresses.find((a) => a.id === id).isDefault && updatedAddresses.length > 0) {
-        updatedAddresses[0].isDefault = true
+      const { success } = await deleteAddress(id)
+      if (success) {
+        toast.success("Adresse supprimée avec succès")
+        await fetchAddresses()
       }
-
-      setAddresses(updatedAddresses)
-      toast.success("Adresse supprimée avec succès")
     }
   }
 
-  const handleAddNew = () => {
-    setFormData({
-      type: "home",
-      isDefault: addresses.length === 0, // Make default if it's the first address
-      firstName: "",
-      lastName: "",
-      address1: "",
-      address2: "",
-      city: "",
-      postalCode: "",
-      country: "France",
-      phone: "",
-    })
-    setEditingAddress(null)
-    setIsAddingNew(true)
-  }
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
-
+    
     // Validate form
-    if (!formData.firstName || !formData.lastName || !formData.address1 || !formData.city || !formData.postalCode) {
+    if (!formData.adresse || !formData.ville || !formData.code_postal || !formData.telephone) {
       toast.error("Veuillez remplir tous les champs obligatoires")
       setIsLoading(false)
       return
     }
 
-    // Simulate API call
-    setTimeout(() => {
-      if (isAddingNew) {
-        // Add new address
-        const newAddress = {
-          ...formData,
-          id: Date.now(),
-        }
+    // Prepare data for backend
+    const addressData = {
+      nom_adresse: formData.type === 'home' ? 'Domicile' : 'Travail',
+      adresse: formData.adresse,
+      complement: formData.complement,
+      code_postal: formData.code_postal,
+      ville: formData.ville,
+      gouvernorat: formData.gouvernorat,
+      telephone: formData.telephone,
+      est_principale: formData.isDefault
+    }
 
-        // If this is set as default, update other addresses
-        if (newAddress.isDefault) {
-          setAddresses((prev) =>
-            prev
-              .map((addr) => ({
-                ...addr,
-                isDefault: false,
-              }))
-              .concat(newAddress),
-          )
-        } else {
-          setAddresses((prev) => [...prev, newAddress])
-        }
-
-        toast.success("Adresse ajoutée avec succès")
-      } else {
-        // Update existing address
-        setAddresses((prev) => {
-          const updated = prev.map((addr) => {
-            // If this address is being set as default, unset others
-            if (formData.isDefault && addr.id !== editingAddress) {
-              return { ...addr, isDefault: false }
-            }
-
-            // Update the edited address
-            if (addr.id === editingAddress) {
-              return { ...formData }
-            }
-
-            return addr
-          })
-
-          return updated
-        })
-
+    try {
+      // Update existing address
+      const { success } = await updateAddress(editingAddress, addressData)
+      if (success) {
         toast.success("Adresse mise à jour avec succès")
+        setEditingAddress(null)
+        await fetchAddresses()
       }
-
-      setIsAddingNew(false)
-      setEditingAddress(null)
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   const handleCancel = () => {
-    setIsAddingNew(false)
     setEditingAddress(null)
   }
 
@@ -164,6 +126,19 @@ export default function Adresse() {
     })
   }
 
+  const handleSetDefault = async (id) => {
+    setIsLoading(true)
+    try {
+      const { success } = await markAddressAsPrimary(id)
+      if (success) {
+        toast.success("Adresse par défaut mise à jour")
+        await fetchAddresses()
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="p-4 md:p-6 border border-gray-200 rounded-sm">
       <div className="flex justify-between items-center mb-6">
@@ -171,22 +146,15 @@ export default function Adresse() {
           <h2 className="text-lg md:text-xl font-semibold mb-1">Mon carnet d&apos;adresses</h2>
           <p className="text-sm text-gray-600">Gérez vos adresses de livraison et de facturation.</p>
         </div>
-
-        {!isAddingNew && !editingAddress && (
-          <button
-            onClick={handleAddNew}
-            className="px-3 py-1.5 bg-black text-white text-xs flex items-center gap-1 hover:bg-gray-800 transition-colors"
-          >
-            <Plus size={14} /> Ajouter
-          </button>
-        )}
       </div>
 
-      {isAddingNew || editingAddress ? (
+      {isLoading && !editingAddress ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="animate-spin" size={24} />
+        </div>
+      ) : editingAddress ? (
         <div className="border border-gray-200 rounded-sm p-4 md:p-6 mb-6">
-          <h3 className="text-md font-medium mb-4">
-            {isAddingNew ? "Ajouter une nouvelle adresse" : "Modifier l'adresse"}
-          </h3>
+          <h3 className="text-md font-medium mb-4">Modifier l&apos;adresse</h3>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -226,54 +194,22 @@ export default function Adresse() {
                     checked={formData.isDefault}
                     onChange={handleInputChange}
                     className="text-black focus:ring-black"
-                    disabled={addresses.length === 0} // Force default if it's the first address
+                    disabled={addresses.length === 0}
                   />
                   <span className="text-sm">Définir comme adresse par défaut</span>
                 </label>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-medium mb-1">
-                  Prénom *
-                </label>
-                <input
-                  type="text"
-                  id="firstName"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-sm text-sm"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-medium mb-1">
-                  Nom *
-                </label>
-                <input
-                  type="text"
-                  id="lastName"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-sm text-sm"
-                  required
-                />
-              </div>
-            </div>
-
             <div>
-              <label htmlFor="address1" className="block text-sm font-medium mb-1">
+              <label htmlFor="adresse" className="block text-sm font-medium mb-1">
                 Adresse *
               </label>
               <input
                 type="text"
-                id="address1"
-                name="address1"
-                value={formData.address1}
+                id="adresse"
+                name="adresse"
+                value={formData.adresse}
                 onChange={handleInputChange}
                 className="w-full p-2 border border-gray-300 rounded-sm text-sm"
                 required
@@ -281,14 +217,14 @@ export default function Adresse() {
             </div>
 
             <div>
-              <label htmlFor="address2" className="block text-sm font-medium mb-1">
+              <label htmlFor="complement" className="block text-sm font-medium mb-1">
                 Complément d&apos;adresse
               </label>
               <input
                 type="text"
-                id="address2"
-                name="address2"
-                value={formData.address2}
+                id="complement"
+                name="complement"
+                value={formData.complement}
                 onChange={handleInputChange}
                 className="w-full p-2 border border-gray-300 rounded-sm text-sm"
               />
@@ -296,14 +232,14 @@ export default function Adresse() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label htmlFor="city" className="block text-sm font-medium mb-1">
+                <label htmlFor="ville" className="block text-sm font-medium mb-1">
                   Ville *
                 </label>
                 <input
                   type="text"
-                  id="city"
-                  name="city"
-                  value={formData.city}
+                  id="ville"
+                  name="ville"
+                  value={formData.ville}
                   onChange={handleInputChange}
                   className="w-full p-2 border border-gray-300 rounded-sm text-sm"
                   required
@@ -311,50 +247,45 @@ export default function Adresse() {
               </div>
 
               <div>
-                <label htmlFor="postalCode" className="block text-sm font-medium mb-1">
+                <label htmlFor="gouvernorat" className="block text-sm font-medium mb-1">
+                  Gouvernorat *
+                </label>
+                <input
+                  type="text"
+                  id="gouvernorat"
+                  name="gouvernorat"
+                  value={formData.gouvernorat}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-300 rounded-sm text-sm"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="code_postal" className="block text-sm font-medium mb-1">
                   Code postal *
                 </label>
                 <input
                   type="text"
-                  id="postalCode"
-                  name="postalCode"
-                  value={formData.postalCode}
+                  id="code_postal"
+                  name="code_postal"
+                  value={formData.code_postal}
                   onChange={handleInputChange}
                   className="w-full p-2 border border-gray-300 rounded-sm text-sm"
                   required
                 />
               </div>
-
-              <div>
-                <label htmlFor="country" className="block text-sm font-medium mb-1">
-                  Pays *
-                </label>
-                <select
-                  id="country"
-                  name="country"
-                  value={formData.country}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-sm text-sm"
-                  required
-                >
-                  <option value="France">France</option>
-                  <option value="Belgique">Belgique</option>
-                  <option value="Suisse">Suisse</option>
-                  <option value="Luxembourg">Luxembourg</option>
-                  <option value="Canada">Canada</option>
-                </select>
-              </div>
             </div>
 
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium mb-1">
+              <label htmlFor="telephone" className="block text-sm font-medium mb-1">
                 Téléphone *
               </label>
               <input
                 type="tel"
-                id="phone"
-                name="phone"
-                value={formData.phone}
+                id="telephone"
+                name="telephone"
+                value={formData.telephone}
                 onChange={handleInputChange}
                 className="w-full p-2 border border-gray-300 rounded-sm text-sm"
                 required
@@ -368,15 +299,17 @@ export default function Adresse() {
                 type="button"
                 onClick={handleCancel}
                 className="px-4 py-2 border border-gray-300 text-sm hover:bg-gray-50 transition-colors"
+                disabled={isLoading}
               >
                 Annuler
               </button>
               <button
                 type="submit"
                 disabled={isLoading}
-                className="px-4 py-2 bg-black text-white text-sm hover:bg-gray-800 transition-colors disabled:bg-gray-400"
+                className="px-4 py-2 bg-black text-white text-sm hover:bg-gray-800 transition-colors disabled:bg-gray-400 flex items-center gap-2"
               >
-                {isLoading ? "Enregistrement..." : isAddingNew ? "Ajouter" : "Mettre à jour"}
+                {isLoading && <Loader2 className="animate-spin" size={16} />}
+                {isLoading ? "Enregistrement..." : "Mettre à jour"}
               </button>
             </div>
           </form>
@@ -388,17 +321,11 @@ export default function Adresse() {
           <p className="text-sm text-gray-500 mb-4">
             Vous n&apos;avez pas encore ajouté d&apos;adresse à votre compte.
           </p>
-          <button
-            onClick={handleAddNew}
-            className="px-4 py-2 bg-black text-white text-sm hover:bg-gray-800 transition-colors"
-          >
-            Ajouter une adresse
-          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {addresses.map((address) => (
-            <div key={address.id} className="border border-gray-200 rounded-sm p-4">
+            <div key={address.id} className="border border-gray-200 rounded-sm p-4 relative">
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2">
                   {address.type === "home" ? (
@@ -431,23 +358,28 @@ export default function Adresse() {
               </div>
 
               <div className="text-sm space-y-1">
-                <p className="font-medium">
-                  {address.firstName} {address.lastName}
-                </p>
-                <p>{address.address1}</p>
-                {address.address2 && <p>{address.address2}</p>}
+                <p>{address.adresse}</p>
+                {address.complement && <p>{address.complement}</p>}
                 <p>
-                  {address.postalCode} {address.city}
+                  {address.code_postal} {address.ville}, {address.gouvernorat}
                 </p>
-                <p>{address.country}</p>
-                <p className="pt-1">{address.phone}</p>
+                <p className="pt-1">{address.telephone}</p>
               </div>
+
+              {!address.isDefault && (
+                <button
+                  onClick={() => handleSetDefault(address.id)}
+                  className="mt-3 text-xs text-blue-600 hover:text-blue-800"
+                >
+                  Définir comme adresse par défaut
+                </button>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {!isAddingNew && !editingAddress && addresses.length > 0 && (
+      {!editingAddress && addresses.length > 0 && (
         <div className="border-t border-gray-200 pt-4">
           <h3 className="text-sm font-medium mb-3">Informations sur les adresses</h3>
           <ul className="list-disc list-inside space-y-2 text-sm text-gray-600 pl-2">

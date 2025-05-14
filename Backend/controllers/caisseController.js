@@ -359,7 +359,7 @@ const sauvegarderAdresseLivraison = async (req, res) => {
     });
   }
 
-  const transaction = await sequelize.transaction();
+ const transaction = await sequelize.transaction();
   try {
     const { 
       adresse, 
@@ -369,7 +369,7 @@ const sauvegarderAdresseLivraison = async (req, res) => {
       gouvernorat, 
       telephone, 
       nom_adresse,
-      est_principale 
+      est_principale = false 
     } = req.body;
     const idUtilisateur = req.utilisateur?.id;
 
@@ -387,26 +387,17 @@ const sauvegarderAdresseLivraison = async (req, res) => {
       transaction
     });
 
-    if (est_principale) {
-      await Adresse.update(
-        { est_principale: false },
-        { 
-          where: { client_id: client.utilisateur_id },
-          transaction 
-        }
-      );
-    }
-
+    // Create the address - let the model hooks handle the primary address logic
     const nouvelleAdresse = await Adresse.create({
       client_id: client.utilisateur_id,
-      nom_adresse: nom_adresse || 'Adresse Principale',
+      nom_adresse: nom_adresse || 'Adresse', // Default to 'Adresse', hooks will update if primary
       adresse,
       complement: complement || null,
       code_postal,
       ville: ville || gouvernorat,
       gouvernorat,
       telephone,
-      est_principale: est_principale || false
+      est_principale
     }, { transaction });
 
     await Utilisateur.update(
@@ -427,7 +418,8 @@ const sauvegarderAdresseLivraison = async (req, res) => {
       message: 'Adresse de livraison sauvegardée avec succès',
       data: {
         adresse_id: nouvelleAdresse.id,
-        est_principale: nouvelleAdresse.est_principale
+        est_principale: nouvelleAdresse.est_principale,
+        nom_adresse: nouvelleAdresse.nom_adresse
       },
       etapeSuivante: '/caisse/livraison'
     });

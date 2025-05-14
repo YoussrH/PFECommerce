@@ -1,6 +1,7 @@
 // controllers/clientController.js
-const { Op, Sequelize } = require('sequelize');
-const { Commande, Client, Adresse,Utilisateur, CommandeArticle, Article, CommandeHistorique, Retour, Remplacement } = require('../models');
+const { Commande, Client, Adresse, Utilisateur, ImageArticleCouleur,CommandeArticle, Article, CommandeHistorique, Retour, Remplacement, Colis } = require('../models');
+const { Sequelize, Op } = require('sequelize');
+const { sequelize } = require("../models");
 
 /**
  * @desc Update client profile (without password)
@@ -71,108 +72,135 @@ const mettreAJourProfil = async (req, res) => {
   }
 };
 
+
+
 /**
  * @desc Get all client orders with filtering
  * @access Client
  */
 const obtenirCommandesClient = async (req, res) => {
   try {
-    const { id } = req.params;
+    const userId = req.utilisateur.id;
     const { page = 1, limit = 10, statut, date_debut, date_fin } = req.query;
     const offset = (page - 1) * limit;
 
-    // Verify the client is accessing their own orders
-    if (req.utilisateur.id !== id) {
-      return res.status(403).json({
+    // First get the client record
+    const client = await Client.findOne({
+      where: { utilisateur_id: userId }
+    });
+
+    if (!client) {
+      return res.status(404).json({
         success: false,
-        message: "Non autorisé - Vous ne pouvez voir que vos propres commandes"
+        message: "Client non trouvé"
       });
     }
 
-    const whereClause = { client_id: id };
+    const whereClause = { client_id: client.utilisateur_id };
 
-    // Status filter
     if (statut) {
       whereClause.statut = statut;
     }
 
-    // Date range filter
+    let dateFilter = {};
     if (date_debut && date_fin) {
-      whereClause.created_at = {
-        [Op.between]: [
-          new Date(date_debut),
-          new Date(date_fin)
-        ]
+      dateFilter = {
+        [Op.between]: [new Date(date_debut), new Date(date_fin)]
       };
     } else if (date_debut) {
-      whereClause.created_at = {
-        [Op.gte]: new Date(date_debut)
-      };
+      dateFilter = { [Op.gte]: new Date(date_debut) };
     } else if (date_fin) {
-      whereClause.created_at = {
-        [Op.lte]: new Date(date_fin)
-      };
+      dateFilter = { [Op.lte]: new Date(date_fin) };
     }
 
-    const { count, rows } = await Commande.findAndCountAll({
+    // First get the orders with basic information
+    const { count, rows: commandes } = await Commande.findAndCountAll({
       where: whereClause,
       include: [
-        {
-          model: CommandeArticle,
-          as: 'commande_articles',
-          include: [{
-            model: Article,
-            as: 'article',
-            attributes: ['id', 'nom_produit', 'prix_final', 'marque_id']
-          }]
-        },
         {
           model: Adresse,
           as: 'adresse',
           attributes: ['id', 'ville', 'gouvernorat']
+        },
+        {
+          model: Colis,
+          as: 'colis',
+          where: date_debut || date_fin ? {
+            [Op.or]: [
+              { date_expedition: dateFilter },
+              { date_livraison: dateFilter }
+            ]
+          } : {},
+          required: date_debut || date_fin,
+          attributes: ['date_expedition', 'date_livraison', 'numero_suivi']
+        },
+        {
+          model: CommandeArticle,
+          as: 'commande_articles',
+          include: [
+            {
+              model: Article,
+              as: 'article',
+              attributes: ['id', 'nom_produit', 'prix_final', 'marque_id'],
+              include: [
+                {
+                  model: ImageArticleCouleur,
+                  as: 'images_couleurs',
+                  attributes: ['image_url'],
+                  limit: 1
+                }
+              ]
+            }
+          ]
         }
       ],
       order: [['created_at', 'DESC']],
       limit: parseInt(limit),
-      offset: parseInt(offset)
+      offset: parseInt(offset),
+      distinct: true
     });
 
-    // Calculate total for each order
-    const commandes = rows.map(commande => {
+    // Transform the commandes data
+    const commandesWithArticles = commandes.map(commande => {
       const articles = commande.commande_articles.map(ca => ({
         id: ca.article.id,
-        nom_produit: ca.article.nom_produit,
-        prix_unitaire: ca.prix_unitaire,
-        quantite: ca.quantite,
-        marque_id: ca.article.marque_id
+        name: ca.article.nom_produit,
+        price: ca.prix_unitaire,
+        quantity: ca.quantite,
+        brandId: ca.article.marque_id,
+        image: ca.article.images_couleurs?.[0]?.image_url 
+          ? `${process.env.API_BASE_URL || 'http://localhost:5000'}${ca.article.images_couleurs[0].image_url}`
+          : '/placeholder.svg'
       }));
 
-      const sousTotal = commande.commande_articles.reduce((total, ca) => {
-        return total + (ca.prix_unitaire * ca.quantite);
-      }, 0);
+      const latestColis = commande.colis?.[0] || null;
 
       return {
         id: commande.id,
         reference: commande.reference,
-        statut: commande.statut,
-        methode_livraison: commande.methode_livraison,
-        created_at: commande.created_at,
-        adresse: commande.adresse,
-        articles,
-        sous_total: sousTotal,
-        frais_livraison: commande.methode_livraison === 'express' ? 15 : 7,
-        total: sousTotal + (commande.methode_livraison === 'express' ? 15 : 7)
+        status: commande.statut,
+        deliveryMethod: commande.methode_livraison,
+        createdAt: commande.created_at,
+        shippingDate: latestColis?.date_expedition,
+        deliveryDate: latestColis?.date_livraison,
+        trackingNumber: latestColis?.numero_suivi,
+        address: commande.adresse,
+        items: articles,
+        subtotal: commande.commande_articles.reduce((sum, ca) => sum + (ca.prix_unitaire * ca.quantite), 0),
+        shippingFee: commande.frais_livraison || 0,
+        total: commande.prix_total
       };
     });
 
     return res.json({
       success: true,
       data: {
-        commandes,
+        orders: commandesWithArticles,
         pagination: {
           total: count,
           page: parseInt(page),
-          totalPages: Math.ceil(count / limit)
+          totalPages: Math.ceil(count / limit),
+          limit: parseInt(limit)
         }
       }
     });
@@ -181,7 +209,8 @@ const obtenirCommandesClient = async (req, res) => {
     console.error('Error fetching client orders:', error);
     return res.status(500).json({
       success: false,
-      error: "Erreur lors de la récupération des commandes"
+      error: "Error fetching orders",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -192,16 +221,8 @@ const obtenirCommandesClient = async (req, res) => {
  */
 const filtrerCommandesParStatut = async (req, res) => {
   try {
-    const { id } = req.params;
+    const userId = req.utilisateur.id;
     const { statut } = req.query;
-
-    // Verify the client is accessing their own orders
-    if (req.utilisateur.id !== id) {
-      return res.status(403).json({
-        success: false,
-        message: "Non autorisé"
-      });
-    }
 
     if (!statut) {
       return res.status(400).json({
@@ -210,18 +231,52 @@ const filtrerCommandesParStatut = async (req, res) => {
       });
     }
 
+    // First get the client record
+    const client = await Client.findOne({
+      where: { utilisateur_id: userId }
+    });
+
+    if (!client) {
+      return res.status(404).json({
+        success: false,
+        message: "Client non trouvé"
+      });
+    }
+
     const commandes = await Commande.findAll({
       where: {
-        client_id: id,
+        client_id: client.id,
         statut: statut
       },
+      include: [{
+        model: Colis,
+        as: 'colis',
+        attributes: ['date_expedition', 'date_livraison']
+      }],
       attributes: ['id', 'reference', 'statut', 'created_at', 'prix_total'],
       order: [['created_at', 'DESC']]
     });
 
+    // Format response with colis dates
+    const formattedCommandes = commandes.map(commande => {
+      const latestColis = commande.colis && commande.colis.length > 0 
+        ? commande.colis[0] 
+        : null;
+
+      return {
+        id: commande.id,
+        reference: commande.reference,
+        statut: commande.statut,
+        created_at: commande.created_at,
+        prix_total: commande.prix_total,
+        date_expedition: latestColis?.date_expedition || null,
+        date_livraison: latestColis?.date_livraison || null
+      };
+    });
+
     return res.json({
       success: true,
-      data: commandes
+      data: formattedCommandes
     });
 
   } catch (error) {
@@ -234,21 +289,13 @@ const filtrerCommandesParStatut = async (req, res) => {
 };
 
 /**
- * @desc Filter client orders by date range
+ * @desc Filter client orders by date range (based on colis dates)
  * @access Client
  */
 const filtrerCommandesParDate = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { date_debut, date_fin } = req.query;
-
-    // Verify the client is accessing their own orders
-    if (req.utilisateur.id !== id) {
-      return res.status(403).json({
-        success: false,
-        message: "Non autorisé"
-      });
-    }
+    const userId = req.utilisateur.id;
+    const { date_debut, date_fin, date_type = 'expedition' } = req.query;
 
     if (!date_debut || !date_fin) {
       return res.status(400).json({
@@ -257,20 +304,63 @@ const filtrerCommandesParDate = async (req, res) => {
       });
     }
 
+    // First get the client record
+    const client = await Client.findOne({
+      where: { utilisateur_id: userId }
+    });
+
+    if (!client) {
+      return res.status(404).json({
+        success: false,
+        message: "Client non trouvé"
+      });
+    }
+
+    const dateFilter = {
+      [Op.between]: [new Date(date_debut), new Date(date_fin)]
+    };
+
+    // Filter based on the date type (expedition or livraison)
+    const colisWhere = {};
+    if (date_type === 'expedition') {
+      colisWhere.date_expedition = dateFilter;
+    } else {
+      colisWhere.date_livraison = dateFilter;
+    }
+
     const commandes = await Commande.findAll({
-      where: {
-        client_id: id,
-        created_at: {
-          [Op.between]: [new Date(date_debut), new Date(date_fin)]
-        }
-      },
+      where: { client_id: client.id },
+      include: [{
+        model: Colis,
+        as: 'colis',
+        where: colisWhere,
+        required: true,
+        attributes: ['date_expedition', 'date_livraison']
+      }],
       attributes: ['id', 'reference', 'statut', 'created_at', 'prix_total'],
       order: [['created_at', 'DESC']]
     });
 
+    // Format response with colis dates
+    const formattedCommandes = commandes.map(commande => {
+      const latestColis = commande.colis && commande.colis.length > 0 
+        ? commande.colis[0] 
+        : null;
+
+      return {
+        id: commande.id,
+        reference: commande.reference,
+        statut: commande.statut,
+        created_at: commande.created_at,
+        prix_total: commande.prix_total,
+        date_expedition: latestColis?.date_expedition || null,
+        date_livraison: latestColis?.date_livraison || null
+      };
+    });
+
     return res.json({
       success: true,
-      data: commandes
+      data: formattedCommandes
     });
 
   } catch (error) {
@@ -288,20 +378,24 @@ const filtrerCommandesParDate = async (req, res) => {
  */
 const obtenirRetoursClient = async (req, res) => {
   try {
-    const { id } = req.params;
+    const userId = req.utilisateur.id;
     const { page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
-    // Verify the client is accessing their own returns
-    if (req.utilisateur.id !== id) {
-      return res.status(403).json({
+    // First get the client record
+    const client = await Client.findOne({
+      where: { utilisateur_id: userId }
+    });
+
+    if (!client) {
+      return res.status(404).json({
         success: false,
-        message: "Non autorisé"
+        message: "Client non trouvé"
       });
     }
 
     const { count, rows } = await Retour.findAndCountAll({
-      where: { client_id: id },
+      where: { client_id: client.id },
       include: [
         {
           model: Commande,
@@ -341,20 +435,24 @@ const obtenirRetoursClient = async (req, res) => {
  */
 const obtenirRemplacementsClient = async (req, res) => {
   try {
-    const { id } = req.params;
+    const userId = req.utilisateur.id;
     const { page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
-    // Verify the client is accessing their own replacements
-    if (req.utilisateur.id !== id) {
-      return res.status(403).json({
+    // First get the client record
+    const client = await Client.findOne({
+      where: { utilisateur_id: userId }
+    });
+
+    if (!client) {
+      return res.status(404).json({
         success: false,
-        message: "Non autorisé"
+        message: "Client non trouvé"
       });
     }
 
     const { count, rows } = await Remplacement.findAndCountAll({
-      where: { client_id: id },
+      where: { client_id: client.id },
       include: [
         {
           model: Commande,
@@ -399,20 +497,25 @@ const obtenirRemplacementsClient = async (req, res) => {
  */
 const obtenirDetailsCommandeClient = async (req, res) => {
   try {
-    const { id, commandeId } = req.params;
+    const userId = req.utilisateur.id;
+    const { commandeId } = req.params;
 
-    // Verify the client is accessing their own order
-    if (req.utilisateur.id !== id) {
-      return res.status(403).json({
+    // First get the client record
+    const client = await Client.findOne({
+      where: { utilisateur_id: userId }
+    });
+
+    if (!client) {
+      return res.status(404).json({
         success: false,
-        message: "Non autorisé"
+        message: "Client non trouvé"
       });
     }
 
     const commande = await Commande.findOne({
       where: {
         id: commandeId,
-        client_id: id
+        client_id: client.id
       },
       include: [
         {
@@ -445,6 +548,11 @@ const obtenirDetailsCommandeClient = async (req, res) => {
           as: 'historique',
           order: [['created_at', 'DESC']],
           limit: 10
+        },
+        {
+          model: Colis,
+          as: 'colis',
+          attributes: ['id', 'numero_suivi', 'statut', 'date_expedition', 'date_livraison', 'transporteur', 'url_suivi']
         }
       ]
     });
@@ -469,6 +577,11 @@ const obtenirDetailsCommandeClient = async (req, res) => {
       };
     });
 
+    // Get the most recent colis
+    const latestColis = commande.colis && commande.colis.length > 0 
+      ? commande.colis[0] 
+      : null;
+
     const response = {
       id: commande.id,
       reference: commande.reference,
@@ -479,7 +592,15 @@ const obtenirDetailsCommandeClient = async (req, res) => {
       prix_total: commande.prix_total,
       adresse: commande.adresse,
       articles,
-      historique: commande.historique
+      historique: commande.historique,
+      colis: latestColis ? {
+        numero_suivi: latestColis.numero_suivi,
+        statut: latestColis.statut,
+        date_expedition: latestColis.date_expedition,
+        date_livraison: latestColis.date_livraison,
+        transporteur: latestColis.transporteur,
+        url_suivi: latestColis.url_suivi
+      } : null
     };
 
     return res.json({
@@ -496,6 +617,283 @@ const obtenirDetailsCommandeClient = async (req, res) => {
   }
 };
 
+/**
+ * @desc Mark an address as primary for the client
+ * @access Client
+ */
+const marquerAdressePrincipale = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const userId = req.utilisateur.id;
+    const { adresseId } = req.params;
+
+    // First verify the client exists
+    const client = await Client.findOne({
+      where: { utilisateur_id: userId },
+      transaction
+    });
+
+    if (!client) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Client non trouvé"
+      });
+    }
+
+    // Verify the address exists and belongs to this client
+    const adresse = await Adresse.findOne({
+      where: {
+        id: adresseId,
+        client_id: client.utilisateur_id
+      },
+      transaction
+    });
+
+    if (!adresse) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Adresse non trouvée ou n'appartient pas à ce client"
+      });
+    }
+
+    // First unmark any other primary addresses
+    await Adresse.update(
+      { est_principale: false },
+      {
+        where: {
+          client_id: client.utilisateur_id,
+          est_principale: true,
+          id: { [Op.ne]: adresseId } // Don't unmark the address we're about to mark
+        },
+        transaction
+      }
+    );
+
+    // Now mark the specified address as primary
+    await adresse.update({ est_principale: true }, { transaction });
+
+    await transaction.commit();
+
+    return res.json({
+      success: true,
+      message: "Adresse marquée comme principale avec succès",
+      data: {
+        adresse_id: adresse.id,
+        est_principale: true
+      }
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error marking address as primary:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Erreur lors du marquage de l'adresse comme principale"
+    });
+  }
+};
+/**
+ * @desc Get all addresses for a client
+ * @access Client
+ */
+const obtenirAdresses = async (req, res) => {
+  try {
+    const userId = req.utilisateur.id;
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    // First get the client record
+    const client = await Client.findOne({
+      where: { utilisateur_id: userId }
+    });
+
+    if (!client) {
+      return res.status(404).json({
+        success: false,
+        message: "Client non trouvé"
+      });
+    }
+
+    // Find all addresses for this client
+    const { count, rows } = await Adresse.findAndCountAll({
+      where: { client_id: client.utilisateur_id },
+      order: [['est_principale', 'DESC'], ['created_at', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        adresses: rows,
+        pagination: {
+          total: count,
+          page: parseInt(page),
+          totalPages: Math.ceil(count / limit)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching client addresses:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Erreur lors de la récupération des adresses"
+    });
+  }
+};
+/**
+ * @desc Delete an address
+ * @access Client
+ */
+const supprimerAdresse = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const userId = req.utilisateur.id;
+    const { adresseId } = req.params;
+
+    // First verify the client exists
+    const client = await Client.findOne({
+      where: { utilisateur_id: userId },
+      transaction
+    });
+
+    if (!client) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Client non trouvé"
+      });
+    }
+
+    // Verify the address exists and belongs to this client
+    const adresse = await Adresse.findOne({
+      where: {
+        id: adresseId,
+        client_id: client.utilisateur_id
+      },
+      transaction
+    });
+
+    if (!adresse) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Adresse non trouvée ou n'appartient pas à ce client"
+      });
+    }
+
+    // Check if this is the primary address
+    const wasPrimary = adresse.est_principale;
+
+    // Delete the address
+    await adresse.destroy({ transaction });
+
+    // If it was primary, set another address as primary if available
+    if (wasPrimary) {
+      const remainingAddress = await Adresse.findOne({
+        where: { client_id: client.utilisateur_id },
+        order: [['created_at', 'DESC']],
+        transaction
+      });
+
+      if (remainingAddress) {
+        await remainingAddress.update({ est_principale: true }, { transaction });
+      }
+    }
+
+    await transaction.commit();
+
+    return res.json({
+      success: true,
+      message: "Adresse supprimée avec succès"
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error deleting address:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Erreur lors de la suppression de l'adresse"
+    });
+  }
+};
+/**
+ * @desc Update an existing address
+ * @access Client
+ */
+const mettreAJourAdresse = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const userId = req.utilisateur.id;
+    const { adresseId } = req.params;
+    const { nom_adresse, adresse, complement, code_postal, ville, gouvernorat, telephone, est_principale } = req.body;
+
+    const address = await Adresse.findOne({
+      where: {
+        id: adresseId,
+        client_id: userId
+      },
+      transaction
+    });
+
+    if (!address) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Adresse non trouvée"
+      });
+    }
+
+    const updateData = {
+      nom_adresse: est_principale ? 'Adresse Principale' : (nom_adresse || address.nom_adresse).replace('Principale', '').trim(),
+      adresse: adresse || address.adresse,
+      complement: complement || address.complement,
+      code_postal: code_postal || address.code_postal,
+      ville: ville || address.ville,
+      gouvernorat: gouvernorat || address.gouvernorat,
+      telephone: telephone || address.telephone,
+      est_principale: est_principale !== undefined ? est_principale : address.est_principale
+    };
+
+    if (updateData.est_principale) {
+      await Adresse.update(
+        { 
+          est_principale: false,
+          nom_adresse: sequelize.fn('REGEXP_REPLACE', sequelize.col('nom_adresse'), 'Principale', '')
+        },
+        {
+          where: {
+            client_id: userId,
+            est_principale: true,
+            id: { [Op.ne]: adresseId }
+          },
+          transaction
+        }
+      );
+    }
+
+    await address.update(updateData, { transaction });
+    await transaction.commit();
+
+    return res.json({
+      success: true,
+      message: "Adresse mise à jour avec succès",
+      data: address
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error updating address:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Erreur lors de la mise à jour de l'adresse"
+    });
+  }
+};
+
 module.exports = {
   mettreAJourProfil,
   obtenirCommandesClient,
@@ -503,5 +901,9 @@ module.exports = {
   filtrerCommandesParDate,
   obtenirRetoursClient,
   obtenirRemplacementsClient,
-  obtenirDetailsCommandeClient
+  obtenirDetailsCommandeClient,
+  obtenirAdresses,
+  marquerAdressePrincipale,
+  mettreAJourAdresse,
+  supprimerAdresse
 };
