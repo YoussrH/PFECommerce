@@ -214,7 +214,7 @@ export default function MesCommandes() {
             <div key={order.id} className="border border-gray-200 rounded-sm overflow-hidden">
               <div className="bg-gray-50 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <div>
-                  <p className="text-sm font-medium">Commande #{order.id}</p>
+                  <p className="text-sm font-medium">Commande #{order.reference}</p>
                   <p className="text-xs text-gray-500">
                     Passée le {new Date(order.createdAt).toLocaleDateString('fr-FR')}
                   </p>
@@ -271,12 +271,7 @@ export default function MesCommandes() {
                     <p className="text-sm font-medium">{order.total.toFixed(2)} DT</p>
                   </div>
                   
-                  <Link 
-                    href={`/client/compte/commande/${order.id}`}
-                    className="text-xs px-3 py-1.5 bg-black text-white rounded-sm hover:bg-gray-800"
-                  >
-                    Voir plus
-                  </Link>
+                  
                 </div>
               </div>
             </div>

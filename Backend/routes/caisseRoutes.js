@@ -15,8 +15,6 @@ router.get('/confirmation/:reference', authentifier, controleurCaisse.obtenirCon
 // Address management
 router.get('/obtenirAdresses', authentifier, controleurCaisse.obtenirAdresses);
 router.put('/definirAdressePrincipale/:adresseId', authentifier, controleurCaisse.definirAdressePrincipale);
+router.post('/valider-coupon', authentifier, controleurCaisse.validerCoupon);
 
-
-
-module.exports = router;
 module.exports = router;

@@ -49,6 +49,7 @@ const templates = {
   otpVerification: loadTemplate('otp-verification.html'),
   livraisonAssignee: loadTemplate('livraison-assignee.html'),
   livraisonUnassigned: loadTemplate('livraison-unassigned.html'),
+   couponFidelite: loadTemplate('coupon-Fidelite.html')
 };
 
 // Email sender function

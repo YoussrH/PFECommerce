@@ -431,6 +431,39 @@ const updateProfile = async (profileData) => {
       setLoading(false);
     }
   };
+  /**
+ * @desc Get client coupons
+ */
+const getCoupons = useCallback(async (page = 1, limit = 10, filters = {}) => {
+  if (!isAuthenticated) return { success: false, error: 'Non authentifié' };
+  
+  try {
+    setLoading(true);
+    setError(null);
+    
+    const params = {
+      page,
+      limit,
+      ...filters
+    };
+
+    const response = await api.get('/coupons', { params });
+    
+    if (response.data.success) {
+      return { 
+        success: true, 
+        data: response.data.data
+      };
+    }
+    
+    throw new Error(response.data.message || 'Échec de la récupération des coupons');
+  } catch (error) {
+    return handleError(error, 'Échec de la récupération des coupons');
+  } finally {
+    setLoading(false);
+  }
+}, [isAuthenticated, api]); // Make sure all dependencies are listed
+
 
   // Update the return statement to include the new methods
   return {
@@ -450,6 +483,7 @@ const updateProfile = async (profileData) => {
     markAddressAsPrimary,
     updateAddress,
     deleteAddress,
+    getCoupons,
 
   };
 }

@@ -8,7 +8,7 @@ module.exports = function(models) {
       'Marque', 'Couleur', 'Commande', 'Panier', 'RemiseArticle', 'AjustementStock', 'Livreur',
       'RemiseCategorie', 'RemiseUtilisateur', 'RemiseTaille', 'RemiseGenre', 'LivreurLocalisation',
       'CommandeArticle', 'ArticlePanier', 'Adresse', 'ArticleCouleur', 'ArticleTaille', 'Utilisateur',
-      'Facture','ListeEnvies', 'CommandeHistorique', 'Colis', 'Retour', 'HistoriqueAction'
+      'Facture','ListeEnvies','Coupon', 'CommandeHistorique', 'Colis', 'Retour', 'HistoriqueAction'
     ];
 
     // Check model availability
@@ -19,6 +19,7 @@ module.exports = function(models) {
 
     // Destructure models after verification
     const {
+      Coupon,
       Adresse,
       ImageArticleCouleur,
       Remise,

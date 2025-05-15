@@ -34,6 +34,8 @@ export const usePanier = create(
       guestToken: null,
       shippingMethod: null,
       shippingCost: 0,
+      remise: 0,
+      couponUtilise: null,
 
       getGuestToken: () => get().guestToken,
       setGuestToken: (token) => {
@@ -46,6 +48,38 @@ export const usePanier = create(
           }
         }
       },
+
+      setCodePromo: (code) => set({ codePromo: code }),
+      
+      reinitialiserCoupon: () => {
+        set({ remise: 0, couponUtilise: null, codePromo: '' })
+      },
+
+      appliquerCodePromo: async (code) => {
+        set({ chargement: true, erreur: null })
+        try {
+          const response = await api.post('/caisse/valider-coupon', { code })
+          
+          if (response.data.success) {
+            set({ 
+              remise: response.data.data.remise,
+              couponUtilise: response.data.data.coupon,
+              codePromo: code
+            })
+            toast.success('Code promo appliqué avec succès')
+            return true
+          }
+          throw new Error(response.data.message || 'Failed to apply coupon')
+        } catch (error) {
+          const message = error.response?.data?.message || error.message
+          set({ erreur: message, remise: 0, couponUtilise: null })
+          toast.error(message || 'Échec de l\'application du coupon')
+          return false
+        } finally {
+          set({ chargement: false })
+        }
+      },
+
 
       recupererPanier: async () => {
         set({ chargement: true, erreur: null })
@@ -249,7 +283,7 @@ export const usePanier = create(
         }
       },
 
-      traiterPaiement: async (methodePaiement, adresse_id) => {
+ /*      traiterPaiement: async (methodePaiement, adresse_id) => {
         set({ chargement: true, erreur: null });
         try {
           if (!adresse_id) {
@@ -295,6 +329,69 @@ export const usePanier = create(
               toast.error('Certains articles ne sont plus disponibles en quantité suffisante');
             } else if (message.includes('panier')) {
               toast.error('Votre panier a été modifié');
+            }
+          } else {
+            toast.error('Erreur lors du traitement du paiement');
+          }
+          
+          throw error;
+        } finally {
+          set({ chargement: false });
+        }
+      }, */
+
+      traiterPaiement: async (methodePaiement, adresse_id, codeCoupon = null) => {
+        set({ chargement: true, erreur: null });
+        try {
+          if (!adresse_id) {
+            throw new Error('Aucune adresse de livraison sélectionnée');
+          }
+
+          const { shippingMethod, shippingCost } = get();
+          
+          if (!shippingMethod) {
+            throw new Error('Aucun mode de livraison sélectionné');
+          }
+
+          const response = await api.post('/caisse/paiement', { 
+            methodePaiement,
+            adresse_id,
+            shipping_method: shippingMethod,
+            shipping_cost: shippingCost,
+            codeCoupon
+          });
+
+          if (response.data.success) {
+            set({ 
+              panier: [], 
+              panierId: null,
+              remise: 0,
+              couponUtilise: null,
+              codePromo: ''
+            });
+            
+            return {
+              success: true,
+              commandeId: response.data.data.commandeId,
+              commandeReference: response.data.data.commandeReference,
+              etapeSuivante: `/caisse/confirmation/${response.data.data.commandeReference}`,
+              shippingMethod,
+              shippingCost
+            };
+          }
+          
+          throw new Error(response.data.message || 'Payment processing failed');
+        } catch (error) {
+          const message = error.response?.data?.message || error.message;
+          set({ erreur: message });
+          
+          if (error.response?.status === 400) {
+            if (message.includes('stock')) {
+              toast.error('Certains articles ne sont plus disponibles en quantité suffisante');
+            } else if (message.includes('panier')) {
+              toast.error('Votre panier a été modifié');
+            } else if (message.includes('coupon')) {
+              toast.error('Coupon invalide ou déjà utilisé');
             }
           } else {
             toast.error('Erreur lors du traitement du paiement');
@@ -351,18 +448,18 @@ export const usePanier = create(
       },
 
       getSubtotal: () => {
-        const { panier } = get();
+        const { panier } = get()
         return panier.reduce((total, item) => 
           total + (item.prix_au_moment_ajout * item.quantite), 0
-        ).toFixed(2);
+        ).toFixed(2)
       },
 
       getTotal: () => {
-        const { panier, shippingCost } = get();
+        const { panier, shippingCost, remise } = get()
         const subtotal = panier.reduce((total, item) => 
           total + (item.prix_au_moment_ajout * item.quantite), 0
-        );
-        return (subtotal + shippingCost).toFixed(2);
+        )
+        return (subtotal + parseFloat(shippingCost || 0) - parseFloat(remise || 0)).toFixed(2)
       },
 
       viderPanier: async () => {
@@ -430,7 +527,10 @@ export const usePanier = create(
         guestToken: state.guestToken,
         shippingMethod: state.shippingMethod,
         shippingCost: state.shippingCost,
-        panier: state.panier
+        panier: state.panier,
+        remise: state.remise,
+        couponUtilise: state.couponUtilise,
+        codePromo: state.codePromo
       })
     }
   )

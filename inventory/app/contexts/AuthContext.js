@@ -125,37 +125,59 @@ const checkAuth = useCallback(async () => {
   };
 
   const login = async (email, mot_de_passe) => {
-    try {
-      setAuthLoading(true);
-      const response = await axios.post(
-        'http://localhost:5000/auth/connexion',
-        { email, mot_de_passe },
-        { withCredentials: true }
-      );
-      
-      if (response.data.success) {
-        setUser(response.data.utilisateur);
-        toast.success(response.data.message);
-        return { success: true, user: response.data.utilisateur };
+  try {
+    console.log('Attempting login with:', email); // Debug log
+    setAuthLoading(true);
+    const response = await axios.post(
+      'http://localhost:5000/auth/connexion',
+      { email, mot_de_passe },
+      { 
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        }
       }
-      throw new Error(response.data.message || 'Échec de la connexion');
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message || 'Échec de la connexion';
+    );
+    
+    console.log('Login response:', response.data); // Debug log
+    
+    if (response.data.success) {
+      const userData = {
+        ...response.data.utilisateur,
+        client: response.data.client // Make sure client data is included
+      };
       
-      // Specific error handling
-      if (error.response?.status === 401) {
-        toast.error("Identifiants invalides");
-      } else if (error.response?.status === 403) {
-        toast.error("Compte non vérifié");
-      } else {
-        toast.error(errorMessage);
-      }
+      console.log('Setting user data:', userData); // Debug log
+      setUser(userData);
       
-      return { success: false, error: errorMessage };
-    } finally {
-      setAuthLoading(false);
+      toast.success(response.data.message);
+      return { 
+        success: true, 
+        user: userData 
+      };
     }
-  };
+    throw new Error(response.data.message || 'Échec de la connexion');
+  } catch (error) {
+    console.error('Login error:', error.response?.data || error); // Enhanced error logging
+    
+    const errorMessage = error.response?.data?.message || error.message || 'Échec de la connexion';
+    
+    if (error.response?.status === 401) {
+      toast.error("Identifiants invalides");
+    } else if (error.response?.status === 403) {
+      toast.error("Compte non vérifié");
+    } else {
+      toast.error(errorMessage);
+    }
+    
+    return { 
+      success: false, 
+      error: errorMessage 
+    };
+  } finally {
+    setAuthLoading(false);
+  }
+};
 
   const loginAdmin = async (email, mot_de_passe) => {
     try {

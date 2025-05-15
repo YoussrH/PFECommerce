@@ -16,6 +16,6 @@ router.get("/obtenirAdresses", authentifier, clientController.obtenirAdresses);
 router.put("/marquerAdressePrincipale/:adresseId", authentifier, clientController.marquerAdressePrincipale);
 router.put("/mettreAJourAdresse/:adresseId", authentifier, clientController.mettreAJourAdresse);
 router.delete("/supprimerAdresse/:adresseId", authentifier, clientController.supprimerAdresse);
-
+router.get('/coupons', authentifier, clientController.obtenirCouponsClient);
 
 module.exports = router;

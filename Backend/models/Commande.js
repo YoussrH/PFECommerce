@@ -48,6 +48,14 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: 0,
     },
     notes_admin: DataTypes.TEXT,
+    coupon_utilise: {
+      type: DataTypes.STRING(20),
+      allowNull: true
+    },
+    remise: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 0
+    },
     remplace_commande_id: { // Reference to replaced order
       type: DataTypes.UUID,
       allowNull: true,

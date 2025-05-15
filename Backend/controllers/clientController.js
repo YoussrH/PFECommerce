@@ -1,5 +1,5 @@
 // controllers/clientController.js
-const { Commande, Client, Adresse, Utilisateur, ImageArticleCouleur,CommandeArticle, Article, CommandeHistorique, Retour, Remplacement, Colis } = require('../models');
+const { Commande,Coupon, Client, Adresse, Utilisateur, ImageArticleCouleur,CommandeArticle, Article, CommandeHistorique, Retour, Remplacement, Colis } = require('../models');
 const { Sequelize, Op } = require('sequelize');
 const { sequelize } = require("../models");
 
@@ -71,6 +71,10 @@ const mettreAJourProfil = async (req, res) => {
     });
   }
 };
+
+
+
+
 
 
 
@@ -168,9 +172,7 @@ const obtenirCommandesClient = async (req, res) => {
         price: ca.prix_unitaire,
         quantity: ca.quantite,
         brandId: ca.article.marque_id,
-        image: ca.article.images_couleurs?.[0]?.image_url 
-          ? `${process.env.API_BASE_URL || 'http://localhost:5000'}${ca.article.images_couleurs[0].image_url}`
-          : '/placeholder.svg'
+        image: ca.article.images_couleurs?.[0]?.image_url
       }));
 
       const latestColis = commande.colis?.[0] || null;
@@ -376,6 +378,10 @@ const filtrerCommandesParDate = async (req, res) => {
  * @desc Get all return requests for a client
  * @access Client
  */
+/**
+ * @desc Get all return requests for a client
+ * @access Client
+ */
 const obtenirRetoursClient = async (req, res) => {
   try {
     const userId = req.utilisateur.id;
@@ -394,28 +400,66 @@ const obtenirRetoursClient = async (req, res) => {
       });
     }
 
-    const { count, rows } = await Retour.findAndCountAll({
-      where: { client_id: client.id },
+    // Get returns with their associated commandes
+    const { count, rows: retours } = await Retour.findAndCountAll({
       include: [
         {
           model: Commande,
           as: 'commande',
-          attributes: ['id', 'reference', 'prix_total']
+          where: { client_id: client.utilisateur_id },
+          attributes: ['id', 'reference', 'prix_total'],
+          required: true,
+          include: [
+            {
+              model: CommandeArticle,
+              as: 'commande_articles',
+              attributes: ['quantite', 'taille_id', 'couleur_id'],
+              include: [
+                {
+                  model: Article,
+                  as: 'article',
+                  attributes: ['id', 'nom_produit']
+                }
+              ]
+            }
+          ]
         }
       ],
       order: [['created_at', 'DESC']],
       limit: parseInt(limit),
-      offset: parseInt(offset)
+      offset: parseInt(offset),
+      distinct: true
+    });
+
+    // Format the response
+    const formattedRetours = retours.map(retour => {
+      const articles = retour.commande.commande_articles.map(ca => ({
+        nom_produit: ca.article.nom_produit,
+        quantite: ca.quantite,
+        raison: retour.motif
+      }));
+
+      return {
+        id: retour.id,
+        created_at: retour.created_at,
+        statut: retour.statut,
+        montant_remboursement: retour.commande.prix_total * 0.9, // Example calculation
+        commande: {
+          reference: retour.commande.reference
+        },
+        articles
+      };
     });
 
     return res.json({
       success: true,
       data: {
-        retours: rows,
+        retours: formattedRetours,
         pagination: {
           total: count,
           page: parseInt(page),
-          totalPages: Math.ceil(count / limit)
+          totalPages: Math.ceil(count / limit),
+          limit: parseInt(limit)
         }
       }
     });
@@ -452,7 +496,7 @@ const obtenirRemplacementsClient = async (req, res) => {
     }
 
     const { count, rows } = await Remplacement.findAndCountAll({
-      where: { client_id: client.id },
+      where: { client_id: client.utilisateur_id },
       include: [
         {
           model: Commande,
@@ -894,6 +938,80 @@ const mettreAJourAdresse = async (req, res) => {
   }
 };
 
+/**
+ * @desc Get all coupons for a client
+ * @access Client
+ */
+const obtenirCouponsClient = async (req, res) => {
+  try {
+    const userId = req.utilisateur.id;
+    const { page = 1, limit = 10, is_used } = req.query;
+    const offset = (page - 1) * limit;
+
+    // First get the client record
+    const client = await Client.findOne({
+      where: { utilisateur_id: userId }
+    });
+
+    if (!client) {
+      return res.status(404).json({
+        success: false,
+        message: "Client non trouvé"
+      });
+    }
+
+    // Prepare where clause
+    const whereClause = { client_id: client.utilisateur_id };
+    
+    // Filter by usage status if provided
+    if (is_used !== undefined) {
+      whereClause.is_used = is_used === 'true';
+    }
+
+    // Get coupons with pagination
+    const { count, rows: coupons } = await Coupon.findAndCountAll({
+      where: whereClause,
+      order: [
+        ['is_used', 'ASC'], // Unused coupons first
+        ['expires_at', 'ASC'] // Soonest to expire first
+      ],
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    // Format the response
+    const formattedCoupons = coupons.map(coupon => ({
+      id: coupon.id,
+      code: coupon.code,
+      type: coupon.type,
+      value: coupon.value,
+      is_used: coupon.is_used,
+      expires_at: coupon.expires_at,
+      created_at: coupon.created_at
+    }));
+
+    return res.json({
+      success: true,
+      data: {
+        coupons: formattedCoupons,
+        pagination: {
+          total: count,
+          page: parseInt(page),
+          totalPages: Math.ceil(count / limit),
+          limit: parseInt(limit)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching client coupons:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Erreur lors de la récupération des coupons"
+    });
+  }
+};
+
 module.exports = {
   mettreAJourProfil,
   obtenirCommandesClient,
@@ -905,5 +1023,6 @@ module.exports = {
   obtenirAdresses,
   marquerAdressePrincipale,
   mettreAJourAdresse,
-  supprimerAdresse
+  supprimerAdresse,
+  obtenirCouponsClient
 };

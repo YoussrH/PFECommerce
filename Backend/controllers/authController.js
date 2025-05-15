@@ -170,7 +170,7 @@ const verifierOTP = async (req, res) => {
 };
 
 
-const connecterUtilisateur = async (req, res) => {
+/* const connecterUtilisateur = async (req, res) => {
   try {
     const { email, mot_de_passe } = req.body;
 
@@ -218,6 +218,91 @@ const connecterUtilisateur = async (req, res) => {
     req.session.cookie.expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 1 week
     req.session.save();
 
+    res.json({
+      success: true,
+      message: "Connexion réussie",
+      utilisateur: req.session.utilisateur,
+      client,
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ 
+      success: false,
+      error: "Échec de la connexion." 
+    });
+  }
+}; */
+
+const connecterUtilisateur = async (req, res) => {
+  try {
+    console.log('Login attempt started for email:', req.body.email);
+    const { email, mot_de_passe } = req.body;
+
+    if (!email || !mot_de_passe) {
+      console.log('Missing email or password');
+      return res.status(400).json({ 
+        success: false,
+        message: "Email et mot de passe sont obligatoires." 
+      });
+    }
+
+    console.log('Looking for user in database');
+    const utilisateur = await Utilisateur.findOne({ where: { email } });
+    if (!utilisateur) {
+      console.log('User not found for email:', email);
+      return res.status(404).json({ 
+        success: false,
+        message: "Utilisateur non trouvé." 
+      });
+    }
+
+    console.log('Comparing passwords');
+    const motDePasseValide = await bcrypt.compare(mot_de_passe, utilisateur.mot_de_passe);
+    if (!motDePasseValide) {
+      console.log('Password comparison failed');
+      return res.status(401).json({ 
+        success: false,
+        message: "Identifiants invalides." 
+      });
+    }
+
+    if (!utilisateur.est_verifie) {
+      console.log('Account not verified');
+      return res.status(403).json({ 
+        success: false,
+        message: "Compte non vérifié." 
+      });
+    }
+
+    console.log('Looking for client data');
+    const client = await Client.findOne({ where: { utilisateur_id: utilisateur.id } }) || null;
+
+    console.log('Creating session data');
+    req.session.utilisateur = {
+      id: utilisateur.id,
+      email: utilisateur.email,
+      role: utilisateur.role,
+      nom: utilisateur.nom,
+      prenom: utilisateur.prenom,
+      est_verifie: utilisateur.est_verifie,
+    };
+
+    req.session.cookie.expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 1 week
+    
+    console.log('Saving session');
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+          reject(err);
+        } else {
+          console.log('Session saved successfully');
+          resolve();
+        }
+      });
+    });
+
+    console.log('Login successful for user:', utilisateur.id);
     res.json({
       success: true,
       message: "Connexion réussie",

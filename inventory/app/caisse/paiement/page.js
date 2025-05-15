@@ -1,3 +1,4 @@
+// app/caisse/paiement/page.js
 "use client"
 
 import { useState, useEffect } from "react"
@@ -9,6 +10,7 @@ import ResumeCommande from "@/app/components/caisse/CartSummary"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
+import { CouponForm } from "@/app/components/caisse/CouponForm"
 
 const paymentMethods = [
   {
@@ -39,7 +41,9 @@ export default function PaiementPage() {
     initShipping, 
     shippingMethod, 
     shippingCost,
-    panierId
+    panierId,
+    codePromo,
+    remise
   } = usePanier()
 
   const [selectedMethod, setSelectedMethod] = useState("livraison")
@@ -53,10 +57,8 @@ export default function PaiementPage() {
 
     const initializeCheckout = async () => {
       try {
-        // Initialize shipping data
         initShipping()
 
-        // Verify address exists
         const storedAddressId = sessionStorage.getItem("current_address_id")
         if (!storedAddressId) {
           toast.error("Veuillez sélectionner une adresse de livraison")
@@ -64,19 +66,15 @@ export default function PaiementPage() {
           return
         }
 
-        // Verify shipping method
         if (!shippingMethod) {
           toast.error("Veuillez sélectionner un mode de livraison")
           router.push("/caisse/livraison")
           return
         }
 
-        // Refresh cart data
         await recupererPanier()
         
         if (!isMounted) return
-
-
 
         setAddressId(storedAddressId)
         setCheckoutReady(true)
@@ -106,10 +104,9 @@ export default function PaiementPage() {
 
     setProcessing(true)
     try {
-      const result = await traiterPaiement(selectedMethod, addressId)
+      const result = await traiterPaiement(selectedMethod, addressId, remise > 0 ? codePromo : null)
 
       if (result?.success) {
-        // Don't clear session storage here - confirmation page will handle it
         router.push(result.etapeSuivante)
       } else {
         throw new Error(result?.message || "Échec du traitement du paiement")
@@ -147,10 +144,11 @@ export default function PaiementPage() {
     )
   }
 
-
   return (
     <div className="flex flex-col lg:flex-row w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 gap-6 py-6 sm:py-8">
       <div className="w-full lg:flex-1 lg:max-w-2xl">
+        <CouponForm />
+        
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
           <h2 className="text-base sm:text-lg font-bold mb-4 sm:mb-6">Méthode de Paiement</h2>
 
@@ -222,10 +220,8 @@ export default function PaiementPage() {
       </div>
 
       <div className="w-full lg:w-80">
-        <ResumeCommande showPromoCode={false} showCheckoutButton={false} />
+        <ResumeCommande showCheckoutButton={false} />
       </div>
-
-
     </div>
   )
 }

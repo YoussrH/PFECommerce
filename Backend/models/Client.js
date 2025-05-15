@@ -9,6 +9,13 @@ module.exports = (sequelize, DataTypes) => {
     points_fidelite: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
+      validate: {
+        min: 0 // Empêche les points négatifs
+      }
+    },
+    date_derniere_conversion: {
+      type: DataTypes.DATE,
+      allowNull: true
     },
     newsletter: {
       type: DataTypes.BOOLEAN,
@@ -33,7 +40,10 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'client_id',
       as: 'adresses',
     });
+      Client.hasMany(models.Coupon, {
+    foreignKey: 'client_id',
+    as: 'coupons'
+  });
   };
-
   return Client;
 };

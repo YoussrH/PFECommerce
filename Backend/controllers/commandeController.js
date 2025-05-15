@@ -8,7 +8,6 @@ const QRCode = require('qrcode');
 const { envoyerEmail } = require('../services/emailService');
 const db = require('../models');
 const sequelize = db.sequelize;
-
 const { v4: uuidv4 } = require('uuid');
 
 

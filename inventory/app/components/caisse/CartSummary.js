@@ -1,56 +1,33 @@
-"use client"
+// components/caisse/CartSummary.js
+import { useState, useEffect } from 'react'
+import { usePanier } from '@/hooks/use-panier'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 
-import { useState, useEffect } from "react"
-import { usePanier } from "@/hooks/use-panier"
-import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-
-const ResumeCommande = ({ showPromoCode = true, showCheckoutButton = true, onCommanderClick }) => {
+const ResumeCommande = ({ showCheckoutButton = true, onCommanderClick }) => {
   const {
     panier,
-    codePromo,
-    setCodePromo,
     getTotal,
     getSubtotal,
     shippingCost,
     initShipping,
-    appliquerCodePromo,
     chargement,
+    remise,
   } = usePanier()
 
-  const [applicationEnCours, setApplicationEnCours] = useState(false)
   const [montantTotal, setMontantTotal] = useState("0.00")
   const [sousTotal, setSousTotal] = useState("0.00")
   const [fraisLivraison, setFraisLivraison] = useState("0.00")
 
   useEffect(() => {
-    initShipping() // Initialize shipping data on mount
+    initShipping()
     const calculateTotals = () => {
       setSousTotal(getSubtotal())
       setFraisLivraison(shippingCost.toFixed(2))
       setMontantTotal(getTotal())
     }
     calculateTotals()
-  }, [panier, shippingCost, getTotal, getSubtotal, initShipping])
-
-  const handleAppliquerCodePromo = async () => {
-    if (!codePromo.trim()) {
-      toast.error("Veuillez entrer un code promo")
-      return
-    }
-
-    setApplicationEnCours(true)
-    try {
-      const succes = await appliquerCodePromo(codePromo)
-      if (succes) {
-        toast.success("Code promo appliqué avec succès")
-        setMontantTotal(getTotal())
-      }
-    } finally {
-      setApplicationEnCours(false)
-    }
-  }
+  }, [panier, shippingCost, getTotal, getSubtotal, initShipping, remise])
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-sm shadow-sm border border-gray-100 h-fit sticky top-4">
@@ -58,38 +35,18 @@ const ResumeCommande = ({ showPromoCode = true, showCheckoutButton = true, onCom
         RÉSUMÉ DE LA COMMANDE ({panier.reduce((acc, item) => acc + item.quantite, 0)} articles)
       </h3>
 
-      {showPromoCode && (
-        <div className="mb-4 md:mb-6">
-          <label htmlFor="promo-code" className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
-            Code promo
-          </label>
-          <div className="flex gap-2">
-            <Input
-              type="text"
-              id="promo-code"
-              className="flex-1 min-w-0 p-2 border border-gray-300 rounded text-xs md:text-sm"
-              placeholder="Entrez votre code"
-              value={codePromo}
-              onChange={(e) => setCodePromo(e.target.value)}
-              disabled={applicationEnCours || chargement}
-            />
-            <Button
-              onClick={handleAppliquerCodePromo}
-              disabled={applicationEnCours || !codePromo.trim() || chargement}
-              className="px-2 md:px-4 py-2 bg-black text-white text-xs md:text-sm rounded-none hover:bg-white hover:text-black hover:border-black border border-black transition-colors"
-              size="sm"
-            >
-              {applicationEnCours ? "..." : "Appliquer"}
-            </Button>
-          </div>
-        </div>
-      )}
-
       <div className="border-t border-gray-200 pt-3 md:pt-4 space-y-2 md:space-y-3">
         <div className="flex justify-between text-xs md:text-sm">
           <span className="text-gray-600">Sous-total</span>
           <span>{sousTotal} DT</span>
         </div>
+
+        {remise > 0 && (
+          <div className="flex justify-between text-xs md:text-sm text-green-600">
+            <span>Réduction</span>
+            <span>-{remise.toFixed(2)} DT</span>
+          </div>
+        )}
 
         <div className="flex justify-between text-xs md:text-sm">
           <span className="text-gray-600">Livraison</span>
