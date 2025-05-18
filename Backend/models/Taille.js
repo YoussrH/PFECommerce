@@ -30,6 +30,12 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'taille_id',
       as: 'articles',
     });
+    Taille.belongsToMany(Remise, {
+      through: RemiseTaille,
+      foreignKey: 'taille_id',
+      as: 'size_discounts',
+      onDelete: 'CASCADE'
+    });
   };
 
   return Taille;

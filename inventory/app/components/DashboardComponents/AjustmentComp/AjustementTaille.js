@@ -49,45 +49,51 @@ export default function AjustementTaille() {
         { withCredentials: true }
       );
       
-      // Process inventory records to get tailles with color info
-      const inventoryRecords = response.data.donnees?.inventory || [];
-      const uniqueTailles = [];
-      const seenTailles = new Set();
-
-      inventoryRecords.forEach(record => {
-        if (record.taille && !seenTailles.has(record.taille.id)) {
-          seenTailles.add(record.taille.id);
-          uniqueTailles.push({
-            ...record.taille,
-            ArticleTaille: record // Preserve the inventory record
-          });
-        }
-      });
-
-      setTailles(uniqueTailles);
+      const articleData = response.data.donnees;
       
-      // Process colors from inventory and images
-      const uniqueCouleurs = [];
-      const seenCouleurs = new Set();
-
-      // Add colors from inventory
-      inventoryRecords.forEach(record => {
-        if (record.couleur && !seenCouleurs.has(record.couleur.id)) {
-          seenCouleurs.add(record.couleur.id);
-          uniqueCouleurs.push(record.couleur);
-        }
-      });
-
-      // Add colors from images
-      const imageCouleurs = response.data.donnees?.images_couleurs || [];
-      imageCouleurs.forEach(image => {
-        if (image.couleur && !seenCouleurs.has(image.couleur.id)) {
-          seenCouleurs.add(image.couleur.id);
-          uniqueCouleurs.push(image.couleur);
-        }
-      });
-
-      setCouleurs(uniqueCouleurs);
+      // Extract colors with their sizes and quantities
+      const colorsWithSizes = [];
+      const sizesMap = new Map(); // To track all unique sizes
+      
+      // Process tailles_par_couleur from the response
+      if (articleData.tailles_par_couleur) {
+        Object.entries(articleData.tailles_par_couleur).forEach(([colorId, colorData]) => {
+          const colorInfo = colorData.couleur;
+          const sizesForColor = colorData.tailles.map(size => ({
+            id: size.id,
+            libelle: size.libelle,
+            quantite: size.quantite,
+            couleur_id: colorId
+          }));
+          
+          // Add to colors list
+          colorsWithSizes.push({
+            ...colorInfo,
+            sizes: sizesForColor
+          });
+          
+          // Add sizes to global sizes map
+          sizesForColor.forEach(size => {
+            if (!sizesMap.has(size.id)) {
+              sizesMap.set(size.id, {
+                id: size.id,
+                libelle: size.libelle,
+                ArticleTaille: {
+                  couleur_id: colorId,
+                  quantite: size.quantite
+                }
+              });
+            }
+          });
+        });
+      }
+      
+      // Set colors with their sizes
+      setCouleurs(colorsWithSizes);
+      
+      // Convert sizes map to array for the tailles state
+      setTailles(Array.from(sizesMap.values()));
+      
     } catch (error) {
       toast.error("Échec du chargement des tailles et couleurs");
       console.error("Error loading sizes and colors:", error);

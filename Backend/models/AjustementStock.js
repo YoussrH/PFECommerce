@@ -16,6 +16,14 @@ module.exports = (sequelize, DataTypes) => {
         key: 'id'
       }
     },
+    couleur_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'couleur',
+        key: 'id'
+      }
+    },
     quantite_avant: {
       type: DataTypes.INTEGER,
       allowNull: false
@@ -74,6 +82,12 @@ module.exports = (sequelize, DataTypes) => {
     AjustementStock.belongsTo(models.Taille, {
       foreignKey: 'taille_id',
       as: 'taille',
+      onDelete: 'CASCADE'
+    });
+    
+    AjustementStock.belongsTo(models.Couleur, {
+      foreignKey: 'couleur_id',
+      as: 'couleur',
       onDelete: 'CASCADE'
     });
     

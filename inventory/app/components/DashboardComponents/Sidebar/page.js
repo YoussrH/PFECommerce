@@ -194,6 +194,7 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             isSidebarCollapsed={isSidebarCollapsed}
             iconColor="text-blue-400"
           />
+
           <SidebarLink
             href="/admin/ventes/notes-credit"
             icon={Receipt}
@@ -207,10 +208,10 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             label="Liste des réductions"
             isSidebarCollapsed={isSidebarCollapsed}
             iconColor="text-red-400"
-            isSubItem
+            
           />
           <SidebarLink
-            href="/admin/ventes/remsie/cree"
+            href="/admin/ventes/remsie/nouveau"
             icon={Tags}
             label="Créer une réduction"
             isSidebarCollapsed={isSidebarCollapsed}

@@ -39,7 +39,7 @@ export default function AjustmentGroupe() {
   };
 
   const chargerTaillesEtCouleurs = async (idProduit) => {
-    if (!idProduit || (taillesMap[idProduit] && couleursMap[idProduit])) return;
+    if (!idProduit) return;
     
     try {
       const res = await axios.get(
@@ -49,45 +49,33 @@ export default function AjustmentGroupe() {
       
       const article = res.data.donnees;
       
-      // Process tailles with inventory data
-      const inventoryRecords = article?.inventory || [];
-      const uniqueTailles = [];
-      const seenTailles = new Set();
+      // Process colors with their sizes and quantities
+      const colorsWithSizes = {};
+      const sizesByColor = {};
       
-      inventoryRecords.forEach(record => {
-        if (record.taille && !seenTailles.has(record.taille.id)) {
-          seenTailles.add(record.taille.id);
-          uniqueTailles.push({
-            ...record.taille,
-            ArticleTaille: record
-          });
-        }
-      });
+      // Process tailles_par_couleur from the response
+      if (article.tailles_par_couleur) {
+        Object.entries(article.tailles_par_couleur).forEach(([colorId, colorData]) => {
+          const colorInfo = colorData.couleur;
+          const sizesForColor = colorData.tailles.map(size => ({
+            id: size.id,
+            libelle: size.libelle,
+            quantite: size.quantite,
+            couleur_id: colorId
+          }));
+          
+          // Add to colors list
+          colorsWithSizes[colorId] = colorInfo;
+          
+          // Add sizes for this color
+          sizesByColor[colorId] = sizesForColor;
+        });
+      }
       
-      setTaillesMap(prev => ({ ...prev, [idProduit]: uniqueTailles }));
+      // Update state maps
+      setCouleursMap(prev => ({ ...prev, [idProduit]: colorsWithSizes }));
+      setTaillesMap(prev => ({ ...prev, [idProduit]: sizesByColor }));
       
-      // Process couleurs from inventory and images
-      const uniqueCouleurs = [];
-      const seenCouleurs = new Set();
-      
-      // Add colors from inventory
-      inventoryRecords.forEach(record => {
-        if (record.couleur && !seenCouleurs.has(record.couleur.id)) {
-          seenCouleurs.add(record.couleur.id);
-          uniqueCouleurs.push(record.couleur);
-        }
-      });
-      
-      // Add colors from images
-      const imageCouleurs = article?.images_couleurs || [];
-      imageCouleurs.forEach(image => {
-        if (image.couleur && !seenCouleurs.has(image.couleur.id)) {
-          seenCouleurs.add(image.couleur.id);
-          uniqueCouleurs.push(image.couleur);
-        }
-      });
-      
-      setCouleursMap(prev => ({ ...prev, [idProduit]: uniqueCouleurs }));
     } catch (error) {
       toast.error('Erreur de chargement des tailles et couleurs', {
         description: error.response?.data?.message || "Veuillez réessayer"
@@ -123,6 +111,7 @@ export default function AjustmentGroupe() {
     newAjustements[index] = updatedAdjustment;
     setAjustements(newAjustements);
 
+    // Load sizes and colors if product changed
     if (updatedAdjustment.idProduit !== ajustements[index]?.idProduit) {
       chargerTaillesEtCouleurs(updatedAdjustment.idProduit);
     }
@@ -217,6 +206,7 @@ export default function AjustmentGroupe() {
           id: toastId
         });
         
+        // Reset form but keep one empty adjustment
         setAjustements([{
           idProduit: "", 
           idTaille: "", 
@@ -264,8 +254,8 @@ export default function AjustmentGroupe() {
                 index={index}
                 adjustment={adjustment}
                 produits={produits}
-                tailles={taillesMap[adjustment.idProduit] || []}
-                couleurs={couleursMap[adjustment.idProduit] || []}
+                tailles={taillesMap[adjustment.idProduit]?.[adjustment.idCouleur] || []}
+                couleurs={couleursMap[adjustment.idProduit] ? Object.values(couleursMap[adjustment.idProduit]) : []}
                 onAdjustmentChange={handleAdjustmentChange}
                 onRemove={supprimerAjustement}
                 showRemoveButton={ajustements.length > 1}

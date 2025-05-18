@@ -187,7 +187,22 @@ const importerEvenements = async (req, res) => {
     });
   }
 };
+const getEvenements = async (req, res) => {
+  try {
+    const evenements = await Evenement.findAll({
+      order: [['date_debut', 'ASC']]
+    });
+    res.json(evenements);
+  } catch (error) {
+    console.error("Error fetching events:", error);
+    res.status(500).json({ 
+      error: "An error occurred while fetching events",
+      details: error.message 
+    });
+  }
+};
 
 module.exports = {
   importerEvenements
+  , getEvenements
 };

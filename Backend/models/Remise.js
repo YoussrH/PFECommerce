@@ -1,101 +1,81 @@
 module.exports = (sequelize, DataTypes) => {
   const Remise = sequelize.define('Remise', {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
+    code: {
+      type: DataTypes.STRING,
+      unique: true,
+      allowNull: false
     },
     libelle: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: false
     },
-    type: {
-      type: DataTypes.ENUM(
-        'pourcentage', 'fixe', 'quantite', 'cumulatif', 'code_promo',
-        'fidelite', 'premier_achat', 'deuxieme_article_remise',
-        'bogo', 'taille', 'categorie', 'genre'
-      ),
-      allowNull: false,
+    description: DataTypes.TEXT,
+    type_remise: {
+      type: DataTypes.ENUM('pourcentage', 'montant_fixe', 'bogo', 'seuil'),
+      allowNull: false
     },
     valeur: {
       type: DataTypes.FLOAT,
-      allowNull: false,
+      allowNull: false
     },
-    buy_x: DataTypes.INTEGER,
-    get_y: DataTypes.INTEGER,
     date_debut: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: false
     },
     date_fin: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: false
     },
-    min_achat: DataTypes.FLOAT,
-    empilable: {
+    est_active: {
       type: DataTypes.BOOLEAN,
-      defaultValue: false,
+      defaultValue: true
     },
-    automatique: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true,
-    },
-    code: DataTypes.STRING,
-    etat: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true,
-    },
-    evenement_id: {
+    min_articles: DataTypes.INTEGER,
+    min_montant: DataTypes.FLOAT,
+    max_utilisation: DataTypes.INTEGER,
+    utilisations: {
       type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'evenements',
-        key: 'id'
-      }
+      defaultValue: 0
+    },
+    est_cumulable: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    },
+    apply_to: {
+      type: DataTypes.ENUM('all', 'categories', 'articles', 'marques', 'genres', 'tailles', 'couleurs'),
+      defaultValue: 'all'
     }
   }, {
     tableName: 'remise',
+    timestamps: true,
+    paranoid: true
   });
 
   Remise.associate = (models) => {
-    // Relations existantes
     Remise.belongsToMany(models.Article, {
       through: models.RemiseArticle,
       foreignKey: 'remise_id',
-      as: 'articles',
+      as: 'discounted_articles'
     });
-
+    
     Remise.belongsToMany(models.Categorie, {
       through: models.RemiseCategorie,
       foreignKey: 'remise_id',
-      as: 'categories',
+      as: 'discounted_categories'
     });
-
-    Remise.belongsToMany(models.Utilisateur, {
-      through: models.RemiseUtilisateur,
+    
+    Remise.belongsToMany(models.Marque, {
+      through: models.RemiseMarque,
       foreignKey: 'remise_id',
-      as: 'utilisateurs',
+      as: 'discounted_marques'
     });
-
-    Remise.belongsToMany(models.Taille, {
-      through: models.RemiseTaille,
-      foreignKey: 'remise_id',
-      as: 'tailles',
-    });
-
+    
     Remise.belongsToMany(models.Genre, {
       through: models.RemiseGenre,
       foreignKey: 'remise_id',
-      as: 'genres',
+      as: 'discounted_genres'
     });
 
-    
-
-    // 💡 Nouvelle relation : Remise liée à un événement
-    Remise.belongsTo(models.Evenement, {
-      foreignKey: 'evenement_id',
-      as: 'evenement',
-    });
   };
 
   return Remise;

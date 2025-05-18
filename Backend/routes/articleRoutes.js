@@ -19,30 +19,27 @@ const upload = multer({ storage: storage });
 router.put("/mettreAJourArticle/:id",authentifier,verifierAdmin,upload.array('images'),articleController.validateUpdateArticle,articleController.mettreAJourArticle);
 router.get("/obtenirArticleParId/:id", articleController.obtenirArticleParId);
 router.get("/obtenirArticleParSku/:sku", articleController.obtenirArticleParSku);
-
+router.get("/obtenirTousLesArticles", articleController.obtenirTousLesArticles);
 router.post("/ajouterArticle", authentifier, verifierAdmin, articleController.ajouterArticle);
 router.get("/", articleController.obtenirTousArticles);
 router.delete("/supprimerArticle/:id", authentifier, verifierAdmin, articleController.supprimerArticle);
 router.get("/obtenirDerniersArticles", articleController.obtenirDerniersArticles);
 router.post("/filtrerArticles", articleController.filtrerArticles);
-router.post("/filtrerArticlesGFemme", articleController.filtrerArticlesGFemme);
-router.post("/filtrerArticlesGHomme", articleController.filtrerArticlesGHomme);
+router.post("/filtrerArticlesGFemme", articleController.filtrerArticlesGFemme);//est3mltha web
+router.post("/filtrerArticlesGHomme", articleController.filtrerArticlesGHomme);//est3mltha web
 
 router.get("/rechercherArticles", articleController.rechercherArticles);
 router.get("/obtenirMarqueAleatoire/actuel", articleController.obtenirMarqueAleatoire);
 router.get("/obtenirArticlesParGenre/:id", articleController.obtenirArticlesParGenre);
-router.get('/count',  articleController.obtenirNombreArticles);
-router.get("/obtenirArticlesPetitPrix", articleController.obtenirArticlesPetitPrix);
-router.get("/obtenirArticlesFille", articleController.obtenirArticlesFille);
-router.post("/ajouterArticles", authentifier, verifierAdmin, articleController.ajouterArticles);
-router.get("/obtenirArticlesBebe", articleController.obtenirArticlesBebe);
+router.get('/count',  articleController.obtenirNombreArticles);//est3mltha web
+router.post("/ajouterArticles", authentifier, verifierAdmin, articleController.ajouterArticles);//est3mltha web
 router.get("/ObtenirTousArticleAleatoire", articleController.ObtenirTousArticleAleatoire);
 router.get("/obtenirArticleQuotidien", articleController.obtenirArticleQuotidien);
 
 
 // Get brand collections/categories
-router.get('/petits-prix', articleController.obtenirArticlesPetitPrix);
-router.get('/obtenirArticlesFemme', articleController.obtenirArticlesFemme);
-router.get('/obtenirArticlesHomme', articleController.obtenirArticlesHomme);
+router.get('/petits-prix', articleController.obtenirArticlesPetitPrix);//est3mtla web
+router.get('/obtenirArticlesFemme', articleController.obtenirArticlesFemme);//est3mltha web
+router.get('/obtenirArticlesHomme', articleController.obtenirArticlesHomme);//est3mltha web
 
 module.exports = router;

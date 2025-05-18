@@ -304,7 +304,39 @@ export default function GereCommandePage() {
   const canChangeLivreur = commande.statut === "en_preparation";
   const canCancel = !["annulee", "livree", "remplacee"].includes(commande.statut);
   const canReplace = ["en_preparation", "expediee"].includes(commande.statut);
-
+  const renderPaymentStatus = () => {
+    if (!commande) return null;
+    
+    return (
+      <div className="space-y-2">
+        <div>
+          <Label className="text-muted-foreground">Statut de paiement</Label>
+          <div className="flex items-center gap-2">
+            <Badge 
+              variant={commande.paiement_recu ? "default" : "outline"} 
+              className={commande.paiement_recu ? "bg-green-500" : ""}
+            >
+              {commande.paiement_recu ? "Payé" : "En attente"}
+            </Badge>
+            {commande.paiement_recu && (
+              <span className="text-sm text-muted-foreground">
+                le {new Date(commande.date_paiement).toLocaleDateString('fr-FR')}
+              </span>
+            )}
+          </div>
+        </div>
+        <div>
+          <Label className="text-muted-foreground">Méthode</Label>
+          <p className="capitalize">{commande.methode_paiement || "Non spécifiée"}</p>
+        </div>
+        {commande.statut === 'livree' && !commande.paiement_recu && (
+          <div className="text-yellow-600 text-sm">
+            Paiement non confirmé malgré la livraison
+          </div>
+        )}
+      </div>
+    );
+  };
   return (
     <div className="space-y-6 p-4">
       {/* Cancel Dialog */}
@@ -563,34 +595,18 @@ export default function GereCommandePage() {
               </div>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Paiement</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div>
-                <Label className="text-muted-foreground">Méthode</Label>
-                <p className="capitalize">{commande.methode_paiement || "Non spécifiée"}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Statut</Label>
-                <div>
-                  {commande.statut_paiement === "paye" ? (
-                    <Badge className="bg-green-500">Payé</Badge>
-                  ) : (
-                    <Badge variant="outline">En attente</Badge>
-                  )}
-                </div>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Date de commande</Label>
-                <p>
-                  {new Date(commande.created_at).toLocaleString("fr-FR")}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+  <Card>
+    <CardHeader>
+      <CardTitle>Paiement</CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-4">
+      {renderPaymentStatus()}
+      <div>
+        <Label className="text-muted-foreground">Date de commande</Label>
+        <p>{new Date(commande.created_at).toLocaleString("fr-FR")}</p>
+      </div>
+    </CardContent>
+  </Card>
         </div>
 
         {/* Right Column - Order Management */}
@@ -600,35 +616,7 @@ export default function GereCommandePage() {
               <CardTitle>Gestion de commande</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label>Statut de la commande</Label>
-                <Select
-                  value={commande.statut}
-                  onValueChange={handleStatusChange}
-                  disabled={commande.statut === "annulee" || commande.statut === "remplacee"|| localLoading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un statut" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((status) => (
-                      <SelectItem
-                        key={status.value}
-                        value={status.value}
-                        disabled={
-                          commande.statut === "annulee" ||
-                          
-                          commande.statut === "remplacee" ||
-                          (status.value === "en_preparation" && commande.statut !== "en_preparation") ||
-                          localLoading
-                        }
-                      >
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+
               <div>
                 <Label>Notes administratives</Label>
                 <Textarea
@@ -657,10 +645,6 @@ export default function GereCommandePage() {
               >
                 <DownloadIcon className="mr-2 h-4 w-4" />
                 Télécharger la facture
-              </Button>
-              <Button variant="outline" disabled={localLoading}>
-                <MailIcon className="mr-2 h-4 w-4" />
-                Envoyer un email
               </Button>
               {canReplace && (
                 <Button

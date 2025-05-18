@@ -70,11 +70,12 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'utilisateur_id',
       as: 'panier',
     });
-    Utilisateur.belongsToMany(models.Remise, {
-      through: models.RemiseUtilisateur,
-      foreignKey: 'utilisateur_id',
-      as: 'remises',
-    });
+   Utilisateur.belongsToMany(Remise, {
+  through: RemiseUtilisateur,
+  foreignKey: 'utilisateur_id',
+  as: 'user_discounts',
+  onDelete: 'CASCADE'
+});
     Utilisateur.belongsTo(models.Utilisateur, {
       foreignKey: 'created_by',
       as: 'creator'
@@ -89,6 +90,7 @@ Utilisateur.hasMany(models.ListeEnvies, {
   as: 'liste_envies',
   onDelete: 'CASCADE'
 });
+
   };
 
   return Utilisateur;

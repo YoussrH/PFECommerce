@@ -897,6 +897,9 @@ const genererFacture = async (req, res) => {
             montant_ttc: commande.prix_total,
             fichier_url: `/factures/${fileName}`,
             est_payee: commande.statut === "livree",
+            est_payee: commande.paiement_recu, // Use the new payment status field
+            date_paiement: commande.date_paiement, // Use the payment date from commande
+            methode_paiement: commande.methode_paiement
           },
           { transaction }
         );
@@ -911,6 +914,13 @@ const genererFacture = async (req, res) => {
           { transaction }
         );
       }
+      else {
+      // Update existing invoice with payment info if needed
+      await facture.update({
+        est_payee: commande.paiement_recu,
+        date_paiement: commande.date_paiement
+      }, { transaction });
+    }
     }
 
     await transaction.commit();
@@ -1182,9 +1192,15 @@ const genererFacture = async (req, res) => {
       doc.fontSize(12).fillColor(orange).text("Informations de paiement:", 50, currentY)
       doc.fillColor(black)
       currentY += 20
-      doc.text("Méthode: " + (commande.methode_paiement || "Paiement à la livraison"), 50, currentY)
+       const paymentStatus = commande.paiement_recu ? "Payée" : "En attente";
+       const paymentDate = commande.paiement_recu 
+       ? commande.date_paiement.toLocaleDateString('fr-FR') 
+       : "Non payée";
+      doc.text(`Statut: ${paymentStatus} `, 50, currentY)
       currentY += 15
-      doc.text("Statut: " + (commande.statut_paiement || "En attente"), 50, currentY)
+      doc.text(`Méthode: ${commande.methode_paiement || 'Non spécifiée'}`, 50, currentY)
+      currentY += 15
+      doc.text(`Date de paiement: ${paymentDate}`, 50, currentY)
     
       // Footer
       doc

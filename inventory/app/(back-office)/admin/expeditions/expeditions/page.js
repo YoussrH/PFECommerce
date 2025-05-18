@@ -106,7 +106,6 @@ export default function ExpeditionsPage() {
                   <TableHead>Livreur</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Date Expédition</TableHead>
-                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -132,17 +131,7 @@ export default function ExpeditionsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>{formatDate(expedition.date_expedition)}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleStatusChange(expedition.id, 'Livrée')}
-                          >
-                            Marquer livrée
-                          </Button>
-                        </div>
-                      </TableCell>
+
                     </TableRow>
                   ))
                 ) : (

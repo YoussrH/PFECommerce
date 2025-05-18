@@ -47,7 +47,7 @@ export default function DashboardLayout({ children }) {
       <><div className="flex text-gray-900 w-full min-h-full font-mono">
         <Sidebar isSidebarCollapsed={isSidebarCollapsed} />
         <main
-          className={`flex flex-col w-full h-full pb-1  transition-all duration-300 ${isSidebarCollapsed ? "md:pl-16" : "md:pl-[18.1rem]"}`}
+          className={`flex flex-col w-full h-full pb-1  transition-all duration-300 ${isSidebarCollapsed ? "md:pl-16" : "md:pl-[16.5rem]"}`}
         >
           <Navbar
             isSidebarCollapsed={isSidebarCollapsed}

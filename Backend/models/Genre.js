@@ -17,11 +17,12 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'genre_id',
       as: 'tailles',
     });
-    Genre.belongsToMany(models.Remise, {
-      through: models.RemiseGenre,
-      foreignKey: 'genre_id',
-      as: 'remises',
-    });
+    Genre.belongsToMany(Remise, {
+    through: RemiseGenre,
+    foreignKey: 'genre_id',
+    as: 'gender_discounts',
+    onDelete: 'CASCADE'
+  });
     
   };
 

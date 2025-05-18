@@ -5,8 +5,8 @@ module.exports = function(models) {
     // Verify all required models exist
     const requiredModels = [
       'Remise', 'Article', 'Categorie', 'Genre', 'Taille', 'Client', 'Evenement', 'ImageArticleCouleur',
-      'Marque', 'Couleur', 'Commande', 'Panier', 'RemiseArticle', 'AjustementStock', 'Livreur',
-      'RemiseCategorie', 'RemiseUtilisateur', 'RemiseTaille', 'RemiseGenre', 'LivreurLocalisation',
+      'Marque', 'Couleur', 'Commande', 'Panier', 'AjustementStock', 'Livreur',
+      'LivreurLocalisation','RemiseArticle', 'RemiseCategorie', 'RemiseMarque', 'RemiseGenre', 
       'CommandeArticle', 'ArticlePanier', 'Adresse', 'ArticleCouleur', 'ArticleTaille', 'Utilisateur',
       'Facture','ListeEnvies','Coupon', 'CommandeHistorique', 'Colis', 'Retour', 'HistoriqueAction'
     ];
@@ -20,9 +20,13 @@ module.exports = function(models) {
     // Destructure models after verification
     const {
       Coupon,
+      RemiseArticle,
+      RemiseCategorie,
+      RemiseMarque,
+      RemiseGenre,
+
       Adresse,
       ImageArticleCouleur,
-      Remise,
       AjustementStock,
       Article,
       Categorie,
@@ -35,11 +39,7 @@ module.exports = function(models) {
       Couleur,
       Commande,
       Panier,
-      RemiseArticle,
-      RemiseCategorie,
-      RemiseUtilisateur,
-      RemiseTaille,
-      RemiseGenre,
+
       CommandeArticle,
       ArticlePanier,
       ArticleCouleur,
@@ -51,81 +51,49 @@ module.exports = function(models) {
       CommandeHistorique,
       Colis,
       Retour,
-      ListeEnvies
+      ListeEnvies,
+      Remise
     } = models;
 
     /* ==============================================
-     * 1. DISCOUNT/REMISE RELATIONS
-     * ============================================== */
-    Remise.belongsToMany(Article, {
-      through: RemiseArticle,
-      foreignKey: 'remise_id',
-      as: 'articles',
-      onDelete: 'CASCADE'
-    });
+ * 1. DISCOUNT/REMISE RELATIONS
+ * ============================================== */
+Remise.belongsToMany(Article, {
+  through: RemiseArticle,
+  foreignKey: 'remise_id',
+  as: 'discounted_articles',  // Changed from 'articles'
+  onDelete: 'CASCADE'
+});
 
-    Article.belongsToMany(Remise, {
-      through: RemiseArticle,
-      foreignKey: 'article_id',
-      as: 'remises',
-      onDelete: 'CASCADE'
-    });
+Article.belongsToMany(Remise, {
+  through: RemiseArticle,
+  foreignKey: 'article_id',
+  as: 'article_discounts',  // Changed from 'remises'
+  onDelete: 'CASCADE'
+});
 
-    Remise.belongsToMany(Categorie, {
-      through: RemiseCategorie,
-      foreignKey: 'remise_id',
-      as: 'categories',
-      onDelete: 'CASCADE'
-    });
+// Update other Remise associations similarly:
+Remise.belongsToMany(Categorie, {
+  through: RemiseCategorie,
+  foreignKey: 'remise_id',
+  as: 'discounted_categories',  // Changed from 'categories'
+  onDelete: 'CASCADE'
+});
 
-    Categorie.belongsToMany(Remise, {
-      through: RemiseCategorie,
-      foreignKey: 'categorie_id',
-      as: 'remises',
-      onDelete: 'CASCADE'
-    });
+Remise.belongsToMany(Marque, {
+  through: RemiseMarque,
+  foreignKey: 'remise_id',
+  as: 'discounted_marques',  // Changed from 'marques'
+  onDelete: 'CASCADE'
+});
 
-    Remise.belongsToMany(Utilisateur, {
-      through: RemiseUtilisateur,
-      foreignKey: 'remise_id',
-      as: 'utilisateurs',
-      onDelete: 'CASCADE'
-    });
+Remise.belongsToMany(Genre, {
+  through: RemiseGenre,
+  foreignKey: 'remise_id',
+  as: 'discounted_genres',  // Changed from 'genres'
+  onDelete: 'CASCADE'
+});
 
-    Utilisateur.belongsToMany(Remise, {
-      through: RemiseUtilisateur,
-      foreignKey: 'utilisateur_id',
-      as: 'remises',
-      onDelete: 'CASCADE'
-    });
-
-    Remise.belongsToMany(Genre, {
-      through: RemiseGenre,
-      foreignKey: 'remise_id',
-      as: 'genres',
-      onDelete: 'CASCADE'
-    });
-    
-    Genre.belongsToMany(Remise, {
-      through: RemiseGenre,
-      foreignKey: 'genre_id',
-      as: 'remises',
-      onDelete: 'CASCADE'
-    });
-
-    Remise.belongsToMany(Taille, {
-      through: RemiseTaille,
-      foreignKey: 'remise_id',
-      as: 'tailles',
-      onDelete: 'CASCADE'
-    });
-    
-    Taille.belongsToMany(Remise, {
-      through: RemiseTaille,
-      foreignKey: 'taille_id',
-      as: 'remises',
-      onDelete: 'CASCADE'
-    });
 
     /* ==============================================
      * 2. CATEGORY RELATIONS
@@ -450,7 +418,6 @@ module.exports = function(models) {
       as: 'article_images',
       onDelete: 'CASCADE'
     });
-
     /* ==============================================
      * 13. AJUSTEMENT STOCK RELATIONS
      * ============================================== */
@@ -463,6 +430,12 @@ module.exports = function(models) {
     AjustementStock.belongsTo(Taille, {
       foreignKey: 'taille_id',
       as: 'taille',
+      onDelete: 'CASCADE'
+    });
+
+    AjustementStock.belongsTo(Couleur, {
+      foreignKey: 'couleur_id',
+      as: 'couleur',
       onDelete: 'CASCADE'
     });
 
@@ -484,26 +457,21 @@ module.exports = function(models) {
       onDelete: 'CASCADE'
     });
 
+    Couleur.hasMany(AjustementStock, {
+      foreignKey: 'couleur_id',
+      as: 'ajustements',
+      onDelete: 'CASCADE'
+    });
+
     Utilisateur.hasMany(AjustementStock, {
       foreignKey: 'admin_id',
       as: 'ajustements',
       onDelete: 'CASCADE'
     });
-
     /* ==============================================
      * 14. REMISE ↔ ÉVÉNEMENT
      * ============================================== */
-    Evenement.hasMany(Remise, {
-      foreignKey: 'evenement_id',
-      as: 'remises',
-      onDelete: 'SET NULL'
-    });
 
-    Remise.belongsTo(Evenement, {
-      foreignKey: 'evenement_id',
-      as: 'evenement',
-      onDelete: 'SET NULL'
-    });
 
     /* ==============================================
      * 15. UTILISATEUR & HISTORIQUE

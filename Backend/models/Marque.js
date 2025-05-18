@@ -13,6 +13,12 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'marque_id',
       as: 'articles',
     });
+    Marque.belongsToMany(Remise, {
+    through: RemiseMarque,
+    foreignKey: 'marque_id',
+    as: 'brand_discounts',
+    onDelete: 'CASCADE'
+  });
   };
 
   return Marque;

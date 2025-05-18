@@ -30,6 +30,12 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'couleur_id',
       as: 'articles',
     });
+    Couleur.belongsToMany(Remise, {
+      through: RemiseCouleur,
+      foreignKey: 'couleur_id',
+      as: 'color_discounts',
+      onDelete: 'CASCADE'
+    });
   };
 
   // Add hooks for hexcode validation

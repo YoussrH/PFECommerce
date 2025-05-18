@@ -52,7 +52,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
-    "framer-motion": "^12.10.5",
+    "framer-motion": "^12.12.1",
     "get-pixels": "^3.3.3",
     "input-otp": "^1.4.2",
     "leaflet": "^1.9.4",

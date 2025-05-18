@@ -39,15 +39,30 @@ export default function FormulaireAjustement({
   }, [adjustment]);
 
   useEffect(() => {
-    if (localAdjustment.idCouleur && tailles.length > 0) {
-      const filtered = tailles.filter(taille => 
-        taille.ArticleTaille?.couleur_id?.toString() === localAdjustment.idCouleur.toString()
-      );
-      setFilteredTailles(filtered);
+    if (localAdjustment.idCouleur && couleurs.length > 0) {
+      const selectedColor = couleurs.find(c => c.id.toString() === localAdjustment.idCouleur.toString());
+      if (selectedColor && selectedColor.sizes) {
+        setFilteredTailles(selectedColor.sizes);
+        
+        // Update current stock if a size is already selected
+        if (localAdjustment.idTaille) {
+          const selectedSize = selectedColor.sizes.find(s => s.id.toString() === localAdjustment.idTaille.toString());
+          if (selectedSize) {
+            const updatedAdjustment = {
+              ...localAdjustment,
+              stockActuel: selectedSize.quantite
+            };
+            setLocalAdjustment(updatedAdjustment);
+            onAdjustmentChange(index, updatedAdjustment);
+          }
+        }
+      } else {
+        setFilteredTailles([]);
+      }
     } else {
       setFilteredTailles([]);
     }
-  }, [localAdjustment.idCouleur, tailles]);
+  }, [localAdjustment.idCouleur, couleurs, localAdjustment.idTaille]);
 
   const handleChange = (field, value) => {
     const updatedAdjustment = { ...localAdjustment, [field]: value };
@@ -62,8 +77,13 @@ export default function FormulaireAjustement({
       updatedAdjustment.idTaille = "";
       updatedAdjustment.stockActuel = 0;
     } else if (field === 'idTaille' && localAdjustment.idCouleur) {
-      const selectedTaille = tailles.find(t => t.id.toString() === value.toString());
-      updatedAdjustment.stockActuel = selectedTaille?.ArticleTaille?.quantite || 0;
+      const selectedColor = couleurs.find(c => c.id.toString() === localAdjustment.idCouleur.toString());
+      if (selectedColor && selectedColor.sizes) {
+        const selectedSize = selectedColor.sizes.find(s => s.id.toString() === value.toString());
+        if (selectedSize) {
+          updatedAdjustment.stockActuel = selectedSize.quantite;
+        }
+      }
     }
 
     setLocalAdjustment(updatedAdjustment);
@@ -154,7 +174,7 @@ export default function FormulaireAjustement({
             <option value="">Sélectionner une taille</option>
             {filteredTailles.map(taille => (
               <option key={taille.id} value={taille.id}>
-                {taille.libelle} (Stock: {taille.ArticleTaille?.quantite || 0})
+                {taille.libelle} (Stock: {taille.quantite || 0})
               </option>
             ))}
           </select>
@@ -187,7 +207,8 @@ export default function FormulaireAjustement({
               Stock actuel: {localAdjustment.stockActuel} → Nouveau stock:{" "}
               {localAdjustment.type === 'correction'
                 ? localAdjustment.quantite
-                : localAdjustment.stockActuel + parseInt(localAdjustment.quantite) || 0}
+                : (localAdjustment.stockActuel || 0) + (parseInt(localAdjustment.quantite) || 0)
+              }
             </p>
           )}
         </div>

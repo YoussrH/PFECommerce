@@ -5,9 +5,7 @@
 import { usePathname } from "next/navigation";
 import HomeLayout from "./accueil/HomeLayout";
 import Dashboard from "./accueil/dashboard/page";
-import GettingStarted from "./accueil/getting-started/page";
-import RecentUpdates from "./accueil/recent-updates/page";
-import Announcements from "./accueil/announcements/page";
+
 import Inventory from "./inventaire/page";
 import Sales from "./ventes/page";
 import Products from "./produits/page";
@@ -23,24 +21,7 @@ export default function DashboardPage() {
   const renderContent = () => {
     if (pathname.startsWith("/admin/home")) {
       switch (pathname) {
-        case "/admin/home/getting-started":
-          return (
-            <HomeLayout>
-              <GettingStarted />
-            </HomeLayout>
-          );
-        case "/admin/home/recent-updates":
-          return (
-            <HomeLayout>
-              <RecentUpdates />
-            </HomeLayout>
-          );
-        case "/admin/home/announcements":
-          return (
-            <HomeLayout>
-              <Announcements />
-            </HomeLayout>
-          );
+
         default:
           return (
             <HomeLayout>

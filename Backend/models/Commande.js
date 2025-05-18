@@ -47,6 +47,14 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.FLOAT,
       defaultValue: 0,
     },
+    paiement_recu: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    },
+    date_paiement: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
     notes_admin: DataTypes.TEXT,
     coupon_utilise: {
       type: DataTypes.STRING(20),

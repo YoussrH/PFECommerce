@@ -1,30 +1,32 @@
 module.exports = (sequelize, DataTypes) => {
   const RemiseCategorie = sequelize.define('RemiseCategorie', {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
     remise_id: {
-      type: DataTypes.UUID,
-      allowNull: false,
+      type: DataTypes.INTEGER,
+      allowNull: false
     },
     categorie_id: {
       type: DataTypes.INTEGER,
-      allowNull: false,
-    },
+      allowNull: false
+    }
   }, {
     tableName: 'remise_categorie',
+    timestamps: false,
+    indexes: [
+      {
+        unique: true,
+        fields: ['remise_id', 'categorie_id']
+      }
+    ]
   });
 
   RemiseCategorie.associate = (models) => {
     RemiseCategorie.belongsTo(models.Remise, {
       foreignKey: 'remise_id',
-      as: 'remise',
+      as: 'remise'
     });
     RemiseCategorie.belongsTo(models.Categorie, {
       foreignKey: 'categorie_id',
-      as: 'categorie',
+      as: 'categorie'
     });
   };
 

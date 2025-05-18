@@ -1,0 +1,173 @@
+
+
+// Helper function to calculate final price
+const calculateFinalPrice = (originalPrice, discount) => {
+  if (!discount) return originalPrice;
+  
+  switch (discount.type_remise) {
+    case 'pourcentage':
+      return originalPrice * (1 - discount.valeur / 100);
+    case 'montant_fixe':
+      return Math.max(0, originalPrice - discount.valeur);
+    case 'bogo':
+      return originalPrice * 0.5; // Buy One Get One 50% off
+    default:
+      return originalPrice;
+  }
+};
+
+const createRemise = async (req, res) => {
+  try {
+    const {
+      code,
+      libelle,
+      description,
+      type_remise,
+      valeur,
+      date_debut,
+      date_fin,
+      est_active = true,
+      min_articles,
+      min_montant,
+      max_utilisation,
+      est_cumulable,
+      apply_to,
+      articles = [],
+      categories = [],
+      marques = [],
+      genres = [],
+      tailles = [],
+      couleurs = [],
+      utilisateurs = [],
+    } = req.body;
+
+    // Validate and sanitize numeric fields
+    const sanitizedMinArticles = min_articles === '' || min_articles === undefined ? null : parseInt(min_articles, 10);
+    const sanitizedMaxUtilisation = max_utilisation === '' || max_utilisation === undefined ? null : parseInt(max_utilisation, 10);
+    const sanitizedMinMontant = min_montant === '' || min_montant === undefined ? null : parseFloat(min_montant);
+
+    // Validate required fields and types
+    if (!code || !libelle || !type_remise || !valeur || !date_debut || !date_fin || !apply_to) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    if (sanitizedMinArticles !== null && (isNaN(sanitizedMinArticles) || sanitizedMinArticles < 0)) {
+      return res.status(400).json({ error: 'min_articles must be a non-negative integer' });
+    }
+    if (sanitizedMaxUtilisation !== null && (isNaN(sanitizedMaxUtilisation) || sanitizedMaxUtilisation < 0)) {
+      return res.status(400).json({ error: 'max_utilisation must be a non-negative integer' });
+    }
+    if (sanitizedMinMontant !== null && (isNaN(sanitizedMinMontant) || sanitizedMinMontant < 0)) {
+      return res.status(400).json({ error: 'min_montant must be a non-negative number' });
+    }
+
+    // Create the discount
+    const remise = await Remise.create({
+      code,
+      libelle,
+      description,
+      type_remise,
+      valeur,
+      date_debut,
+      date_fin,
+      est_active,
+      min_articles: sanitizedMinArticles,
+      min_montant: sanitizedMinMontant,
+      max_utilisation: sanitizedMaxUtilisation,
+      est_cumulable,
+      apply_to,
+    });
+
+    // Function to update prices for a set of articles
+    const updateArticlePrices = async (articleIds) => {
+      const articlesToUpdate = await Article.findAll({
+        where: { id: articleIds },
+        include: [
+          {
+            model: Remise,
+            as: 'article_discounts',
+            where: {
+              est_active: true,
+              date_debut: { [Op.lte]: new Date() },
+              date_fin: { [Op.gte]: new Date() }
+            },
+            required: false
+          }
+        ]
+      });
+
+      await Promise.all(articlesToUpdate.map(async article => {
+        // Find the best applicable discount (including the new one)
+        const allDiscounts = [...article.article_discounts, remise]
+          .filter(d => d.date_debut <= new Date() && d.date_fin >= new Date() && d.est_active);
+        
+        const bestDiscount = allDiscounts.reduce((prev, current) => {
+          const prevValue = calculateFinalPrice(article.prix, prev);
+          const currentValue = calculateFinalPrice(article.prix, current);
+          return (prevValue < currentValue) ? prev : current; // Choose the better discount
+        }, remise);
+
+        const newPrice = calculateFinalPrice(article.prix, bestDiscount);
+        
+        if (article.prix_final !== newPrice) {
+          article.prix_final = newPrice;
+          await article.save();
+        }
+      }));
+    };
+
+    // Add relations based on apply_to and update prices
+    if (apply_to === 'articles' && articles.length) {
+      await remise.setDiscounted_articles(articles);
+      await updateArticlePrices(articles);
+    } else if (apply_to === 'categories' && categories.length) {
+      await remise.setDiscounted_categories(categories);
+      
+      // Find all articles in these categories
+      const categoryArticles = await Article.findAll({
+        where: { categorie_id: categories },
+        attributes: ['id']
+      });
+      
+      if (categoryArticles.length) {
+        const articleIds = categoryArticles.map(a => a.id);
+        await updateArticlePrices(articleIds);
+      }
+    } else if (apply_to === 'marques' && marques.length) {
+      await remise.setDiscounted_marques(marques);
+      
+      // Find all articles from these brands
+      const brandArticles = await Article.findAll({
+        where: { marque_id: marques },
+        attributes: ['id']
+      });
+      
+      if (brandArticles.length) {
+        const articleIds = brandArticles.map(a => a.id);
+        await updateArticlePrices(articleIds);
+      }
+    } 
+    // ... handle other apply_to cases similarly ...
+
+    // Reload the remise with all associations
+    const fullRemise = await Remise.findByPk(remise.id, {
+      include: [
+        { model: Article, as: 'discounted_articles' },
+        { model: Categorie, as: 'discounted_categories' },
+        { model: Marque, as: 'discounted_marques' },
+        { model: Genre, as: 'discounted_genres' },
+        { model: Taille, as: 'discounted_tailles' },
+        { model: Couleur, as: 'discounted_couleurs' },
+        { model: Utilisateur, as: 'discounted_utilisateurs' },
+      ],
+    });
+
+    res.status(201).json(fullRemise);
+  } catch (error) {
+    console.error('Error creating discount:', error);
+    res.status(500).json({ 
+      error: 'Failed to create discount', 
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};

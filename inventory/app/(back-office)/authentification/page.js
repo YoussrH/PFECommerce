@@ -26,8 +26,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import ForgotPasswordForm from "@/app/components/Auth/FormMotpasseOublie";
 import ResetCodeForm from "@/app/components/Auth/FormVerifCode";
 import ResetPasswordForm from "@/app/components/Auth/FormReinitialisationMotpass";
-import { Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
+import { Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   email: z.string().email("Adresse email invalide"),
@@ -44,6 +44,7 @@ export default function AdminLoginPage() {
   });
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -54,16 +55,32 @@ export default function AdminLoginPage() {
   });
 
   async function onSubmit(values) {
-    const result = await loginAdmin(values.email, values.mot_de_passe);
-    if (result.success) {
-      router.push('/admin');
+    setIsSubmitting(true);
+    const toastId = toast.loading("Connexion en cours...");
+    
+    try {
+      const result = await loginAdmin(values.email, values.mot_de_passe);
+      
+      if (result.success) {
+        toast.success("Connexion réussie ! Redirection en cours...", { id: toastId });
+        router.push('/admin');
+      } else {
+        toast.error(result.error || "Échec de la connexion", { id: toastId });
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error(error.message || "Une erreur est survenue", { id: toastId });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   const handleForgotPassword = async (email) => {
+    const toastId = toast.loading("Envoi du code de réinitialisation...");
     try {
       const result = await forgotPassword(email);
       if (result.success) {
+        toast.success("Code envoyé à votre email", { id: toastId });
         setResetData({
           email: email,
           token: '',
@@ -71,14 +88,16 @@ export default function AdminLoginPage() {
         });
       }
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message || "Échec de l'envoi du code", { id: toastId });
     }
   };
 
   const handleVerifyResetCode = async (code) => {
+    const toastId = toast.loading("Vérification du code...");
     try {
       const result = await verifyResetCode(resetData.email, code);
       if (result.success) {
+        toast.success("Code validé", { id: toastId });
         setResetData(prev => ({
           ...prev,
           token: result.token,
@@ -86,15 +105,16 @@ export default function AdminLoginPage() {
         }));
       }
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message || "Code invalide", { id: toastId });
     }
   };
 
   const handleResetPassword = async (newPassword) => {
+    const toastId = toast.loading("Réinitialisation du mot de passe...");
     try {
       const result = await resetPassword(resetData.token, newPassword);
       if (result.success) {
-        toast.success("Mot de passe réinitialisé avec succès");
+        toast.success("Mot de passe réinitialisé avec succès", { id: toastId });
         setIsForgotPasswordOpen(false);
         setResetData({
           email: '',
@@ -103,7 +123,7 @@ export default function AdminLoginPage() {
         });
       }
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message || "Échec de la réinitialisation", { id: toastId });
     }
   };
 
@@ -179,9 +199,14 @@ export default function AdminLoginPage() {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={authLoading}
+                disabled={isSubmitting || authLoading}
               >
-                {authLoading ? "Connexion en cours..." : "Se connecter"}
+                {isSubmitting || authLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Connexion en cours...
+                  </>
+                ) : "Se connecter"}
               </Button>
             </form>
           </Form>

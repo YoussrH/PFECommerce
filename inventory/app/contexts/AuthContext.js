@@ -12,46 +12,42 @@ export const AuthProvider = ({ children }) => {
   const [authLoading, setAuthLoading] = useState(false);
   const router = useRouter();
 
-// In your AuthContext
-const checkAuth = useCallback(async () => {
-  try {
-    setLoading(true);
-    
-    // Only check auth if we don't already have a user
-    if (!user) {
-      // First try with token
-      const token = localStorage.getItem('adminToken');
-      if (token) {
-        const response = await axios.get('http://localhost:5000/auth/utilisateur', {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true
+  const checkAuth = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      if (!user) {
+        const token = localStorage.getItem('adminToken');
+        if (token) {
+          const response = await axios.get('http://localhost:5000/auth/utilisateur', {
+            headers: { Authorization: `Bearer ${token}` },
+            withCredentials: true
+          });
+          
+          if (response.data.utilisateur) {
+            setUser({
+              ...response.data.utilisateur,
+              token
+            });
+            return;
+          }
+        }
+        
+        const sessionResponse = await axios.get('http://localhost:5000/auth/utilisateur', {
+          withCredentials: true,
         });
         
-        if (response.data.utilisateur) {
-          setUser({
-            ...response.data.utilisateur,
-            token
-          });
-          return;
+        if (sessionResponse.data.utilisateur) {
+          setUser(sessionResponse.data.utilisateur);
         }
       }
-      
-      // Fallback to session check
-      const sessionResponse = await axios.get('http://localhost:5000/auth/utilisateur', {
-        withCredentials: true,
-      });
-      
-      if (sessionResponse.data.utilisateur) {
-        setUser(sessionResponse.data.utilisateur);
-      }
+    } catch (error) {
+      localStorage.removeItem('adminToken');
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    localStorage.removeItem('adminToken');
-    setUser(null);
-  } finally {
-    setLoading(false);
-  }
-}, [user]); // Add user as dependency
+  }, [user]);
 
   useEffect(() => {
     checkAuth();
@@ -68,7 +64,7 @@ const checkAuth = useCallback(async () => {
 
   const register = async (userData) => {
     try {
-      console.log('Starting registration with data:', userData); // Debug log
+      console.log('Starting registration with data:', userData);
       setAuthLoading(true);
       const response = await axios.post(
         'http://localhost:5000/auth/inscription',
@@ -76,7 +72,7 @@ const checkAuth = useCallback(async () => {
         { withCredentials: true }
       );
       
-      console.log('Registration response:', response.data); // Debug log
+      console.log('Registration response:', response.data);
       
       if (response.data.success) {
         toast.success(response.data.message);
@@ -88,7 +84,7 @@ const checkAuth = useCallback(async () => {
       }
       throw new Error(response.data.message || "Échec de l'inscription");
     } catch (error) {
-      console.error('Registration error:', error); // Debug log
+      console.error('Registration error:', error);
       const errorMessage = error.response?.data?.message || error.message || "Échec de l'inscription";
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
@@ -125,59 +121,65 @@ const checkAuth = useCallback(async () => {
   };
 
   const login = async (email, mot_de_passe) => {
-  try {
-    console.log('Attempting login with:', email); // Debug log
-    setAuthLoading(true);
-    const response = await axios.post(
-      'http://localhost:5000/auth/connexion',
-      { email, mot_de_passe },
-      { 
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json',
+    try {
+      console.log('Attempting login with:', email);
+      setAuthLoading(true);
+      const response = await axios.post(
+        'http://localhost:5000/auth/connexion',
+        { email, mot_de_passe },
+        { 
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json',
+          }
         }
+      );
+      
+      console.log('Login response:', response.data);
+      
+      if (response.data.success) {
+        const userData = {
+          ...response.data.utilisateur,
+          client: response.data.client
+        };
+        
+        console.log('Setting user data:', userData);
+        setUser(userData);
+        
+        toast.success("Connexion réussie ! Bienvenue !");
+        return { 
+          success: true, 
+          user: userData 
+        };
       }
-    );
-    
-    console.log('Login response:', response.data); // Debug log
-    
-    if (response.data.success) {
-      const userData = {
-        ...response.data.utilisateur,
-        client: response.data.client // Make sure client data is included
-      };
+      throw new Error(response.data.message || 'Échec de la connexion');
+    } catch (error) {
+      console.error('Login error:', error.response?.data || error);
       
-      console.log('Setting user data:', userData); // Debug log
-      setUser(userData);
+      const errorMessage = error.response?.data?.message || error.message || 'Échec de la connexion';
       
-      toast.success(response.data.message);
+      if (error.response?.status === 401) {
+        if (error.response?.data?.message === "Identifiants invalides.") {
+          toast.error("Mot de passe incorrect");
+        } else if (error.response?.data?.message === "Utilisateur non trouvé.") {
+          toast.error("Adresse email non trouvée");
+        } else {
+          toast.error("Identifiants invalides");
+        }
+      } else if (error.response?.status === 403) {
+        toast.error("Compte non vérifié");
+      } else {
+        toast.error(errorMessage);
+      }
+      
       return { 
-        success: true, 
-        user: userData 
+        success: false, 
+        error: errorMessage 
       };
+    } finally {
+      setAuthLoading(false);
     }
-    throw new Error(response.data.message || 'Échec de la connexion');
-  } catch (error) {
-    console.error('Login error:', error.response?.data || error); // Enhanced error logging
-    
-    const errorMessage = error.response?.data?.message || error.message || 'Échec de la connexion';
-    
-    if (error.response?.status === 401) {
-      toast.error("Identifiants invalides");
-    } else if (error.response?.status === 403) {
-      toast.error("Compte non vérifié");
-    } else {
-      toast.error(errorMessage);
-    }
-    
-    return { 
-      success: false, 
-      error: errorMessage 
-    };
-  } finally {
-    setAuthLoading(false);
-  }
-};
+  };
 
   const loginAdmin = async (email, mot_de_passe) => {
     try {
@@ -189,16 +191,15 @@ const checkAuth = useCallback(async () => {
       );
       
       if (response.data.success) {
-        // Store both user data and token
         const userData = {
           ...response.data.utilisateur,
-          token: response.data.token // Make sure this is coming from backend
+          token: response.data.token
         };
         
         setUser(userData);
-        localStorage.setItem('adminToken', response.data.token); // Store token
+        localStorage.setItem('adminToken', response.data.token);
         
-        toast.success(response.data.message);
+        toast.success("Connexion admin réussie ! Bienvenue !");
         return { success: true, user: userData };
       }
       throw new Error(response.data.message || 'Échec de la connexion admin');
@@ -206,7 +207,13 @@ const checkAuth = useCallback(async () => {
       const errorMessage = error.response?.data?.message || error.message || 'Échec de la connexion admin';
       
       if (error.response?.status === 401) {
-        toast.error("Identifiants admin invalides");
+        if (error.response?.data?.message === "Invalid credentials") {
+          toast.error("Mot de passe admin incorrect");
+        } else if (error.response?.data?.message === "Admin not found") {
+          toast.error("Adresse email admin non trouvée");
+        } else {
+          toast.error("Identifiants admin invalides");
+        }
       } else if (error.response?.status === 403) {
         toast.error("Accès réservé aux administrateurs");
       } else {
@@ -229,7 +236,7 @@ const checkAuth = useCallback(async () => {
       );
   
       setUser(null);
-      localStorage.removeItem('adminToken'); // Clear token
+      localStorage.removeItem('adminToken');
       toast.success("Déconnexion réussie");
       router.push('/');
   
@@ -239,89 +246,80 @@ const checkAuth = useCallback(async () => {
       router.push('/');
     } finally {
       setAuthLoading(false);
-  
-      // 🌀 Refresh the page after redirect
       setTimeout(() => {
         window.location.reload();
-      }, 100); // slight delay ensures router finishes redirect
+      }, 100);
     }
   };
-  
 
-// Mot de passe oublié
-const forgotPassword = async (email) => {
-  try {
-    setAuthLoading(true);
-    const response = await axios.post(
-      'http://localhost:5000/mot-de-passe/mot-de-passe-oublie',
-      { email },
-      { withCredentials: true }
-    );
-    
-    if (response.data.success) {
-      toast.success("Email de réinitialisation envoyé");
-      return { success: true, email };
+  const forgotPassword = async (email) => {
+    try {
+      setAuthLoading(true);
+      const response = await axios.post(
+        'http://localhost:5000/mot-de-passe/mot-de-passe-oublie',
+        { email },
+        { withCredentials: true }
+      );
+      
+      if (response.data.success) {
+        toast.success("Email de réinitialisation envoyé");
+        return { success: true, email };
+      }
+      throw new Error(response.data.message || "Erreur lors de l'envoi de l'email");
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || "Erreur système";
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setAuthLoading(false);
     }
-    throw new Error(response.data.message || "Erreur lors de l'envoi de l'email");
-  } catch (error) {
-    const errorMessage = error.response?.data?.message || error.message || "Erreur système";
-    toast.error(errorMessage);
-    return { success: false, error: errorMessage };
-  } finally {
-    setAuthLoading(false);
-  }
-};
+  };
 
-// Vérification du code
-const verifyResetCode = async (email, code) => {
-  try {
-    setAuthLoading(true);
-    const response = await axios.post(
-      'http://localhost:5000/mot-de-passe/verifier-code-reinitialisation',
-      { email, code },
-      { withCredentials: true }
-    );
-    
-    if (response.data.success) {
-      toast.success("Code validé");
-      return { success: true, token: response.data.token };
+  const verifyResetCode = async (email, code) => {
+    try {
+      setAuthLoading(true);
+      const response = await axios.post(
+        'http://localhost:5000/mot-de-passe/verifier-code-reinitialisation',
+        { email, code },
+        { withCredentials: true }
+      );
+      
+      if (response.data.success) {
+        toast.success("Code validé");
+        return { success: true, token: response.data.token };
+      }
+      throw new Error(response.data.message || "Code invalide");
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || "Erreur de vérification";
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setAuthLoading(false);
     }
-    throw new Error(response.data.message || "Code invalide");
-  } catch (error) {
-    const errorMessage = error.response?.data?.message || error.message || "Erreur de vérification";
-    toast.error(errorMessage);
-    return { success: false, error: errorMessage };
-  } finally {
-    setAuthLoading(false);
-  }
-};
+  };
 
-// Réinitialisation du mot de passe
-const resetPassword = async (token, newPassword) => {
-  try {
-    setAuthLoading(true);
-    const response = await axios.post(
-      'http://localhost:5000/mot-de-passe/reinitialiser-mot-de-passe',
-      { token, nouveau_mot_de_passe: newPassword },
-      { withCredentials: true }
-    );
-    
-    if (response.data.success) {
-      toast.success("Mot de passe réinitialisé");
-      return { success: true };
+  const resetPassword = async (token, newPassword) => {
+    try {
+      setAuthLoading(true);
+      const response = await axios.post(
+        'http://localhost:5000/mot-de-passe/reinitialiser-mot-de-passe',
+        { token, nouveau_mot_de_passe: newPassword },
+        { withCredentials: true }
+      );
+      
+      if (response.data.success) {
+        toast.success("Mot de passe réinitialisé");
+        return { success: true };
+      }
+      throw new Error(response.data.message || "Erreur de réinitialisation");
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || "Erreur système";
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setAuthLoading(false);
     }
-    throw new Error(response.data.message || "Erreur de réinitialisation");
-  } catch (error) {
-    const errorMessage = error.response?.data?.message || error.message || "Erreur système";
-    toast.error(errorMessage);
-    return { success: false, error: errorMessage };
-  } finally {
-    setAuthLoading(false);
-  }
-};
-
-
-
+  };
 
   const verifyCurrentPassword = async (currentPassword) => {
     try {
@@ -345,49 +343,49 @@ const resetPassword = async (token, newPassword) => {
     }
   };
   
-const changePassword = async (currentPassword, newPassword) => {
-  try {
-    setAuthLoading(true);
-    
-    // Validate inputs
-    if (!currentPassword || !newPassword) {
-      throw new Error("Veuillez fournir le mot de passe actuel et le nouveau mot de passe");
-    }
-
-    if (currentPassword === newPassword) {
-      throw new Error("Le nouveau mot de passe doit être différent de l'actuel");
-    }
-
-    const response = await axios.post(
-      'http://localhost:5000/mot-de-passe/changer-mot-de-passe',
-      { 
-        motDePasseActuel: currentPassword,
-        nouveauMotDePasse: newPassword 
-      },
-      { 
-        withCredentials: true,
-        headers: user?.token ? { Authorization: `Bearer ${user.token}` } : {}
+  const changePassword = async (currentPassword, newPassword) => {
+    try {
+      setAuthLoading(true);
+      
+      if (!currentPassword || !newPassword) {
+        throw new Error("Veuillez fournir le mot de passe actuel et le nouveau mot de passe");
       }
-    );
 
-    if (response.data.success) {
-      toast.success("Mot de passe changé avec succès");
-      return { success: true };
+      if (currentPassword === newPassword) {
+        throw new Error("Le nouveau mot de passe doit être différent de l'actuel");
+      }
+
+      const response = await axios.post(
+        'http://localhost:5000/mot-de-passe/changer-mot-de-passe',
+        { 
+          motDePasseActuel: currentPassword,
+          nouveauMotDePasse: newPassword 
+        },
+        { 
+          withCredentials: true,
+          headers: user?.token ? { Authorization: `Bearer ${user.token}` } : {}
+        }
+      );
+
+      if (response.data.success) {
+        toast.success("Mot de passe changé avec succès");
+        return { success: true };
+      }
+      
+      throw new Error(response.data.message || "Échec du changement de mot de passe");
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || error.message || "Échec du changement de mot de passe";
+      toast.error(errorMessage);
+      return { 
+        success: false, 
+        error: errorMessage,
+        isCurrentPasswordInvalid: error.response?.status === 401
+      };
+    } finally {
+      setAuthLoading(false);
     }
-    
-    throw new Error(response.data.message || "Échec du changement de mot de passe");
-  } catch (error) {
-    const errorMessage = error.response?.data?.error || error.message || "Échec du changement de mot de passe";
-    toast.error(errorMessage);
-    return { 
-      success: false, 
-      error: errorMessage,
-      isCurrentPasswordInvalid: error.response?.status === 401
-    };
-  } finally {
-    setAuthLoading(false);
-  }
-};
+  };
+
   return (
     <AuthContext.Provider 
       value={{ 

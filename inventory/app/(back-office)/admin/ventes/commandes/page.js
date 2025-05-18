@@ -44,8 +44,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const statusOptions = [
-  { value: "en_attente", label: "En attente", color: "bg-yellow-500" },
-  { value: "confirmee", label: "Confirmée", color: "bg-blue-500" },
+
   { value: "en_preparation", label: "En préparation", color: "bg-purple-500" },
   { value: "expediee", label: "Expédiée", color: "bg-orange-500" },
   { value: "livree", label: "Livrée", color: "bg-green-500" },

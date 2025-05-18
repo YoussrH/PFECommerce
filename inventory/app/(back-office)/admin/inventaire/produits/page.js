@@ -1,12 +1,10 @@
-import ArticlesTable from '@/app/components/DashboardComponents/ArticleComp/ArticlesTable'
-import React from 'react'
+import ArticleTable from "@/app/components/DashboardComponents/ArticleComp/ArticlesTable";
 
-export default function ListArticle() {
+export default function Home() {
   return (
-    <div>
-
-      <ArticlesTable/>
-      
-    </div>
+    <main className="container  mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6">Gestion des Articles</h1>
+      <ArticleTable />
+    </main>
   )
 }

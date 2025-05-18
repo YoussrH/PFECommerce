@@ -239,7 +239,7 @@ const obtenirHistoriqueAjustements = async (req, res) => {
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(filterDate);
       endOfDay.setHours(23, 59, 59, 999);
-      where.createdAt = {
+      where.created_at = {
         [Op.between]: [startOfDay, endOfDay]
       };
     }
@@ -277,8 +277,18 @@ const obtenirHistoriqueAjustements = async (req, res) => {
     const transformedData = rows.map(record => {
       const plainRecord = record.get({ plain: true });
       return {
-        ...plainRecord,
-        raison: plainRecord.raison === 'Autre' ? plainRecord.raison_autre : plainRecord.raison
+        id: plainRecord.id,
+        article: plainRecord.article,
+        taille: plainRecord.taille,
+        couleur: plainRecord.couleur,
+        quantite_avant: plainRecord.quantite_avant,
+        quantite_apres: plainRecord.quantite_apres,
+        difference: plainRecord.difference,
+        raison: plainRecord.raison === 'Autre' ? plainRecord.raison_autre : plainRecord.raison,
+        type: plainRecord.type,
+        admin: plainRecord.admin,
+        created_at: plainRecord.created_at,
+        updated_at : plainRecord.updated_at 
       };
     });
 

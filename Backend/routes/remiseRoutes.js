@@ -1,18 +1,25 @@
+// routes/remiseRoutes.js
 const express = require('express');
 const router = express.Router();
 const remiseController = require('../controllers/remiseController');
+const { authentifier, verifierAdmin } = require("../middleware/authMiddleware");
 
-// CRUD des remises
-router.get('/', remiseController.listerRemises);
-router.get('/getRemiseParId/:id', remiseController.getRemiseParId);
-router.post('/creerRemise', remiseController.creerRemise);
-router.put('/mettreAJourRemise/:id', remiseController.mettreAJourRemise);
-router.delete('/supprimerRemise/:id', remiseController.supprimerRemise);
-// Associer/remplacer les relations
-router.put('/setArticles/:id', remiseController.setArticles);
-router.put('/setCategories/:id', remiseController.setCategories);
-router.put('/setGenres/:id', remiseController.setGenres);
-router.put('/setTailles/:id', remiseController.setTailles);
-router.put('/setUtilisateurs/:id', remiseController.setUtilisateurs);
+// Create a new discount
+router.post('/createRemise',  authentifier, verifierAdmin,remiseController.createRemise);
+
+// Get all active discounts
+router.get('/getActiveRemises', authentifier, verifierAdmin, remiseController.getActiveRemises);
+
+// Apply discount to articles
+router.post('/:remiseId/applyRemiseToArticles', authentifier, verifierAdmin, remiseController.applyRemiseToArticles);
+
+// Remove discount from articles
+router.post('/:remiseId/removeRemiseFromArticles', authentifier, verifierAdmin, remiseController.removeRemiseFromArticles);
+
+// Update a discount
+router.put('/updateRemise/:id',  authentifier, verifierAdmin,remiseController.updateRemise);
+
+// Delete a discount
+router.delete('/deleteRemise/:id',  authentifier, verifierAdmin,remiseController.deleteRemise);
 
 module.exports = router;
