@@ -1,9 +1,7 @@
 const { Op } = require('sequelize');
-const { Remise, Article, Categorie, Marque, Genre, Taille, Couleur, Utilisateur } = require('../models');
-const models = require("../models");
+const { Remise, Article, Categorie, Marque, Genre } = require('../models');
 const { sequelize } = require("../models");
 
-// Helper function to calculate final price
 const calculateFinalPrice = (originalPrice, discount) => {
   if (!discount) return originalPrice;
   
@@ -15,6 +13,290 @@ const calculateFinalPrice = (originalPrice, discount) => {
     default:
       return originalPrice;
   }
+};
+
+// Helper function to apply discount to specific articles
+const applyDiscountToArticles = async (remise, articleIds, transaction) => {
+  if (!articleIds || articleIds.length === 0) return;
+
+  const validArticleIds = articleIds.filter(id => id !== null && id !== undefined && !isNaN(id) && id > 0);
+  
+  if (validArticleIds.length === 0) {
+    throw new Error('No valid article IDs provided');
+  }
+
+  // Verify articles exist
+  const articles = await Article.findAll({
+    where: { id: validArticleIds },
+    transaction
+  });
+
+  if (articles.length !== validArticleIds.length) {
+    throw new Error('One or more articles do not exist');
+  }
+
+  // Clear existing associations for these specific articles
+  await sequelize.models.RemiseArticle.destroy({
+    where: {
+      article_id: validArticleIds,
+      remise_id: remise.id
+    },
+    transaction
+  });
+
+  // Create new associations
+  const articleQuery = `
+    INSERT INTO remise_article (remise_id, article_id, created_at, updated_at)
+    VALUES ${validArticleIds.map(id => 
+      `(${remise.id}, ${id}, NOW(), NOW())`
+    ).join(',')}
+    ON CONFLICT (remise_id, article_id) DO NOTHING
+  `;
+  
+  await sequelize.query(articleQuery, { transaction });
+
+  // Update prices for only these articles
+  await Promise.all(articles.map(async article => {
+    const newPrice = calculateFinalPrice(article.prix, remise);
+    await article.update({ prix_final: newPrice }, { transaction });
+  }));
+};
+
+// Helper function for categories
+const applyDiscountToCategories = async (remise, categoryIds, articleIds = [], transaction) => {
+  if (!categoryIds || categoryIds.length === 0) return;
+
+  const validCategoryIds = categoryIds.filter(id => id !== null && id !== undefined && !isNaN(id) && id > 0);
+  
+  if (validCategoryIds.length === 0) {
+    throw new Error('No valid category IDs provided');
+  }
+
+  // Verify categories exist
+  const categories = await Categorie.findAll({
+    where: { id: validCategoryIds },
+    transaction
+  });
+
+  if (categories.length !== validCategoryIds.length) {
+    throw new Error('One or more categories do not exist');
+  }
+
+  // Create category associations
+  const categoryQuery = `
+    INSERT INTO remise_categorie (remise_id, categorie_id, created_at, updated_at)
+    VALUES ${validCategoryIds.map(id => 
+      `(${remise.id}, ${id}, NOW(), NOW())`
+    ).join(',')}
+    ON CONFLICT (remise_id, categorie_id) DO NOTHING
+  `;
+  
+  await sequelize.query(categoryQuery, { transaction });
+
+  // Build where clause for articles
+  const whereClause = { 
+    categorie_id: validCategoryIds 
+  };
+
+  // If specific article IDs are provided, only apply to those articles
+  if (articleIds && articleIds.length > 0) {
+    const validArticleIds = articleIds.filter(id => id !== null && id !== undefined && !isNaN(id) && id > 0);
+    whereClause.id = validArticleIds;
+  }
+
+  const articles = await Article.findAll({
+    where: whereClause,
+    transaction
+  });
+
+  if (articles.length === 0) {
+    console.warn('No articles found for the specified categories and article IDs');
+    return;
+  }
+
+  // Clear existing associations for these articles
+  await sequelize.models.RemiseArticle.destroy({
+    where: {
+      article_id: articles.map(a => a.id),
+      remise_id: remise.id
+    },
+    transaction
+  });
+
+  // Create new associations
+  await sequelize.models.RemiseArticle.bulkCreate(
+    articles.map(article => ({
+      remise_id: remise.id,
+      article_id: article.id,
+      created_at: new Date(),
+      updated_at: new Date()
+    })),
+    { transaction }
+  );
+
+  // Update prices for these articles
+  await Promise.all(articles.map(async article => {
+    const newPrice = calculateFinalPrice(article.prix, remise);
+    await article.update({ prix_final: newPrice }, { transaction });
+  }));
+};
+
+// Helper function for brands
+const applyDiscountToMarques = async (remise, marqueIds, articleIds = [], transaction) => {
+  if (!marqueIds || marqueIds.length === 0) return;
+
+  const validMarqueIds = marqueIds.filter(id => id !== null && id !== undefined && !isNaN(id) && id > 0);
+  
+  if (validMarqueIds.length === 0) {
+    throw new Error('No valid marque IDs provided');
+  }
+
+  // Verify marques exist
+  const marques = await Marque.findAll({
+    where: { id: validMarqueIds },
+    transaction
+  });
+
+  if (marques.length !== validMarqueIds.length) {
+    throw new Error('One or more marques do not exist');
+  }
+
+  // Create marque associations
+  const marqueQuery = `
+    INSERT INTO remise_marque (remise_id, marque_id, created_at, updated_at)
+    VALUES ${validMarqueIds.map(id => 
+      `(${remise.id}, ${id}, NOW(), NOW())`
+    ).join(',')}
+    ON CONFLICT (remise_id, marque_id) DO NOTHING
+  `;
+  
+  await sequelize.query(marqueQuery, { transaction });
+
+  // Build where clause for articles
+  const whereClause = { 
+    marque_id: validMarqueIds 
+  };
+
+  // If specific article IDs are provided, only apply to those articles
+  if (articleIds && articleIds.length > 0) {
+    const validArticleIds = articleIds.filter(id => id !== null && id !== undefined && !isNaN(id) && id > 0);
+    whereClause.id = validArticleIds;
+  }
+
+  const articles = await Article.findAll({
+    where: whereClause,
+    transaction
+  });
+
+  if (articles.length === 0) {
+    console.warn('No articles found for the specified marques and article IDs');
+    return;
+  }
+
+  // Clear existing associations for these articles
+  await sequelize.models.RemiseArticle.destroy({
+    where: {
+      article_id: articles.map(a => a.id),
+      remise_id: remise.id
+    },
+    transaction
+  });
+
+  // Create new associations
+  await sequelize.models.RemiseArticle.bulkCreate(
+    articles.map(article => ({
+      remise_id: remise.id,
+      article_id: article.id,
+      created_at: new Date(),
+      updated_at: new Date()
+    })),
+    { transaction }
+  );
+
+  // Update prices for these articles
+  await Promise.all(articles.map(async article => {
+    const newPrice = calculateFinalPrice(article.prix, remise);
+    await article.update({ prix_final: newPrice }, { transaction });
+  }));
+};
+
+// Helper function for genres
+const applyDiscountToGenres = async (remise, genreIds, articleIds = [], transaction) => {
+  if (!genreIds || genreIds.length === 0) return;
+
+  const validGenreIds = genreIds.filter(id => id !== null && id !== undefined && !isNaN(id) && id > 0);
+  
+  if (validGenreIds.length === 0) {
+    throw new Error('No valid genre IDs provided');
+  }
+
+  // Verify genres exist
+  const genres = await Genre.findAll({
+    where: { id: validGenreIds },
+    transaction
+  });
+
+  if (genres.length !== validGenreIds.length) {
+    throw new Error('One or more genres do not exist');
+  }
+
+  // Create genre associations
+  const genreQuery = `
+    INSERT INTO remise_genre (remise_id, genre_id, created_at, updated_at)
+    VALUES ${validGenreIds.map(id => 
+      `(${remise.id}, ${id}, NOW(), NOW())`
+    ).join(',')}
+    ON CONFLICT (remise_id, genre_id) DO NOTHING
+  `;
+  
+  await sequelize.query(genreQuery, { transaction });
+
+  // Build where clause for articles
+  const whereClause = { 
+    genre_id: validGenreIds 
+  };
+
+  // If specific article IDs are provided, only apply to those articles
+  if (articleIds && articleIds.length > 0) {
+    const validArticleIds = articleIds.filter(id => id !== null && id !== undefined && !isNaN(id) && id > 0);
+    whereClause.id = validArticleIds;
+  }
+
+  const articles = await Article.findAll({
+    where: whereClause,
+    transaction
+  });
+
+  if (articles.length === 0) {
+    console.warn('No articles found for the specified genres and article IDs');
+    return;
+  }
+
+  // Clear existing associations for these articles
+  await sequelize.models.RemiseArticle.destroy({
+    where: {
+      article_id: articles.map(a => a.id),
+      remise_id: remise.id
+    },
+    transaction
+  });
+
+  // Create new associations
+  await sequelize.models.RemiseArticle.bulkCreate(
+    articles.map(article => ({
+      remise_id: remise.id,
+      article_id: article.id,
+      created_at: new Date(),
+      updated_at: new Date()
+    })),
+    { transaction }
+  );
+
+  // Update prices for these articles
+  await Promise.all(articles.map(async article => {
+    const newPrice = calculateFinalPrice(article.prix, remise);
+    await article.update({ prix_final: newPrice }, { transaction });
+  }));
 };
 
 const createRemise = async (req, res) => {
@@ -33,8 +315,8 @@ const createRemise = async (req, res) => {
       min_articles,
       min_montant,
       max_utilisation,
-      est_cumulable,
-      apply_to,
+      est_cumulable = false,
+      apply_to = 'articles',
       articles = [],
       categories = [],
       marques = [],
@@ -42,9 +324,29 @@ const createRemise = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!code || !libelle || !type_remise || !valeur || !date_debut || !date_fin || !apply_to) {
+    if (!code || !libelle || !type_remise || !valeur || !date_debut || !date_fin) {
       await transaction.rollback();
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Missing required fields' 
+      });
+    }
+
+    // Validate discount value based on type
+    if (type_remise === 'pourcentage' && (valeur <= 0 || valeur > 100)) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: 'Percentage discount must be between 0 and 100' 
+      });
+    }
+
+    if (type_remise === 'montant_fixe' && valeur <= 0) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: 'Fixed amount discount must be greater than 0' 
+      });
     }
 
     // Create the discount
@@ -64,163 +366,116 @@ const createRemise = async (req, res) => {
       apply_to,
     }, { transaction });
 
-    // Function to update prices for affected articles
-    const updateAffectedArticles = async (articleIds) => {
-      if (!articleIds || articleIds.length === 0) return;
-
-      const articlesToUpdate = await Article.findAll({
-        where: { id: articleIds },
-        include: [
-          {
-            model: Remise,
-            as: 'article_discounts',
-            where: {
-              est_active: true,
-              date_debut: { [Op.lte]: new Date() },
-              date_fin: { [Op.gte]: new Date() }
-            },
-            required: false
-          }
-        ],
-        transaction
-      });
-
-      await Promise.all(articlesToUpdate.map(async article => {
-        // Find the best applicable discount (including the new one)
-        const allDiscounts = [...article.article_discounts, remise]
-          .filter(d => d.date_debut <= new Date() && d.date_fin >= new Date() && d.est_active);
-        
-        const bestDiscount = allDiscounts.reduce((prev, current) => {
-          const prevValue = calculateFinalPrice(article.prix, prev);
-          const currentValue = calculateFinalPrice(article.prix, current);
-          return (prevValue < currentValue) ? prev : current;
-        }, remise);
-
-        const newPrice = calculateFinalPrice(article.prix, bestDiscount);
-        
-        if (article.prix_final !== newPrice) {
-          await article.update({ prix_final: newPrice }, { transaction });
-        }
-      }));
-    };
-
     // Process based on apply_to type
     switch (apply_to) {
       case 'articles':
-        if (articles.length === 0) {
-          await transaction.rollback();
-          return res.status(400).json({ error: 'At least one article must be selected' });
-        }
-        await remise.addDiscounted_articles(articles, { transaction });
-        await updateAffectedArticles(articles);
+        await applyDiscountToArticles(remise, articles, transaction);
         break;
 
       case 'categories':
-        if (categories.length === 0) {
-          await transaction.rollback();
-          return res.status(400).json({ error: 'At least one category must be selected' });
-        }
-        await remise.addDiscounted_categories(categories, { transaction });
-        
-        // Find all articles in these categories
-        const categoryArticles = await Article.findAll({
-          where: { categorie_id: categories },
-          attributes: ['id'],
-          transaction
-        });
-        
-        if (categoryArticles.length > 0) {
-          const articleIds = categoryArticles.map(a => a.id);
-          await updateAffectedArticles(articleIds);
-        }
+        await applyDiscountToCategories(remise, categories, articles, transaction);
         break;
 
       case 'marques':
-        if (marques.length === 0) {
-          await transaction.rollback();
-          return res.status(400).json({ error: 'At least one brand must be selected' });
-        }
-        await remise.addDiscounted_marques(marques, { transaction });
-        
-        // Find all articles from these brands
-        const brandArticles = await Article.findAll({
-          where: { marque_id: marques },
-          attributes: ['id'],
-          transaction
-        });
-        
-        if (brandArticles.length > 0) {
-          const articleIds = brandArticles.map(a => a.id);
-          await updateAffectedArticles(articleIds);
-        }
+        await applyDiscountToMarques(remise, marques, articles, transaction);
         break;
 
       case 'genres':
-        if (genres.length === 0) {
-          await transaction.rollback();
-          return res.status(400).json({ error: 'At least one genre must be selected' });
-        }
-        await remise.addDiscounted_genres(genres, { transaction });
-        
-        // Find all articles in these genres
-        const genreArticles = await Article.findAll({
-          where: { genre_id: genres },
-          attributes: ['id'],
-          transaction
-        });
-        
-        if (genreArticles.length > 0) {
-          const articleIds = genreArticles.map(a => a.id);
-          await updateAffectedArticles(articleIds);
-        }
+        await applyDiscountToGenres(remise, genres, articles, transaction);
         break;
 
-      case 'tous':
-        // No specific associations needed for "all products"
-        // Update prices for all active articles
+      case 'all':
+        // Apply to all products (or selected articles if provided)
+        const whereClause = {};
+        if (articles && articles.length > 0) {
+          whereClause.id = articles.filter(id => id !== null && id !== undefined && !isNaN(id) && id > 0);
+        }
+        
         const allArticles = await Article.findAll({
-          attributes: ['id'],
+          where: whereClause,
           transaction
         });
-        
-        if (allArticles.length > 0) {
-          const articleIds = allArticles.map(a => a.id);
-          await updateAffectedArticles(articleIds);
+
+        if (allArticles.length === 0) {
+          console.warn('No articles found to apply discount to');
+          break;
         }
+
+        // Clear existing associations
+        await sequelize.models.RemiseArticle.destroy({
+          where: {
+            article_id: allArticles.map(a => a.id),
+            remise_id: remise.id
+          },
+          transaction
+        });
+
+        // Create new associations
+        await sequelize.models.RemiseArticle.bulkCreate(
+          allArticles.map(article => ({
+            remise_id: remise.id,
+            article_id: article.id,
+            created_at: new Date(),
+            updated_at: new Date()
+          })),
+          { transaction }
+        );
+
+        // Update prices
+        await Promise.all(allArticles.map(async article => {
+          const newPrice = calculateFinalPrice(article.prix, remise);
+          await article.update({ prix_final: newPrice }, { transaction });
+        }));
         break;
 
       default:
         await transaction.rollback();
-        return res.status(400).json({ error: 'Invalid apply_to value' });
+        return res.status(400).json({ 
+          success: false,
+          message: 'Invalid apply_to value' 
+        });
     }
 
     await transaction.commit();
 
-    // Reload the remise with all associations
+    // Get the full discount with associations
     const fullRemise = await Remise.findByPk(remise.id, {
       include: [
-        { model: Article, as: 'discounted_articles' },
-        { model: Categorie, as: 'discounted_categories' },
-        { model: Marque, as: 'discounted_marques' },
-        { model: Genre, as: 'discounted_genres' },
+        { model: Article, as: 'discounted_articles', attributes: ['id', 'nom_produit', 'prix', 'prix_final'] },
+        { model: Categorie, as: 'discounted_categories', attributes: ['id', 'libelle'] },
+        { model: Marque, as: 'discounted_marques', attributes: ['id', 'libelle'] },
+        { model: Genre, as: 'discounted_genres', attributes: ['id', 'libelle'] },
       ],
     });
 
-    res.status(201).json(fullRemise);
+    res.status(201).json({
+      success: true,
+      message: 'Discount created successfully',
+      data: fullRemise
+    });
   } catch (error) {
     await transaction.rollback();
-    console.error('Error creating discount:', error);
+    console.error('Error in createRemise:', error);
+    
+    if (error.message.includes('Invalid') || error.message.includes('No valid')) {
+      return res.status(400).json({ 
+        success: false,
+        message: error.message 
+      });
+    }
     
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(400).json({ 
-        error: 'Discount code already exists',
+        success: false,
+        message: 'Discount code already exists',
         details: error.errors 
       });
     }
     
     if (error.name === 'SequelizeValidationError') {
       return res.status(400).json({ 
-        error: 'Validation error',
+        success: false,
+        message: 'Validation error',
         details: error.errors.map(err => ({
           field: err.path,
           message: err.message
@@ -229,65 +484,227 @@ const createRemise = async (req, res) => {
     }
     
     res.status(500).json({ 
-      error: 'Failed to create discount', 
-      details: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      success: false,
+      message: 'Failed to create discount', 
+      error: error.message,
     });
   }
 };
 
 
-// Other controller methods remain the same...
+const deleteRemise = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
 
-// Get all active discounts
+    const remise = await Remise.findByPk(id, { transaction });
+    if (!remise) {
+      await transaction.rollback();
+      return res.status(404).json({ error: 'Discount not found' });
+    }
+
+    // Get all articles affected by this discount
+    const affectedArticles = await sequelize.models.Article.findAll({
+      include: [{
+        model: Remise,
+        as: 'article_discounts',
+        where: { id: id },
+        through: { attributes: [] }
+      }],
+      transaction
+    });
+
+    // Remove all associations
+    await sequelize.models.RemiseArticle.destroy({
+      where: { remise_id: id },
+      transaction
+    });
+
+    await sequelize.models.RemiseCategorie.destroy({
+      where: { remise_id: id },
+      transaction
+    });
+
+    await sequelize.models.RemiseMarque.destroy({
+      where: { remise_id: id },
+      transaction
+    });
+
+    await sequelize.models.RemiseGenre.destroy({
+      where: { remise_id: id },
+      transaction
+    });
+
+    // Restore original prices or apply next best discount
+    await Promise.all(affectedArticles.map(async article => {
+      // Option 1: Simply revert to original price
+      await article.update({ prix_final: article.prix }, { transaction });
+    }));
+
+    // Finally delete the discount
+    await remise.destroy({ transaction });
+    await transaction.commit();
+    
+    res.json({ message: 'Discount deleted successfully' });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error deleting discount:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete discount', 
+      details: error.message,
+    });
+  }
+};
+
+
+// Get all discounts (both active and inactive)
+const getAllRemises = async (req, res) => {
+  try {
+    const remises = await Remise.findAll({
+      include: [
+        { 
+          model: Article, 
+          as: 'discounted_articles',
+          through: { attributes: [] },
+          attributes: ['id', 'nom_produit', 'prix', 'prix_final']
+        },
+        { 
+          model: Categorie, 
+          as: 'discounted_categories',
+          through: { attributes: [] },
+          attributes: ['id', 'libelle']
+        },
+        { 
+          model: Marque, 
+          as: 'discounted_marques',
+          through: { attributes: [] },
+          attributes: ['id', 'libelle']
+        },
+        { 
+          model: Genre, 
+          as: 'discounted_genres',
+          through: { attributes: [] },
+          attributes: ['id', 'libelle']
+        }
+      ],
+      order: [['date_debut', 'DESC']]
+    });
+
+    res.json(remises);
+  } catch (error) {
+    console.error('Error fetching all discounts:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch discounts',
+      details: error.message 
+    });
+  }
+};
+
+// Get only active discounts (current date within range)
 const getActiveRemises = async (req, res) => {
   try {
     const currentDate = new Date();
+    
+    // Format date without time for comparison
+    const formattedDate = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      currentDate.getDate()
+    );
+
     const remises = await Remise.findAll({
       where: {
         est_active: true,
-        date_debut: { [Op.lte]: currentDate },
-        date_fin: { [Op.gte]: currentDate }
+        date_debut: { [Op.lte]: formattedDate },
+        date_fin: { [Op.gte]: formattedDate }
       },
       include: [
-        { model: Article, as: 'discounted_articles', through: { attributes: [] } },
-        { model: Categorie, as: 'discounted_categories', through: { attributes: [] } },
-        { model: Marque, as: 'discounted_marques', through: { attributes: [] } },
-        { model: Genre, as: 'discounted_genres', through: { attributes: [] } },
-        { model: Taille, as: 'discounted_tailles', through: { attributes: [] } },
-        { model: Couleur, as: 'discounted_couleurs', through: { attributes: [] } },
-        { model: Utilisateur, as: 'discounted_utilisateurs', through: { attributes: [] } }
-      ]
+        { 
+          model: Article, 
+          as: 'discounted_articles',
+          through: { attributes: [] },
+          attributes: ['id', 'nom_produit', 'prix', 'prix_final']
+        },
+        { 
+          model: Categorie, 
+          as: 'discounted_categories',
+          through: { attributes: [] },
+          attributes: ['id', 'libelle']
+        },
+        { 
+          model: Marque, 
+          as: 'discounted_marques',
+          through: { attributes: [] },
+          attributes: ['id', 'libelle']
+        },
+        { 
+          model: Genre, 
+          as: 'discounted_genres',
+          through: { attributes: [] },
+          attributes: ['id', 'libelle']
+        }
+      ],
+      order: [['valeur', 'DESC']] // Sort by highest discount first
     });
-    
+
     res.json(remises);
   } catch (error) {
     console.error('Error fetching active discounts:', error);
-    res.status(500).json({ error: 'Failed to fetch active discounts', details: error.message });
+    res.status(500).json({ 
+      error: 'Failed to fetch active discounts',
+      details: error.message 
+    });
   }
 };
 
 // Apply discount to articles
 const applyRemiseToArticles = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     const { remiseId } = req.params;
     const { articleIds } = req.body;
 
-    const remise = await Remise.findByPk(remiseId);
+    const remise = await Remise.findByPk(remiseId, { transaction });
     if (!remise) {
+      await transaction.rollback();
       return res.status(404).json({ error: 'Discount not found' });
     }
 
-    await remise.addDiscounted_articles(articleIds);
+    await remise.addDiscounted_articles(articleIds, { transaction });
     
     // Update prices for these articles
     const articles = await Article.findAll({
       where: { id: articleIds },
-      include: [{ model: Remise, as: 'article_discounts' }]
+      include: [{ 
+        model: Remise, 
+        as: 'article_discounts',
+        where: {
+          est_active: true,
+          date_debut: { [Op.lte]: new Date() },
+          date_fin: { [Op.gte]: new Date() }
+        },
+        required: false
+      }],
+      transaction
     });
 
+    await Promise.all(articles.map(async article => {
+      const bestDiscount = article.article_discounts.reduce((prev, current) => {
+        const prevValue = calculateFinalPrice(article.prix, prev);
+        const currentValue = calculateFinalPrice(article.prix, current);
+        return (prevValue < currentValue) ? prev : current;
+      }, null);
+
+      const newPrice = calculateFinalPrice(article.prix, bestDiscount);
+      if (article.prix_final !== newPrice) {
+        await article.update({ prix_final: newPrice }, { transaction });
+      }
+    }));
+
+    await transaction.commit();
     res.json({ message: 'Discount applied successfully', articles });
   } catch (error) {
+    await transaction.rollback();
     console.error('Error applying discount:', error);
     res.status(500).json({ error: 'Failed to apply discount', details: error.message });
   }
@@ -295,19 +712,51 @@ const applyRemiseToArticles = async (req, res) => {
 
 // Remove discount from articles
 const removeRemiseFromArticles = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     const { remiseId } = req.params;
     const { articleIds } = req.body;
 
-    const remise = await Remise.findByPk(remiseId);
+    const remise = await Remise.findByPk(remiseId, { transaction });
     if (!remise) {
+      await transaction.rollback();
       return res.status(404).json({ error: 'Discount not found' });
     }
 
-    await remise.removeDiscounted_articles(articleIds);
+    await remise.removeDiscounted_articles(articleIds, { transaction });
     
+    // Update prices for these articles (remove the discount)
+    const articles = await Article.findAll({
+      where: { id: articleIds },
+      include: [{ 
+        model: Remise, 
+        as: 'article_discounts',
+        where: {
+          est_active: true,
+          date_debut: { [Op.lte]: new Date() },
+          date_fin: { [Op.gte]: new Date() },
+          id: { [Op.ne]: remiseId } // Exclude the current discount
+        },
+        required: false
+      }],
+      transaction
+    });
+
+    await Promise.all(articles.map(async article => {
+      const bestDiscount = article.article_discounts.reduce((prev, current) => {
+        const prevValue = calculateFinalPrice(article.prix, prev);
+        const currentValue = calculateFinalPrice(article.prix, current);
+        return (prevValue < currentValue) ? prev : current;
+      }, null);
+
+      const newPrice = calculateFinalPrice(article.prix, bestDiscount);
+      await article.update({ prix_final: newPrice }, { transaction });
+    }));
+
+    await transaction.commit();
     res.json({ message: 'Discount removed successfully' });
   } catch (error) {
+    await transaction.rollback();
     console.error('Error removing discount:', error);
     res.status(500).json({ error: 'Failed to remove discount', details: error.message });
   }
@@ -315,16 +764,53 @@ const removeRemiseFromArticles = async (req, res) => {
 
 // Update a discount
 const updateRemise = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
     const updates = req.body;
 
-    const remise = await Remise.findByPk(id);
+    const remise = await Remise.findByPk(id, { transaction });
     if (!remise) {
+      await transaction.rollback();
       return res.status(404).json({ error: 'Discount not found' });
     }
 
-    await remise.update(updates);
+    await remise.update(updates, { transaction });
+    
+    // If discount is being deactivated or dates changed, update affected articles
+    if (updates.est_active === false || updates.date_debut || updates.date_fin) {
+      const articleIds = (await remise.getDiscounted_articles({ transaction })).map(a => a.id);
+      if (articleIds.length > 0) {
+        const articles = await Article.findAll({
+          where: { id: articleIds },
+          include: [{ 
+            model: Remise, 
+            as: 'article_discounts',
+            where: {
+              est_active: true,
+              date_debut: { [Op.lte]: new Date() },
+              date_fin: { [Op.gte]: new Date() },
+              id: { [Op.ne]: id } // Exclude the current discount if it's no longer active
+            },
+            required: false
+          }],
+          transaction
+        });
+
+        await Promise.all(articles.map(async article => {
+          const bestDiscount = article.article_discounts.reduce((prev, current) => {
+            const prevValue = calculateFinalPrice(article.prix, prev);
+            const currentValue = calculateFinalPrice(article.prix, current);
+            return (prevValue < currentValue) ? prev : current;
+          }, null);
+
+          const newPrice = calculateFinalPrice(article.prix, bestDiscount);
+          await article.update({ prix_final: newPrice }, { transaction });
+        }));
+      }
+    }
+    
+    await transaction.commit();
     
     // Reload with associations
     const updatedRemise = await Remise.findByPk(id, {
@@ -332,37 +818,18 @@ const updateRemise = async (req, res) => {
         { model: Article, as: 'discounted_articles' },
         { model: Categorie, as: 'discounted_categories' },
         { model: Marque, as: 'discounted_marques' },
-        { model: Genre, as: 'discounted_genres' },
-        { model: Taille, as: 'discounted_tailles' },
-        { model: Couleur, as: 'discounted_couleurs' },
-        { model: Utilisateur, as: 'discounted_utilisateurs' }
+        { model: Genre, as: 'discounted_genres' }
       ]
     });
     
     res.json(updatedRemise);
   } catch (error) {
+    await transaction.rollback();
     console.error('Error updating discount:', error);
     res.status(500).json({ error: 'Failed to update discount', details: error.message });
   }
 };
 
-// Delete a discount
-const deleteRemise = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const remise = await Remise.findByPk(id);
-    if (!remise) {
-      return res.status(404).json({ error: 'Discount not found' });
-    }
-
-    await remise.destroy();
-    res.json({ message: 'Discount deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting discount:', error);
-    res.status(500).json({ error: 'Failed to delete discount', details: error.message });
-  }
-};
 
 module.exports = {
   createRemise,
@@ -370,5 +837,6 @@ module.exports = {
   applyRemiseToArticles,
   removeRemiseFromArticles,
   updateRemise,
-  deleteRemise
+  deleteRemise,
+  getAllRemises
 };

@@ -186,57 +186,88 @@ module.exports = (sequelize, DataTypes) => {
           article.prix_final = article.prix;
         }
       },
-     // In your Article model, modify the afterFind hook
-        afterFind: async (articles, options) => {
-        if (!articles) return;
-        
-        const isArray = Array.isArray(articles);
-        if (!isArray) articles = [articles];
-        
-        const currentDate = new Date();
-        
-        for (const article of articles) {
-            // Skip if already has a custom price or if we already loaded discounts
-            if (article.prix_final !== article.prix && article.prix_final !== 0) continue;
-            if (options.scope && options.scope.includes('avecRemises')) continue;
-            
-            // Find all applicable discounts
-            const discounts = await sequelize.models.Remise.findAll({
-            include: [
-                { association: 'discounted_articles', where: { id: article.id }, required: false },
-                { association: 'discounted_categories', where: { id: article.categorie_id }, required: false },
-                { association: 'discounted_marques', where: { id: article.marque_id }, required: false },
-                { association: 'discounted_genres', where: { id: article.genre_id }, required: false }
-            ],
-            where: {
-                est_active: true,
-                date_debut: { [Op.lte]: currentDate },
-                date_fin: { [Op.gte]: currentDate }
-            }
-            });
-            
-            if (discounts.length > 0) {
-            // Find the best discount (highest value)
-            const bestDiscount = discounts.reduce((prev, current) => 
-                (calculateDiscountValue(prev, article.prix) > calculateDiscountValue(current, article.prix)) 
-                ? prev : current
-            );
-            
-            // Calculate and update final price
-            article.prix_final = calculateFinalPrice(article.prix, bestDiscount);
-            article.dataValues.remise = bestDiscount;
-            
-            // Persist the price change if not already done
-            if (article.changed('prix_final') && !options.transaction) {
-                await article.save();
-            }
-            } else {
-            article.prix_final = article.prix;
-            }
+afterFind: async (articles, options) => {
+  if (!articles) return;
+  
+  const isArray = Array.isArray(articles);
+  if (!isArray) articles = [articles];
+  
+  const currentDate = new Date();
+  
+  for (const article of articles) {
+    // Skip if we already have a custom price that's different from base price
+    if (article.prix_final !== article.prix && article.prix_final !== 0) continue;
+    
+    // Only calculate discount if not already loaded with discounts
+    if (!options.scope || !options.scope.includes('avecRemises')) {
+      const discounts = await sequelize.models.Remise.findAll({
+        include: [
+          { 
+            association: 'discounted_articles', 
+            where: { id: article.id },
+            required: false 
+          },
+          { 
+            association: 'discounted_categories', 
+            where: { id: article.categorie_id },
+            required: false 
+          },
+          { 
+            association: 'discounted_marques', 
+            where: { id: article.marque_id },
+            required: false 
+          },
+          { 
+            association: 'discounted_genres', 
+            where: { id: article.genre_id },
+            required: false 
+          }
+        ],
+        where: {
+          est_active: true,
+          date_debut: { [Op.lte]: currentDate },
+          date_fin: { [Op.gte]: currentDate }
         }
+      });
+      
+      if (discounts.length > 0) {
+        // Find the best applicable discount
+        const applicableDiscounts = discounts.filter(d => {
+          // Check if discount applies to this specific article
+          if (d.apply_to === 'articles' && 
+              d.discounted_articles.length === 0) return false;
+              
+          if (d.apply_to === 'categories' && 
+              d.discounted_categories.length === 0) return false;
+              
+          if (d.apply_to === 'marques' && 
+              d.discounted_marques.length === 0) return false;
+              
+          if (d.apply_to === 'genres' && 
+              d.discounted_genres.length === 0) return false;
+              
+          return true;
+        });
         
-        return isArray ? articles : articles[0];
+        if (applicableDiscounts.length > 0) {
+          const bestDiscount = applicableDiscounts.reduce((prev, current) => 
+            (calculateDiscountValue(prev, article.prix) > calculateDiscountValue(current, article.prix)) 
+            ? prev : current
+          );
+          
+          article.prix_final = calculateFinalPrice(article.prix, bestDiscount);
+          article.dataValues.remise = bestDiscount;
+        } else {
+          article.prix_final = article.prix;
         }
+      } else {
+        article.prix_final = article.prix;
+      }
+    }
+  }
+  
+  return isArray ? articles : articles[0];
+}
     }
   });
 

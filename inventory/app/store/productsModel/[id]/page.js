@@ -2,12 +2,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Star, Heart, Share2 } from "lucide-react";
+import { Star, Heart, Share2, Minus, Plus, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { usePanier } from "@/hooks/use-panier";
 import { useWishlist } from "@/hooks/useWishlist";
+import { Badge } from "@/components/ui/badge";
 
 const ProductDetailsModel = ({ productId }) => {
   const router = useRouter();
@@ -33,6 +34,20 @@ const ProductDetailsModel = ({ productId }) => {
     estDansListeEnvies,
     chargement: chargementWishlist
   } = useWishlist();
+
+  const estEnPromotion = () => {
+    return produit?.prix_final && produit.prix_final < produit.prix;
+  };
+
+  const estNouveauProduit = () => {
+    if (!produit?.created_at) return false;
+
+    const dateCreation = new Date(produit.created_at);
+    const dateActuelle = new Date();
+    const differenceJours = (dateActuelle - dateCreation) / (1000 * 60 * 60 * 24);
+
+    return differenceJours <= 30;
+  };
 
   useEffect(() => {
     const recupererProduit = async () => {
@@ -286,6 +301,17 @@ const ProductDetailsModel = ({ productId }) => {
                 <span className="text-sm text-gray-500 ml-2">- {produit.marque}</span>
               )}
             </h5>
+            
+            {/* Promotion and New badges */}
+            <div className="flex gap-2">
+              {estEnPromotion() && (
+                <Badge className="bg-red-600 text-white font-mono text-xs">EN PROMO</Badge>
+              )}
+              {estNouveauProduit() && !estEnPromotion() && (
+                <Badge className="bg-black text-white font-mono text-xs">NOUVEAU</Badge>
+              )}
+            </div>
+
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-0.5">
                 {[...Array(5)].map((_, i) => (
@@ -304,7 +330,7 @@ const ProductDetailsModel = ({ productId }) => {
           <div className="space-y-3">
             <div className="flex items-center gap-4">
               <span className="text-sm font-bold">{produit.prix_final} DT</span>
-              {produit.prix_final < produit.prix && (
+              {estEnPromotion() && (
                 <span className="text-sm text-gray-500 line-through">
                   {produit.prix} DT
                 </span>

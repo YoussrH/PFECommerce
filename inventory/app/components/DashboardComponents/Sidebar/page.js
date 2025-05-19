@@ -218,14 +218,7 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             iconColor="text-red-400"
             isSubItem
           />
-          <SidebarLink
-            href="/admin/ventes/remise/appliquer"
-            icon={Tags}
-            label="Appliquer une réduction"
-            isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-red-400"
-            isSubItem
-          />
+
         </SidebarSection>
 
         {/* Shipping Section */}

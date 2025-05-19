@@ -10,7 +10,6 @@ module.exports = (sequelize, DataTypes) => {
     }
   }, {
     tableName: 'remise_article',
-    timestamps: false,
     indexes: [
       {
         unique: true,

@@ -1,5 +1,4 @@
 "use client"
-
 import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
@@ -50,6 +49,7 @@ const getPrimaryImage = (produit) => {
 
   return "/placeholder-image.png";
 };
+
   const indexDernierProduit = pageCourante * produitsParPage
   const indexPremierProduit = indexDernierProduit - produitsParPage
   const produitsCourants = produits.slice(indexPremierProduit, indexDernierProduit)
@@ -69,6 +69,10 @@ const getPrimaryImage = (produit) => {
     const differenceJours = (dateActuelle - dateCreation) / (1000 * 60 * 60 * 24)
 
     return differenceJours <= 30
+  }
+
+  const estEnPromo = (produit) => {
+    return produit.prix_final < produit.prix
   }
 
   const preparerProduitPourModal = (produit) => {
@@ -112,6 +116,8 @@ const getPrimaryImage = (produit) => {
               const primaryImage = getPrimaryImage(produit)
               const marque = typeof produit.marque === "object" ? produit.marque?.libelle : produit.marque
               const estDansListe = estDansListeEnvies(produit.id)
+              const promo = estEnPromo(produit)
+              const nouveau = estNouveauProduit(produit) && !promo // Only show "NOUVEAU" if not in promo
               
               return (
                 <div key={produit.id || Math.random()} className="group relative">
@@ -129,7 +135,10 @@ const getPrimaryImage = (produit) => {
                       />
                     </Link>
 
-                    {estNouveauProduit(produit) && (
+                    {promo && (
+                      <Badge className="absolute top-2 left-2 bg-red-600 text-white font-mono text-xs">EN PROMO</Badge>
+                    )}
+                    {nouveau && (
                       <Badge className="absolute top-2 left-2 bg-black text-white font-mono text-xs">NOUVEAU</Badge>
                     )}
                   </div>
@@ -141,9 +150,23 @@ const getPrimaryImage = (produit) => {
                     <h3 className="mt-1 text-sm font-medium text-gray-900 font-mono group-hover:opacity-0 transition-opacity duration-300">
                       {produit.nom_produit || "Produit sans nom"}
                     </h3>
-                    <p className="mt-1 text-sm font-semibold text-gray-900 font-mono group-hover:opacity-0 transition-opacity duration-300">
-                      {produit.prix_final || produit.prix || 0} DT
-                    </p>
+                    <div className="mt-1 flex justify-center items-center gap-2">
+                      {promo && (
+                        <>
+                          <p className="text-sm font-semibold text-gray-400 font-mono line-through">
+                            {produit.prix} DT
+                          </p>
+                          <p className="text-sm font-semibold text-red-600 font-mono">
+                            {produit.prix_final} DT
+                          </p>
+                        </>
+                      )}
+                      {!promo && (
+                        <p className="text-sm font-semibold text-gray-900 font-mono">
+                          {produit.prix_final || produit.prix || 0} DT
+                        </p>
+                      )}
+                    </div>
 
                     <div className="absolute inset-0 flex items-center justify-center p-3 pt-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <div className="flex gap-2 w-full">
@@ -303,4 +326,4 @@ const getPrimaryImage = (produit) => {
   )
 }
 
-export default ProductListMarque;
+export default ProductListMarque

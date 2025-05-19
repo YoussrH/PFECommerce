@@ -38,29 +38,32 @@ import { useRemise } from '@/hooks/useRemise'
 
 export default function GestionRemises() {
   const router = useRouter()
-  const { remises, getActiveRemises, deleteRemise } = useRemise()
+  const { remises, loading, error, fetchRemises, deleteRemise } = useRemise()
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('tous')
-  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadRemises = async () => {
       try {
-        await getActiveRemises()
+        await fetchRemises()
       } catch (error) {
-        toast.error(error.message || 'Échec du chargement des remises')
-      } finally {
-        setLoading(false)
+        toast.error(error || 'Échec du chargement des remises')
       }
     }
 
     loadRemises()
-  }, [])
+  }, [fetchRemises])
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error)
+    }
+  }, [error])
 
   const filteredRemises = remises.filter(remise => {
     const matchesSearch = 
-      remise.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      remise.libelle.toLowerCase().includes(searchTerm.toLowerCase())
+      remise.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      remise.libelle?.toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesStatus = 
       filterStatus === 'tous' ||
@@ -75,11 +78,12 @@ export default function GestionRemises() {
       await deleteRemise(id)
       toast.success('Remise supprimée avec succès')
     } catch (error) {
-      toast.error(error.message || 'Échec de la suppression')
+      toast.error(error || 'Échec de la suppression')
     }
   }
 
   const formaterDate = (dateString) => {
+    if (!dateString) return 'N/A'
     return format(new Date(dateString), 'PP', { locale: fr })
   }
 
@@ -148,7 +152,7 @@ export default function GestionRemises() {
               ) : filteredRemises.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center">
-                    Aucune remise trouvée
+                    {remises.length === 0 ? 'Aucune remise disponible' : 'Aucune remise ne correspond aux critères'}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -161,8 +165,8 @@ export default function GestionRemises() {
                     </TableCell>
                     <TableCell>
                       {remise.type_remise === 'pourcentage' 
-                        ? `${remise.valeur}%` 
-                        : `${remise.valeur}€`}
+                        ? `${remise.valeur} %` 
+                        : `${remise.valeur} DT`}
                     </TableCell>
                     <TableCell>
                       {formaterDate(remise.date_debut)} - {formaterDate(remise.date_fin)}
@@ -182,7 +186,7 @@ export default function GestionRemises() {
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button 
-                          variant="outline" 
+                          variant="destructive" 
                           size="icon"
                           onClick={() => handleSupprimerRemise(remise.id)}
                         >

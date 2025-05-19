@@ -42,13 +42,12 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: false
     },
     apply_to: {
-      type: DataTypes.ENUM('all', 'categories', 'articles', 'marques', 'genres', 'tailles', 'couleurs'),
+      type: DataTypes.ENUM('all', 'categories', 'articles', 'marques', 'genres'),
       defaultValue: 'all'
     }
   }, {
     tableName: 'remise',
-    timestamps: true,
-    paranoid: true
+
   });
 
   Remise.associate = (models) => {

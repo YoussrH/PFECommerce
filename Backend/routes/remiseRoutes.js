@@ -9,7 +9,7 @@ router.post('/createRemise',  authentifier, verifierAdmin,remiseController.creat
 
 // Get all active discounts
 router.get('/getActiveRemises', authentifier, verifierAdmin, remiseController.getActiveRemises);
-
+router.get('/', authentifier, remiseController.getAllRemises);
 // Apply discount to articles
 router.post('/:remiseId/applyRemiseToArticles', authentifier, verifierAdmin, remiseController.applyRemiseToArticles);
 

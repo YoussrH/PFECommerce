@@ -33,6 +33,20 @@ export default function DetailsProduit() {
   const { panier, chargement: chargementPanier, ajouterArticle, recupererPanier } = usePanier()
   const { basculerListeEnvies, estDansListeEnvies, chargement: chargementWishlist } = useWishlist()
 
+  const estEnPromotion = () => {
+    return produit?.prix_final && produit.prix_final < produit.prix
+  }
+
+  const estNouveauProduit = () => {
+    if (!produit?.created_at) return false
+
+    const dateCreation = new Date(produit.created_at)
+    const dateActuelle = new Date()
+    const differenceJours = (dateActuelle - dateCreation) / (1000 * 60 * 60 * 24)
+
+    return differenceJours <= 30
+  }
+
   const verifierStatutStock = () => {
     if (!couleurSelectionnee || !produit?.tailles_par_couleur[couleurSelectionnee.id]?.tailles) {
       return null
@@ -248,7 +262,7 @@ export default function DetailsProduit() {
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10">
           <div className="md:hidden">
-            <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
+            <div className="relative aspect-square overflow-hidden rounded-lg ">
               {imagesDisponibles.length > 0 ? (
                 <Image
                   src={imagesDisponibles[imageActive] || "/placeholder.svg"}
@@ -287,7 +301,7 @@ export default function DetailsProduit() {
           </div>
 
           <div className="hidden md:block">
-            <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
+            <div className="relative aspect-square overflow-hidden rounded-lg ">
               {imagesDisponibles.length > 0 ? (
                 <Image
                   src={imagesDisponibles[imageActive] || "/placeholder.svg"}
@@ -330,6 +344,16 @@ export default function DetailsProduit() {
                 {produit.marque && <span className="text-xs sm:text-sm text-gray-500">- {produit.marque}</span>}
               </div>
 
+              {/* Promotion and New badges */}
+              <div className="flex gap-2">
+                {estEnPromotion() && (
+                  <Badge className="bg-red-600 text-white font-mono text-xs">EN PROMO</Badge>
+                )}
+                {estNouveauProduit() && !estEnPromotion() && (
+                  <Badge className="bg-black text-white font-mono text-xs">NOUVEAU</Badge>
+                )}
+              </div>
+
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-0.5">
                   {[...Array(5)].map((_, i) => (
@@ -346,7 +370,7 @@ export default function DetailsProduit() {
             <div className="space-y-3">
               <div className="flex items-center gap-4">
                 <span className="text-lg sm:text-xl font-bold">{produit.prix_final} DT</span>
-                {produit.prix_final < produit.prix && (
+                {estEnPromotion() && (
                   <span className="text-xs sm:text-sm text-gray-500 line-through">{produit.prix} DT</span>
                 )}
               </div>

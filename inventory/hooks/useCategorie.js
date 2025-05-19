@@ -4,7 +4,7 @@ import axios from 'axios'
 import { toast } from 'sonner'
 import { useAuth } from '@/app/contexts/AuthContext'
 
-export const useCategories = () => {
+export const useCategorie = () => {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)

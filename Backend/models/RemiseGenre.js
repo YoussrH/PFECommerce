@@ -18,7 +18,6 @@ module.exports = (sequelize, DataTypes) => {
     }
   }, {
     tableName: 'remise_genre',
-    timestamps: false,
     indexes: [
       {
         unique: true,

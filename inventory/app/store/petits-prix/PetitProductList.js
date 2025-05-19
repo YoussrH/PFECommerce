@@ -60,6 +60,10 @@ const PetitProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
     return differenceJours <= 30
   }
 
+  const estEnPromotion = (produit) => {
+    return produit.prix_final && produit.prix_final < produit.prix
+  }
+
   const preparerProduitPourModal = (produit) => {
     if (!produit) return null
 
@@ -148,7 +152,8 @@ const PetitProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
             {produitsCourants.map((produit) => {
               const primaryImage = getPrimaryImage(produit)
               const marque = typeof produit.marque === "object" ? produit.marque?.libelle : produit.marque
-              const estDansListe = estDansListeEnvies(produit.id)
+              const enPromotion = estEnPromotion(produit)
+              const nouveauProduit = estNouveauProduit(produit) && !enPromotion
 
               return (
                 <div key={produit.id || Math.random()} className="group relative">
@@ -165,31 +170,48 @@ const PetitProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                         }}
                       />
                     </Link>
-
-                    {estNouveauProduit(produit) && (
+                    
+                    {/* Promotion badge - shown in red if product is on promotion */}
+                    {enPromotion && (
+                      <Badge className="absolute top-2 left-2 bg-red-600 text-white font-mono text-xs">EN PROMO</Badge>
+                    )}
+                    
+                    {/* New product badge - shown in black only if product is new and not on promotion */}
+                    {nouveauProduit && (
                       <Badge className="absolute top-2 left-2 bg-black text-white font-mono text-xs">NOUVEAU</Badge>
                     )}
                   </div>
 
                   <div className="mt-3 text-center relative">
-
-                    <p className="text-xs text-gray-600 font-mono tracking-wider uppercase  transition-opacity duration-300">
+                    <p className="text-xs text-gray-600 font-mono tracking-wider uppercase transition-opacity duration-300">
                       {marque || "Marque inconnue"}
                     </p>
                     <h3 className="mt-1 text-sm font-medium text-gray-900 font-mono group-hover:opacity-0 transition-opacity duration-300">
                       {produit.nom_produit || "Produit sans nom"}
                     </h3>
-                    <p className="mt-1 text-sm font-semibold text-gray-900 font-mono group-hover:opacity-0 transition-opacity duration-300">
-                      {produit.prix_final || produit.prix || 0} DT
-                    </p>
+                    
+                    {/* Price display - show both original and discounted prices if on promotion */}
+                    {enPromotion ? (
+                      <div className="mt-1 group-hover:opacity-0 transition-opacity duration-300">
+                        <span className="text-sm font-semibold text-gray-900 font-mono">
+                          {produit.prix_final} DT
+                        </span>
+                        <span className="text-xs text-gray-500 line-through ml-2">
+                          {produit.prix} DT
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-sm font-semibold text-gray-900 font-mono group-hover:opacity-0 transition-opacity duration-300">
+                        {produit.prix || 0} DT
+                      </p>
+                    )}
 
-
-                    <div className="absolute inset-0 flex items-center justify-center p-3 pt-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ">
-                      <div className="flex gap-2 w-full ">
+                    <div className="absolute inset-0 flex items-center justify-center p-3 pt-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="flex gap-2 w-full">
                         <Button
                           variant="default"
                           size="sm"
-                          className="flex-1 bg-black  hover:bg-white hover:text-black border border-black text-white text-xs rounded-full"
+                          className="flex-1 bg-black hover:bg-white hover:text-black border border-black text-white text-xs rounded-full"
                           onClick={(e) => {
                             e.preventDefault()
                             handleClicAchatRapide(produit)
@@ -197,22 +219,17 @@ const PetitProductList = ({ produits = [], onEffacerTousFiltres = () => {} }) =>
                         >
                           Achat Rapide
                         </Button>
-                                              <Button 
+                        <Button 
                           variant="outline" 
                           size="icon" 
-                          className={`h-8 w-8 rounded-full bg-white ${
-                            estDansListe ? 'text-red-500' : 'text-gray-500'
-                          }`}
-                          onClick={async (e) => {
+                          className="h-8 w-8 rounded-full bg-white text-gray-500"
+                          onClick={(e) => {
                             e.preventDefault()
-                            await basculerListeEnvies(produit.id)
+                            // Wishlist functionality can be added here if needed
+                            toast.info("Fonctionnalité de liste de souhaits non implémentée")
                           }}
-                          disabled={chargementListeEnvies}
                         >
-                          <Heart 
-                            className="h-5 w-5" 
-                            fill={estDansListe ? 'currentColor' : 'none'}
-                          />
+                          <Heart className="h-5 w-5" fill="none" />
                           <span className="sr-only">Ajouter aux favoris</span>
                         </Button>
                       </div>

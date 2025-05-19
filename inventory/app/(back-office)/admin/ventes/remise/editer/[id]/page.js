@@ -1,4 +1,3 @@
-// app/(admin)/ventes/remises/editer/[id]/page.js
 "use client"
 
 import { useState, useEffect } from 'react'
@@ -21,7 +20,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/custom-select'
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from '@/components/ui/calendar'
 import { Switch } from '@/components/ui/switch'
@@ -29,25 +28,28 @@ import { ChevronLeft, Save } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useRemise } from '@/hooks/useRemise'
-import { useArticle } from '@/hooks/useArticle'
-import { useCategories } from '@/hooks/useCategories'
-import { useMarques } from '@/hooks/useMarques'
-import { useGenres } from '@/hooks/useGenres'
-import { useTailles } from '@/hooks/useTailles'
-import { useCouleurs } from '@/hooks/useCouleurs'
-import { useUtilisateurs } from '@/hooks/useUtilisateurs'
+import useCatalog from '@/hooks/useCatalog'
+import MultiSelectDropdown from '@/app/components/DashboardComponents/Remise/MultiSelectDropdown'
 
 export default function EditerRemise() {
   const router = useRouter()
   const { id } = useParams()
-  const { updateRemise, getActiveRemises } = useRemise()
-  const { articles, fetchAllArticles } = useArticle()
-  const { categories, fetchCategories } = useCategories()
-  const { marques, fetchMarques } = useMarques()
-  const { genres, fetchGenres } = useGenres()
-  const { tailles, fetchTailles } = useTailles()
-  const { couleurs, fetchCouleurs } = useCouleurs()
-  const { utilisateurs, fetchUtilisateurs } = useUtilisateurs()
+  const { updateRemise, getRemiseById } = useRemise()
+  const { 
+    articles, 
+    categories, 
+    marques, 
+    genres,
+    filteredArticles,
+    filterLoading,
+    fetchArticlesByMarque,
+    fetchArticlesByCategorie,
+    fetchArticlesByGenre,
+    fetchAllArticles,
+    fetchAllCategories,
+    fetchAllMarques,
+    fetchAllGenres,
+  } = useCatalog()
   
   const [formData, setFormData] = useState({
     code: '',
@@ -67,38 +69,32 @@ export default function EditerRemise() {
     categories: [],
     marques: [],
     genres: [],
-    tailles: [],
-    couleurs: [],
-    utilisateurs: []
   })
 
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
+  const [showArticleSelection, setShowArticleSelection] = useState(false)
 
   useEffect(() => {
     const chargerDonnees = async () => {
       try {
-        // Load all necessary data
+        // Load all catalog data
         await Promise.all([
           fetchAllArticles(),
-          fetchCategories(),
-          fetchMarques(),
-          fetchGenres(),
-          fetchTailles(),
-          fetchCouleurs(),
-          fetchUtilisateurs()
+          fetchAllCategories(),
+          fetchAllMarques(),
+          fetchAllGenres(),
         ])
 
         // Load the specific discount
-        const remises = await getActiveRemises()
-        const remiseData = remises.find(r => r.id === parseInt(id))
+        const remiseData = await getRemiseById(id)
         
         if (!remiseData) {
           throw new Error('Remise non trouvée')
         }
 
         // Update form data
-        setFormData({
+        const updatedFormData = {
           code: remiseData.code,
           libelle: remiseData.libelle,
           description: remiseData.description,
@@ -107,19 +103,32 @@ export default function EditerRemise() {
           date_debut: new Date(remiseData.date_debut),
           date_fin: new Date(remiseData.date_fin),
           est_active: remiseData.est_active,
-          min_articles: remiseData.min_articles,
-          min_montant: remiseData.min_montant,
-          max_utilisation: remiseData.max_utilisation,
+          min_articles: remiseData.min_articles || '',
+          min_montant: remiseData.min_montant || '',
+          max_utilisation: remiseData.max_utilisation || '',
           est_cumulable: remiseData.est_cumulable,
           apply_to: remiseData.apply_to,
-          articles: remiseData.discounted_articles?.map(a => a.id) || [],
-          categories: remiseData.discounted_categories?.map(c => c.id) || [],
-          marques: remiseData.discounted_marques?.map(m => m.id) || [],
-          genres: remiseData.discounted_genres?.map(g => g.id) || [],
-          tailles: remiseData.discounted_tailles?.map(t => t.id) || [],
-          couleurs: remiseData.discounted_couleurs?.map(c => c.id) || [],
-          utilisateurs: remiseData.discounted_utilisateurs?.map(u => u.id) || []
-        })
+          articles: remiseData.articles?.map(a => a.id) || [],
+          categories: remiseData.categories?.map(c => c.id) || [],
+          marques: remiseData.marques?.map(m => m.id) || [],
+          genres: remiseData.genres?.map(g => g.id) || [],
+        }
+
+        setFormData(updatedFormData)
+
+        // If the discount applies to specific items, fetch related articles
+        if (remiseData.apply_to !== 'tous') {
+          if (remiseData.marques?.length > 0) {
+            await fetchArticlesByMarque(remiseData.marques.map(m => m.id))
+            setShowArticleSelection(true)
+          } else if (remiseData.categories?.length > 0) {
+            await fetchArticlesByCategorie(remiseData.categories.map(c => c.id))
+            setShowArticleSelection(true)
+          } else if (remiseData.genres?.length > 0) {
+            await fetchArticlesByGenre(remiseData.genres.map(g => g.id))
+            setShowArticleSelection(true)
+          }
+        }
       } catch (error) {
         toast.error(error.message)
         router.push('/admin/ventes/remise')
@@ -139,10 +148,45 @@ export default function EditerRemise() {
     }))
   }
 
-  const handleSelectChange = (name, value) => {
+  const handleSelectChange = async (name, value) => {
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
+      articles: [], // Reset articles when changing apply_to
+    }))
+    
+    setShowArticleSelection(false)
+  }
+
+  const handleMultiSelectChange = async (name, selectedOptions) => {
+    const values = selectedOptions.map(option => Number(option.value)).filter(id => !isNaN(id))
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: values,
+      articles: [], // Reset articles when changing selection
+    }))
+
+    // Fetch related articles based on selection
+    if (name === 'marques' && values.length > 0) {
+      await fetchArticlesByMarque(values)
+      setShowArticleSelection(true)
+    } else if (name === 'categories' && values.length > 0) {
+      await fetchArticlesByCategorie(values)
+      setShowArticleSelection(true)
+    } else if (name === 'genres' && values.length > 0) {
+      await fetchArticlesByGenre(values)
+      setShowArticleSelection(true)
+    } else {
+      setShowArticleSelection(false)
+    }
+  }
+
+  const handleArticleSelection = (selectedOptions) => {
+    const values = selectedOptions.map(option => Number(option.value)).filter(id => !isNaN(id))
+    setFormData(prev => ({
+      ...prev,
+      articles: values,
     }))
   }
 
@@ -157,12 +201,47 @@ export default function EditerRemise() {
     e.preventDefault()
     setLoading(true)
 
+    // Validate required fields
+    if (!formData.code || !formData.libelle || !formData.valeur) {
+      toast.error('Veuillez remplir tous les champs obligatoires')
+      setLoading(false)
+      return
+    }
+
+    // Validate selection based on apply_to
+    if (formData.apply_to !== 'tous') {
+      const selectedItems = formData[formData.apply_to]
+      if (!selectedItems || selectedItems.length === 0) {
+        toast.error(`Veuillez sélectionner au moins un ${formData.apply_to}`)
+        setLoading(false)
+        return
+      }
+
+      // For marques/categories/genres, ensure we have either filtered articles or specific selections
+      if (['marques', 'categories', 'genres'].includes(formData.apply_to)) {
+        if (formData.articles.length === 0 && !showArticleSelection) {
+          toast.error(`Veuillez sélectionner des articles pour les ${formData.apply_to} sélectionnés`)
+          setLoading(false)
+          return
+        }
+      }
+    }
+
     try {
-      await updateRemise(id, {
+      // Prepare the data to send to backend
+      const remiseData = {
         ...formData,
         date_debut: formData.date_debut.toISOString(),
-        date_fin: formData.date_fin.toISOString()
-      })
+        date_fin: formData.date_fin.toISOString(),
+        valeur: parseFloat(formData.valeur),
+        min_articles: formData.min_articles ? parseInt(formData.min_articles) : null,
+        min_montant: formData.min_montant ? parseFloat(formData.min_montant) : null,
+        max_utilisation: formData.max_utilisation ? parseInt(formData.max_utilisation) : null,
+        // Only send articles if we have specific selections
+        articles: showArticleSelection ? formData.articles : [],
+      }
+
+      await updateRemise(id, remiseData)
       toast.success('Remise mise à jour avec succès')
       router.push('/admin/ventes/remise')
     } catch (error) {
@@ -172,153 +251,126 @@ export default function EditerRemise() {
     }
   }
 
+  const getSelectedOptions = (type) => {
+    const items = type === 'articles' ? (showArticleSelection ? filteredArticles : articles) : 
+                 type === 'categories' ? categories :
+                 type === 'marques' ? marques :
+                 genres
+    
+    return formData[type].map(id => {
+      const item = items.find(item => item.id === id)
+      return {
+        value: id.toString(),
+        label: item ? (type === 'articles' ? `${item.nom_produit} (ID: ${item.id})` : item.libelle) : `ID: ${id}`
+      }
+    })
+  }
+
   const renderApplyToFields = () => {
     switch (formData.apply_to) {
       case 'articles':
         return (
-          <div className="space-y-2">
-            <Label>Articles applicables</Label>
-            <Select
-              value={formData.articles[0] || ""}
-              onValueChange={(value) => handleSelectChange('articles', [value])}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionnez un article" />
-              </SelectTrigger>
-              <SelectContent>
-                {articles.map(article => (
-                  <SelectItem key={article.id} value={article.id}>
-                    {article.nom_produit}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-4">
+            <Label>Articles applicables *</Label>
+            <MultiSelectDropdown
+              options={articles.map(article => ({
+                value: article.id.toString(),
+                label: `${article.nom_produit} (ID: ${article.id})`
+              }))}
+              selected={getSelectedOptions('articles')}
+              onChange={(selected) => handleArticleSelection(selected)}
+              placeholder="Sélectionnez des articles"
+            />
           </div>
         )
       case 'categories':
         return (
-          <div className="space-y-2">
-            <Label>Catégories applicables</Label>
-            <Select
-              value={formData.categories[0] || ""}
-              onValueChange={(value) => handleSelectChange('categories', [value])}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionnez une catégorie" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map(categorie => (
-                  <SelectItem key={categorie.id} value={categorie.id}>
-                    {categorie.libelle}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-4">
+            <Label>Catégories applicables *</Label>
+            <MultiSelectDropdown
+              options={categories.map(categorie => ({
+                value: categorie.id.toString(),
+                label: categorie.libelle
+              }))}
+              selected={getSelectedOptions('categories')}
+              onChange={(selected) => handleMultiSelectChange('categories', selected)}
+              placeholder="Sélectionnez des catégories"
+            />
+            {showArticleSelection && (
+              <>
+                <Label>Articles des catégories sélectionnées *</Label>
+                <MultiSelectDropdown
+                  options={filteredArticles.map(article => ({
+                    value: article.id.toString(),
+                    label: `${article.nom_produit} (ID: ${article.id})`
+                  }))}
+                  selected={getSelectedOptions('articles')}
+                  onChange={(selected) => handleArticleSelection(selected)}
+                  placeholder="Sélectionnez des articles"
+                  loading={filterLoading}
+                />
+              </>
+            )}
           </div>
         )
       case 'marques':
         return (
-          <div className="space-y-2">
-            <Label>Marques applicables</Label>
-            <Select
-              value={formData.marques[0] || ""}
-              onValueChange={(value) => handleSelectChange('marques', [value])}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionnez une marque" />
-              </SelectTrigger>
-              <SelectContent>
-                {marques.map(marque => (
-                  <SelectItem key={marque.id} value={marque.id}>
-                    {marque.libelle}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-4">
+            <Label>Marques applicables *</Label>
+            <MultiSelectDropdown
+              options={marques.map(marque => ({
+                value: marque.id.toString(),
+                label: marque.libelle
+              }))}
+              selected={getSelectedOptions('marques')}
+              onChange={(selected) => handleMultiSelectChange('marques', selected)}
+              placeholder="Sélectionnez des marques"
+            />
+            {showArticleSelection && (
+              <>
+                <Label>Articles des marques sélectionnées *</Label>
+                <MultiSelectDropdown
+                  options={filteredArticles.map(article => ({
+                    value: article.id.toString(),
+                    label: `${article.nom_produit} (ID: ${article.id})`
+                  }))}
+                  selected={getSelectedOptions('articles')}
+                  onChange={(selected) => handleArticleSelection(selected)}
+                  placeholder="Sélectionnez des articles"
+                  loading={filterLoading}
+                />
+              </>
+            )}
           </div>
         )
       case 'genres':
         return (
-          <div className="space-y-2">
-            <Label>Genres applicables</Label>
-            <Select
-              value={formData.genres[0] || ""}
-              onValueChange={(value) => handleSelectChange('genres', [value])}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionnez un genre" />
-              </SelectTrigger>
-              <SelectContent>
-                {genres.map(genre => (
-                  <SelectItem key={genre.id} value={genre.id}>
-                    {genre.libelle}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )
-      case 'tailles':
-        return (
-          <div className="space-y-2">
-            <Label>Tailles applicables</Label>
-            <Select
-              value={formData.tailles[0] || ""}
-              onValueChange={(value) => handleSelectChange('tailles', [value])}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionnez une taille" />
-              </SelectTrigger>
-              <SelectContent>
-                {tailles.map(taille => (
-                  <SelectItem key={taille.id} value={taille.id}>
-                    {taille.libelle}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )
-      case 'couleurs':
-        return (
-          <div className="space-y-2">
-            <Label>Couleurs applicables</Label>
-            <Select
-              value={formData.couleurs[0] || ""}
-              onValueChange={(value) => handleSelectChange('couleurs', [value])}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionnez une couleur" />
-              </SelectTrigger>
-              <SelectContent>
-                {couleurs.map(couleur => (
-                  <SelectItem key={couleur.id} value={couleur.id}>
-                    {couleur.libelle}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )
-      case 'utilisateurs':
-        return (
-          <div className="space-y-2">
-            <Label>Utilisateurs applicables</Label>
-            <Select
-              value={formData.utilisateurs[0] || ""}
-              onValueChange={(value) => handleSelectChange('utilisateurs', [value])}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionnez un utilisateur" />
-              </SelectTrigger>
-              <SelectContent>
-                {utilisateurs.map(utilisateur => (
-                  <SelectItem key={utilisateur.id} value={utilisateur.id}>
-                    {utilisateur.nom} {utilisateur.prenom}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-4">
+            <Label>Genres applicables *</Label>
+            <MultiSelectDropdown
+              options={genres.map(genre => ({
+                value: genre.id.toString(),
+                label: genre.libelle
+              }))}
+              selected={getSelectedOptions('genres')}
+              onChange={(selected) => handleMultiSelectChange('genres', selected)}
+              placeholder="Sélectionnez des genres"
+            />
+            {showArticleSelection && (
+              <>
+                <Label>Articles des genres sélectionnés *</Label>
+                <MultiSelectDropdown
+                  options={filteredArticles.map(article => ({
+                    value: article.id.toString(),
+                    label: `${article.nom_produit} (ID: ${article.id})`
+                  }))}
+                  selected={getSelectedOptions('articles')}
+                  onChange={(selected) => handleArticleSelection(selected)}
+                  placeholder="Sélectionnez des articles"
+                  loading={filterLoading}
+                />
+              </>
+            )}
           </div>
         )
       default:
@@ -349,7 +401,7 @@ export default function EditerRemise() {
         <CardHeader>
           <CardTitle>Modifier la remise</CardTitle>
           <CardDescription>
-            Modifiez les détails de la remise ci-dessous
+            Modifiez les détails de la remise ci-dessous (* champs obligatoires)
           </CardDescription>
         </CardHeader>
         
@@ -364,6 +416,7 @@ export default function EditerRemise() {
                   value={formData.code}
                   onChange={handleChange}
                   required
+                  placeholder="EXEMPLE20"
                 />
               </div>
               
@@ -375,6 +428,7 @@ export default function EditerRemise() {
                   value={formData.libelle}
                   onChange={handleChange}
                   required
+                  placeholder="Remise de 20%"
                 />
               </div>
               
@@ -385,6 +439,7 @@ export default function EditerRemise() {
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
+                  placeholder="Description de la remise..."
                 />
               </div>
               
@@ -413,6 +468,9 @@ export default function EditerRemise() {
                   value={formData.valeur}
                   onChange={handleChange}
                   required
+                  min={0}
+                  step={formData.type_remise === 'pourcentage' ? 1 : 0.01}
+                  placeholder={formData.type_remise === 'pourcentage' ? '20' : '50'}
                 />
               </div>
               
@@ -426,6 +484,7 @@ export default function EditerRemise() {
                       selected={formData.date_debut}
                       onSelect={(date) => handleDateChange('date_debut', date)}
                       className="rounded-md border"
+                      locale={fr}
                     />
                   </div>
                   <div>
@@ -435,6 +494,8 @@ export default function EditerRemise() {
                       selected={formData.date_fin}
                       onSelect={(date) => handleDateChange('date_fin', date)}
                       className="rounded-md border"
+                      fromDate={formData.date_debut}
+                      locale={fr}
                     />
                   </div>
                 </div>
@@ -469,9 +530,6 @@ export default function EditerRemise() {
                     <SelectItem value="categories">Par catégorie</SelectItem>
                     <SelectItem value="marques">Par marque</SelectItem>
                     <SelectItem value="genres">Par genre</SelectItem>
-                    <SelectItem value="tailles">Par taille</SelectItem>
-                    <SelectItem value="couleurs">Par couleur</SelectItem>
-                    <SelectItem value="utilisateurs">Utilisateurs spécifiques</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -484,8 +542,10 @@ export default function EditerRemise() {
                   id="min_articles"
                   name="min_articles"
                   type="number"
+                  min={0}
                   value={formData.min_articles}
                   onChange={handleChange}
+                  placeholder="Laisser vide pour aucun minimum"
                 />
               </div>
               
@@ -495,8 +555,11 @@ export default function EditerRemise() {
                   id="min_montant"
                   name="min_montant"
                   type="number"
+                  min={0}
+                  step="0.01"
                   value={formData.min_montant}
                   onChange={handleChange}
+                  placeholder="Laisser vide pour aucun minimum"
                 />
               </div>
               
@@ -506,8 +569,10 @@ export default function EditerRemise() {
                   id="max_utilisation"
                   name="max_utilisation"
                   type="number"
+                  min={0}
                   value={formData.max_utilisation}
                   onChange={handleChange}
+                  placeholder="Laisser vide pour illimité"
                 />
               </div>
               

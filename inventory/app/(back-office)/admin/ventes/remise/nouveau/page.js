@@ -1,3 +1,4 @@
+// app/(back-office)/admin/ventes/remise/nouveau/page.js
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -20,7 +21,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/custom-select';
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -29,19 +30,27 @@ import { ChevronLeft, Save, CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useRemise } from '@/hooks/useRemise';
-import { useArticle } from '@/hooks/useArticle';
-import { useCategorie } from '@/hooks/useCategorie';
-import { useMarques } from '@/hooks/useMarques';
-import { useGenre } from '@/hooks/useGenre';
-import { MultiSelect } from '@/components/ui/multi-select';
+import useCatalog from '@/hooks/useCatalog';
+import MultiSelectDropdown from '@/app/components/DashboardComponents/Remise/MultiSelectDropdown';
 
 export default function NouvelleRemise() {
   const router = useRouter();
   const { createRemise } = useRemise();
-  const { articles, fetchAllArticles } = useArticle();
-  const { categories, fetchAllCategories } = useCategorie();
-  const { marques, fetchAllMarques } = useMarques();
-  const { genres, fetchAllGenres } = useGenre();
+  const { 
+    articles, 
+    categories, 
+    marques, 
+    genres,
+    filteredArticles,
+    filterLoading,
+    fetchArticlesByMarque,
+    fetchArticlesByCategorie,
+    fetchArticlesByGenre,
+    fetchAllArticles, 
+    fetchAllCategories, 
+    fetchAllMarques, 
+    fetchAllGenres 
+  } = useCatalog();
 
   const [formData, setFormData] = useState({
     code: '',
@@ -64,38 +73,77 @@ export default function NouvelleRemise() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [showArticleSelection, setShowArticleSelection] = useState(false);
 
   useEffect(() => {
-    fetchAllArticles();
-    fetchAllCategories();
-    fetchAllMarques();
-    fetchAllGenres();
+    const loadData = async () => {
+      try {
+        await Promise.all([
+          fetchAllArticles(),
+          fetchAllCategories(),
+          fetchAllMarques(),
+          fetchAllGenres()
+        ]);
+      } catch (error) {
+        toast.error('Failed to load catalog data');
+      }
+    };
+
+    loadData();
   }, [fetchAllArticles, fetchAllCategories, fetchAllMarques, fetchAllGenres]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
   };
 
   const handleSelectChange = (name, value) => {
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value,
+      articles: [], // Reset articles when changing apply_to
     }));
+    
+    setShowArticleSelection(false);
   };
 
-  const handleMultiSelectChange = (name, selectedOptions) => {
-    setFormData((prev) => ({
+  const handleMultiSelectChange = async (name, selectedOptions) => {
+    const values = selectedOptions.map(option => Number(option.value)).filter(id => !isNaN(id));
+    
+    setFormData(prev => ({
       ...prev,
-      [name]: selectedOptions.map(option => option.value),
+      [name]: values,
+      articles: [], // Reset articles when changing selection
+    }));
+
+    // Only fetch articles if we're not showing article selection yet
+    if (name === 'marques' && values.length > 0) {
+      await fetchArticlesByMarque(values);
+      setShowArticleSelection(true);
+    } else if (name === 'categories' && values.length > 0) {
+      await fetchArticlesByCategorie(values);
+      setShowArticleSelection(true);
+    } else if (name === 'genres' && values.length > 0) {
+      await fetchArticlesByGenre(values);
+      setShowArticleSelection(true);
+    } else {
+      setShowArticleSelection(false);
+    }
+  };
+
+  const handleArticleSelection = (selectedOptions) => {
+    const values = selectedOptions.map(option => Number(option.value)).filter(id => !isNaN(id));
+    setFormData(prev => ({
+      ...prev,
+      articles: values,
     }));
   };
 
   const handleDateChange = (name, date) => {
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: date,
     }));
@@ -103,123 +151,178 @@ export default function NouvelleRemise() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    
     // Validate required fields
     if (!formData.code || !formData.libelle || !formData.valeur) {
-      toast.error('Veuillez remplir tous les champs obligatoires');
+      toast.error('Please fill all required fields');
       return;
     }
 
-    // Validate at least one selection when apply_to is not 'tous'
+    // Validate selection based on apply_to
     if (formData.apply_to !== 'tous') {
-      if (
-        (formData.apply_to === 'articles' && formData.articles.length === 0) ||
-        (formData.apply_to === 'categories' && formData.categories.length === 0) ||
-        (formData.apply_to === 'marques' && formData.marques.length === 0) ||
-        (formData.apply_to === 'genres' && formData.genres.length === 0)
-      ) {
-        toast.error('Veuillez sélectionner au moins un élément');
+      const selectedItems = formData[formData.apply_to];
+      if (!selectedItems || selectedItems.length === 0) {
+        toast.error(`Please select at least one ${formData.apply_to}`);
         return;
+      }
+
+      // For marques/categories/genres, ensure we have either filtered articles or specific selections
+      if (['marques', 'categories', 'genres'].includes(formData.apply_to)) {
+        if (formData.articles.length === 0 && !showArticleSelection) {
+          toast.error(`Please select articles for the selected ${formData.apply_to}`);
+          return;
+        }
       }
     }
 
     setLoading(true);
 
     try {
-      // Prepare the data for submission
+      // Prepare the data to send to backend
       const remiseData = {
         ...formData,
         date_debut: formData.date_debut.toISOString(),
         date_fin: formData.date_fin.toISOString(),
-        min_articles: formData.min_articles === '' ? null : parseInt(formData.min_articles, 10),
-        min_montant: formData.min_montant === '' ? null : parseFloat(formData.min_montant),
-        max_utilisation: formData.max_utilisation === '' ? null : parseInt(formData.max_utilisation, 10),
         valeur: parseFloat(formData.valeur),
+        min_articles: formData.min_articles ? parseInt(formData.min_articles) : null,
+        min_montant: formData.min_montant ? parseFloat(formData.min_montant) : null,
+        max_utilisation: formData.max_utilisation ? parseInt(formData.max_utilisation) : null,
+        // Only send articles if we have specific selections
+        articles: showArticleSelection ? formData.articles : [],
       };
 
+      console.log('Sending remise data:', remiseData); // Debug log
+
       await createRemise(remiseData);
-      toast.success('Remise créée avec succès');
+      toast.success('Discount created successfully');
       router.push('/admin/ventes/remise');
     } catch (error) {
-      console.error('Error creating discount:', error);
-      toast.error(error.message || 'Échec de la création de la remise');
+      toast.error(error.message || 'Failed to create discount');
     } finally {
       setLoading(false);
     }
+  };
+
+  const getSelectedOptions = (type) => {
+    const items = type === 'articles' ? (showArticleSelection ? filteredArticles : articles) : 
+                 type === 'categories' ? categories :
+                 type === 'marques' ? marques :
+                 genres;
+    
+    return formData[type].map(id => {
+      const item = items.find(item => item.id === id);
+      return {
+        value: id.toString(),
+        label: item ? (type === 'articles' ? `${item.nom_produit} (ID: ${item.id})` : item.libelle) : `ID: ${id}`
+      };
+    });
   };
 
   const renderApplyToFields = () => {
     switch (formData.apply_to) {
       case 'articles':
         return (
-          <div className="space-y-2">
-            <Label>Articles applicables *</Label>
-            <MultiSelect
+          <div className="space-y-4">
+            <Label>Select Articles *</Label>
+            <MultiSelectDropdown
               options={articles.map(article => ({
                 value: article.id.toString(),
                 label: `${article.nom_produit} (ID: ${article.id})`
               }))}
-              selected={formData.articles.map(id => ({
-                value: id.toString(),
-                label: articles.find(a => a.id.toString() === id.toString())?.nom_produit || id.toString()
-              }))}
-              onChange={(selected) => handleMultiSelectChange('articles', selected)}
-              placeholder="Sélectionnez des articles"
+              selected={getSelectedOptions('articles')}
+              onChange={(selected) => handleArticleSelection(selected)}
+              placeholder="Select articles"
             />
           </div>
         );
       case 'categories':
         return (
-          <div className="space-y-2">
-            <Label>Catégories applicables *</Label>
-            <MultiSelect
+          <div className="space-y-4">
+            <Label>Select Categories *</Label>
+            <MultiSelectDropdown
               options={categories.map(categorie => ({
                 value: categorie.id.toString(),
                 label: categorie.libelle
               }))}
-              selected={formData.categories.map(id => ({
-                value: id.toString(),
-                label: categories.find(c => c.id.toString() === id.toString())?.libelle || id.toString()
-              }))}
+              selected={getSelectedOptions('categories')}
               onChange={(selected) => handleMultiSelectChange('categories', selected)}
-              placeholder="Sélectionnez des catégories"
+              placeholder="Select categories"
             />
+            {showArticleSelection && (
+              <>
+                <Label>Select Articles from Selected Categories *</Label>
+                <MultiSelectDropdown
+                  options={filteredArticles.map(article => ({
+                    value: article.id.toString(),
+                    label: `${article.nom_produit} (ID: ${article.id})`
+                  }))}
+                  selected={getSelectedOptions('articles')}
+                  onChange={(selected) => handleArticleSelection(selected)}
+                  placeholder="Select articles"
+                  loading={filterLoading}
+                />
+              </>
+            )}
           </div>
         );
       case 'marques':
         return (
-          <div className="space-y-2">
-            <Label>Marques applicables *</Label>
-            <MultiSelect
+          <div className="space-y-4">
+            <Label>Select Brands *</Label>
+            <MultiSelectDropdown
               options={marques.map(marque => ({
                 value: marque.id.toString(),
                 label: marque.libelle
               }))}
-              selected={formData.marques.map(id => ({
-                value: id.toString(),
-                label: marques.find(m => m.id.toString() === id.toString())?.libelle || id.toString()
-              }))}
+              selected={getSelectedOptions('marques')}
               onChange={(selected) => handleMultiSelectChange('marques', selected)}
-              placeholder="Sélectionnez des marques"
+              placeholder="Select brands"
             />
+            {showArticleSelection && (
+              <>
+                <Label>Select Articles from Selected Brands *</Label>
+                <MultiSelectDropdown
+                  options={filteredArticles.map(article => ({
+                    value: article.id.toString(),
+                    label: `${article.nom_produit} (ID: ${article.id})`
+                  }))}
+                  selected={getSelectedOptions('articles')}
+                  onChange={(selected) => handleArticleSelection(selected)}
+                  placeholder="Select articles"
+                  loading={filterLoading}
+                />
+              </>
+            )}
           </div>
         );
       case 'genres':
         return (
-          <div className="space-y-2">
-            <Label>Genres applicables *</Label>
-            <MultiSelect
+          <div className="space-y-4">
+            <Label>Select Genders *</Label>
+            <MultiSelectDropdown
               options={genres.map(genre => ({
                 value: genre.id.toString(),
                 label: genre.libelle
               }))}
-              selected={formData.genres.map(id => ({
-                value: id.toString(),
-                label: genres.find(g => g.id.toString() === id.toString())?.libelle || id.toString()
-              }))}
+              selected={getSelectedOptions('genres')}
               onChange={(selected) => handleMultiSelectChange('genres', selected)}
-              placeholder="Sélectionnez des genres"
+              placeholder="Select genders"
             />
+            {showArticleSelection && (
+              <>
+                <Label>Select Articles from Selected Genders *</Label>
+                <MultiSelectDropdown
+                  options={filteredArticles.map(article => ({
+                    value: article.id.toString(),
+                    label: `${article.nom_produit} (ID: ${article.id})`
+                  }))}
+                  selected={getSelectedOptions('articles')}
+                  onChange={(selected) => handleArticleSelection(selected)}
+                  placeholder="Select articles"
+                  loading={filterLoading}
+                />
+              </>
+            )}
           </div>
         );
       default:
@@ -293,7 +396,7 @@ export default function NouvelleRemise() {
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionnez un type" />
                   </SelectTrigger>
-                  <SelectContent className="max-h-60 overflow-y-auto">
+                  <SelectContent>
                     <SelectItem value="pourcentage">Pourcentage</SelectItem>
                     <SelectItem value="montant_fixe">Montant fixe</SelectItem>
                   </SelectContent>
@@ -399,7 +502,7 @@ export default function NouvelleRemise() {
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionnez une application" />
                   </SelectTrigger>
-                  <SelectContent className="max-h-60 overflow-y-auto">
+                  <SelectContent>
                     <SelectItem value="tous">Tous les produits</SelectItem>
                     <SelectItem value="articles">Articles spécifiques</SelectItem>
                     <SelectItem value="categories">Catégories</SelectItem>

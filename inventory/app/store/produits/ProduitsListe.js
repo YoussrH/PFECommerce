@@ -67,6 +67,10 @@ const ProduitsListe = ({ produits = [], onEffacerTousFiltres = () => {} }) => {
     return differenceJours <= 30
   }
 
+  const estEnPromotion = (produit) => {
+    return produit.prix_final && produit.prix_final < produit.prix
+  }
+
   const preparerProduitPourModal = (produit) => {
     if (!produit) return null
 
@@ -156,6 +160,8 @@ const ProduitsListe = ({ produits = [], onEffacerTousFiltres = () => {} }) => {
               const primaryImage = getPrimaryImage(produit)
               const marque = typeof produit.marque === "object" ? produit.marque?.libelle : produit.marque
               const estDansListe = estDansListeEnvies(produit.id)
+              const enPromotion = estEnPromotion(produit)
+              const nouveauProduit = estNouveauProduit(produit) && !enPromotion
 
               return (
                 <div key={produit.id || Math.random()} className="group relative">
@@ -172,7 +178,14 @@ const ProduitsListe = ({ produits = [], onEffacerTousFiltres = () => {} }) => {
                         }}
                       />
                     </Link>
-                    {estNouveauProduit(produit) && (
+                    
+                    {/* Promotion badge - shown in red if product is on promotion */}
+                    {enPromotion && (
+                      <Badge className="absolute top-2 left-2 bg-red-600 text-white font-mono text-xs">EN PROMO</Badge>
+                    )}
+                    
+                    {/* New product badge - shown in black only if product is new and not on promotion */}
+                    {nouveauProduit && (
                       <Badge className="absolute top-2 left-2 bg-black text-white font-mono text-xs">NOUVEAU</Badge>
                     )}
                   </div>
@@ -184,9 +197,22 @@ const ProduitsListe = ({ produits = [], onEffacerTousFiltres = () => {} }) => {
                     <h3 className="mt-1 text-sm font-medium text-gray-900 font-mono group-hover:opacity-0 transition-opacity duration-300">
                       {produit.nom_produit || "Produit sans nom"}
                     </h3>
-                    <p className="mt-1 text-sm font-semibold text-gray-900 font-mono group-hover:opacity-0 transition-opacity duration-300">
-                      {produit.prix_final || produit.prix || 0} DT
-                    </p>
+                    
+                    {/* Price display - show both original and discounted prices if on promotion */}
+                    {enPromotion ? (
+                      <div className="mt-1 group-hover:opacity-0 transition-opacity duration-300">
+                        <span className="text-sm font-semibold text-gray-900 font-mono">
+                          {produit.prix_final} DT
+                        </span>
+                        <span className="text-xs text-gray-500 line-through ml-2">
+                          {produit.prix} DT
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-sm font-semibold text-gray-900 font-mono group-hover:opacity-0 transition-opacity duration-300">
+                        {produit.prix || 0} DT
+                      </p>
+                    )}
 
                     <div className="absolute inset-0 flex items-center justify-center p-3 pt-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <div className="flex gap-2 w-full">
