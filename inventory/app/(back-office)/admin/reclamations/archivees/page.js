@@ -1,50 +1,39 @@
 "use client";
-import { useState } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Eye, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-
-const staticData = [
-  {
-    id: "REC008",
-    customer: "Amira Jendoubi",
-    subject: "Produit endommagé",
-    status: "Archivé",
-    date: "2025-04-20",
-  },
-  {
-    id: "REC009",
-    customer: "Hichem Gharbi",
-    subject: "Erreur de facturation",
-    status: "Archivé",
-    date: "2025-04-15",
-  },
-];
+import { useReclamations } from "@/hooks/useReclamations";
+import { useEffect } from "react";
 
 export default function ReclamationsArchivees() {
-  const [reclamations, setReclamations] = useState(staticData);
+  const {
+    reclamations,
+    loading,
+    fetchReclamations,
+    restoreReclamation
+  } = useReclamations();
 
-  const handleAction = (action, reclamationId) => {
-    toast({
-      title: `${action} effectué`,
-      description: `Action "${action}" appliquée à la réclamation ${reclamationId}.`,
-    });
+  useEffect(() => {
+    fetchReclamations('archive');
+  }, [fetchReclamations]);
+
+  const handleAction = async (action, reclamationId) => {
+    try {
+      if (action === "Voir") {
+        // Use the hook's built-in functionality
+        await fetchReclamationById(reclamationId);
+      } else if (action === "Restaurer") {
+        await restoreReclamation(reclamationId);
+        toast.success("Réclamation restaurée avec succès");
+        fetchReclamations('archive'); // Refresh the list
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (
@@ -56,24 +45,28 @@ export default function ReclamationsArchivees() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>ID</TableHead>
+              <TableHead>Référence</TableHead>
               <TableHead>Client</TableHead>
               <TableHead>Sujet</TableHead>
               <TableHead>Statut</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead>Date Archivage</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {reclamations.map((reclamation) => (
               <TableRow key={reclamation.id}>
-                <TableCell>{reclamation.id}</TableCell>
-                <TableCell>{reclamation.customer}</TableCell>
-                <TableCell>{reclamation.subject}</TableCell>
+                <TableCell>REC-{reclamation.id.slice(0, 8).toUpperCase()}</TableCell>
+                <TableCell>{reclamation.prenom} {reclamation.nom}</TableCell>
+                <TableCell>{reclamation.sujet}</TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{reclamation.status}</Badge>
+                  <Badge variant="secondary">Archivé</Badge>
                 </TableCell>
-                <TableCell>{reclamation.date}</TableCell>
+                <TableCell>
+                  {reclamation.date_modification 
+                    ? new Date(reclamation.date_modification).toLocaleDateString() 
+                    : 'N/A'}
+                </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -101,7 +94,7 @@ export default function ReclamationsArchivees() {
             ))}
           </TableBody>
         </Table>
-        {reclamations.length === 0 && (
+        {!loading && reclamations.length === 0 && (
           <p className="text-center text-gray-500 mt-4">
             Aucune réclamation archivée.
           </p>

@@ -211,7 +211,7 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             
           />
           <SidebarLink
-            href="/admin/ventes/remsie/nouveau"
+            href="/admin/ventes/remise/nouveau"
             icon={Tags}
             label="Créer une réduction"
             isSidebarCollapsed={isSidebarCollapsed}
@@ -298,9 +298,9 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             iconColor="text-green-500"
           />
           <SidebarLink
-            href="/admin/reclamations/attente"
+            href="/admin/reclamations/brouillon"
             icon={Undo2}
-            label="En attente"
+            label="En brouillon"
             isSidebarCollapsed={isSidebarCollapsed}
             iconColor="text-yellow-500"
           />

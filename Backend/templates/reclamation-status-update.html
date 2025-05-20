@@ -1,0 +1,44 @@
+{% comment %} /backend/templates/reclamation-status-update.html {% endcomment %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Mise à jour de votre réclamation - {{reference}}</title>
+</head>
+<body>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Mise à jour de votre réclamation</h2>
+        
+        <p>Bonjour {{prefix}} {{nom}},</p>
+        
+        <p>Nous vous informons que le statut de votre réclamation a été mis à jour :</p>
+        
+        <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
+            <p><strong>Référence :</strong> {{reference}}</p>
+            <p><strong>Sujet :</strong> {{sujet}}</p>
+            <p><strong>Nouveau statut :</strong> {{nouveauStatut}}</p>
+            {{#if numero_commande}}
+            <p><strong>Commande concernée :</strong> {{numero_commande}}</p>
+            {{/if}}
+            <p><strong>Date de mise à jour :</strong> {{date}}</p>
+            
+            <p><strong>Réponse de notre équipe :</strong></p>
+            <p style="white-space: pre-line;">{{reponse}}</p>
+        </div>
+        
+        {{#if (eq nouveauStatut 'traite')}}
+        <p>Votre réclamation a été traitée avec succès. Si vous avez d'autres questions, n'hésitez pas à nous contacter.</p>
+        {{else}}
+        <p>Nous continuons à traiter votre demande. Vous serez informé(e) de toute nouvelle mise à jour.</p>
+        {{/if}}
+        
+        <p>Cordialement,<br>L'équipe MGM Boutique</p>
+        
+        <div style="margin-top: 30px; font-size: 12px; color: #777;">
+            <p>Cet email a été envoyé automatiquement. Merci de ne pas y répondre.</p>
+            <p>&copy; {{year}} MGM Boutique. Tous droits réservés.</p>
+        </div>
+    </div>
+</body>
+</html>

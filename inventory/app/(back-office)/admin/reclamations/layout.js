@@ -1,3 +1,4 @@
+//admin/reclamations/layout.js
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 

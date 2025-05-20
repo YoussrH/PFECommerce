@@ -128,26 +128,24 @@ export const useRemise = () => {
     }
   }, [token]);
 
-  const getRemiseById = useCallback(async (id) => {
+const getRemiseById = useCallback(async (id) => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await axios.get(
-        `http://localhost:5000/remises/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          withCredentials: true
-        }
-      );
+      const response = await axios.get(`http://localhost:5000/remises/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        withCredentials: true
+      });
 
       return response.data;
     } catch (err) {
-      const errorMessage = err.response?.data?.error || err.message || 'Échec de la récupération de la remise';
+      const errorMessage = err.response?.data?.error || err.message || 'Échec du chargement de la remise';
       setError(errorMessage);
+      toast.error(errorMessage);
       throw errorMessage;
     } finally {
       setLoading(false);

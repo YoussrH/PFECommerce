@@ -21,5 +21,8 @@ router.put('/updateRemise/:id',  authentifier, verifierAdmin,remiseController.up
 
 // Delete a discount
 router.delete('/deleteRemise/:id',  authentifier, verifierAdmin,remiseController.deleteRemise);
+// Add this route before the other routes
+router.get('/:id', authentifier, verifierAdmin, remiseController.getRemiseById);
 
+// The rest of your existing routes...
 module.exports = router;

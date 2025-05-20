@@ -46,7 +46,7 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true
     },
     statut: {
-      type: DataTypes.ENUM('nouveau', 'en_attente', 'traite', 'archive'),
+      type: DataTypes.ENUM('nouveau', 'brouillon', 'traite', 'archive'),
       defaultValue: 'nouveau'
     },
     type_reclamation: {
@@ -88,4 +88,4 @@ module.exports = (sequelize, DataTypes) => {
   };
 
   return Reclamation;
-};
+}; 

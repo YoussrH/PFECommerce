@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -19,51 +19,25 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MoreHorizontal, Eye, Archive, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
-const staticData = [
-  {
-    id: "REC001",
-    customer: "Ahmed Ben Salah",
-    subject: "Produit défectueux",
-    status: "Nouveau",
-    date: "2025-05-01",
-  },
-  {
-    id: "REC002",
-    customer: "Fatima Zohra",
-    subject: "Retard de livraison",
-    status: "Non lu",
-    date: "2025-05-02",
-  },
-  {
-    id: "REC003",
-    customer: "Mohamed Ali",
-    subject: "Erreur de commande",
-    status: "Nouveau",
-    date: "2025-05-03",
-  },
-];
+import { useAuth } from "@/app/contexts/AuthContext";
+import axios from "axios";
 
 export default function ReclamationsInbox() {
- 
-  const [reclamations, setReclamations] = useState(staticData);
+  const [reclamations, setReclamations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  const handleAction = (action, reclamationId) => {
-    toast({
-      title: `${action} effectué`,
-      description: `Action "${action}" appliquée à la réclamation ${reclamationId}.`,
-    });
-  };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Boîte de réception - Réclamations</CardTitle>
+        <CardTitle>Nouvelles Réclamations</CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>ID</TableHead>
+              <TableHead>Référence</TableHead>
               <TableHead>Client</TableHead>
               <TableHead>Sujet</TableHead>
               <TableHead>Statut</TableHead>
@@ -74,19 +48,15 @@ export default function ReclamationsInbox() {
           <TableBody>
             {reclamations.map((reclamation) => (
               <TableRow key={reclamation.id}>
-                <TableCell>{reclamation.id}</TableCell>
-                <TableCell>{reclamation.customer}</TableCell>
-                <TableCell>{reclamation.subject}</TableCell>
+                <TableCell>REC-{reclamation.id.slice(0, 8).toUpperCase()}</TableCell>
+                <TableCell>{reclamation.prenom} {reclamation.nom}</TableCell>
+                <TableCell>{reclamation.sujet}</TableCell>
                 <TableCell>
-                  <Badge
-                    variant={
-                      reclamation.status === "Nouveau" ? "default" : "secondary"
-                    }
-                  >
-                    {reclamation.status}
-                  </Badge>
+                  <Badge variant="default">Nouveau</Badge>
                 </TableCell>
-                <TableCell>{reclamation.date}</TableCell>
+                <TableCell>
+                  {new Date(reclamation.date_creation).toLocaleDateString()}
+                </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -99,13 +69,13 @@ export default function ReclamationsInbox() {
                         onClick={() => handleAction("Voir", reclamation.id)}
                       >
                         <Eye className="mr-2 h-4 w-4" />
-                        Voir
+                        Voir et répondre
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => handleAction("Traiter", reclamation.id)}
                       >
                         <CheckCircle className="mr-2 h-4 w-4" />
-                        Marquer comme traité
+                        Traiter rapidement
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => handleAction("Archiver", reclamation.id)}
@@ -120,9 +90,9 @@ export default function ReclamationsInbox() {
             ))}
           </TableBody>
         </Table>
-        {reclamations.length === 0 && (
+        {!loading && reclamations.length === 0 && (
           <p className="text-center text-gray-500 mt-4">
-            Aucune réclamation dans la boîte de réception.
+            Aucune nouvelle réclamation. Tout est à jour!
           </p>
         )}
       </CardContent>

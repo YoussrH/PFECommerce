@@ -1,4 +1,3 @@
-// app/(back-office)/admin/ventes/remise/page.js
 "use client"
 
 import { useState, useEffect } from 'react'

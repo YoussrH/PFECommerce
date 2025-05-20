@@ -90,6 +90,10 @@ Utilisateur.hasMany(models.ListeEnvies, {
   as: 'liste_envies',
   onDelete: 'CASCADE'
 });
+    Utilisateur.hasMany(models.Reclamation, {
+      foreignKey: 'utilisateur_id',
+      as: 'reclamations'
+    });
 
   };
 

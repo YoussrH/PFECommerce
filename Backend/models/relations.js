@@ -8,7 +8,7 @@ module.exports = function(models) {
       'Marque', 'Couleur', 'Commande', 'Panier', 'AjustementStock', 'Livreur',
       'LivreurLocalisation','RemiseArticle', 'RemiseCategorie', 'RemiseMarque', 'RemiseGenre', 
       'CommandeArticle', 'ArticlePanier', 'Adresse', 'ArticleCouleur', 'ArticleTaille', 'Utilisateur',
-      'Facture','ListeEnvies','Coupon', 'CommandeHistorique', 'Colis', 'Retour', 'HistoriqueAction'
+      'Facture','ListeEnvies','Reclamation','Coupon', 'CommandeHistorique', 'Colis', 'Retour', 'HistoriqueAction'
     ];
 
     // Check model availability
@@ -19,6 +19,7 @@ module.exports = function(models) {
 
     // Destructure models after verification
     const {
+      Reclamation,
       Coupon,
       RemiseArticle,
       RemiseCategorie,
@@ -668,6 +669,40 @@ Article.hasMany(ListeEnvies, {
   foreignKey: 'article_id',
   as: 'dans_liste_envies',
   onDelete: 'CASCADE'
+});
+
+// In your relations.js file, add these associations:
+
+/* ==============================================
+ * 19. RECLAMATION RELATIONS
+ * ============================================== */
+
+// Utilisateur has many Reclamations
+Utilisateur.hasMany(Reclamation, {
+  foreignKey: 'utilisateur_id',
+  as: 'reclamations',
+  onDelete: 'SET NULL' // or 'CASCADE' based on your needs
+});
+
+// Reclamation belongs to Utilisateur
+Reclamation.belongsTo(Utilisateur, {
+  foreignKey: 'utilisateur_id',
+  as: 'utilisateur',
+  onDelete: 'SET NULL' // or 'CASCADE' based on your needs
+});
+
+// Reclamation belongs to Commande (if needed)
+Reclamation.belongsTo(Commande, {
+  foreignKey: 'commande_id',
+  as: 'commande',
+  onDelete: 'SET NULL'
+});
+
+// Commande has many Reclamations (if needed)
+Commande.hasMany(Reclamation, {
+  foreignKey: 'commande_id',
+  as: 'reclamations',
+  onDelete: 'SET NULL'
 });
 
     console.log('✅ All model associations set up successfully');

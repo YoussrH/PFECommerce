@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Réponse à votre réclamation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #f5f5f5;
+      margin: 0;
+      padding: 0;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .header {
+      background-color: #3498db;
+      padding: 20px;
+      text-align: center;
+      color: white;
+    }
+    .content {
+      padding: 30px;
+    }
+    .response-box {
+      border: 1px solid #e0e0e0;
+      border-left: 5px solid #3498db;
+      background-color: #f8fbfe;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    .footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      color: #7f8c8d;
+      background-color: #ecf0f1;
+    }
+    .message {
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Réponse à votre réclamation</h1>
+    </div>
+    <div class="content">
+      <p>Bonjour {{prefix}} {{nom}},</p>
+      <p>Nous avons traité votre réclamation et vous en remercions.</p>
+
+      <div class="response-box">
+        <h2 style="margin-top: 0; color: #2980b9;">Référence : {{reference}}</h2>
+        <p><strong>Sujet :</strong> {{sujet}}</p>
+        <p><strong>Date de traitement :</strong> {{date}}</p>
+        
+        <h3 style="color: #2980b9;">Notre réponse :</h3>
+        <div class="message">{{reponse}}</div>
+      </div>
+
+      <p>Si vous avez d'autres questions, vous pouvez répondre directement à cet email.</p>
+      <p>Cordialement,<br>L'équipe MGM Boutique</p>
+    </div>
+    <div class="footer">
+      <p>© {{year}} MGM Boutique. Tous droits réservés.</p>
+    </div>
+  </div>
+</body>
+</html>

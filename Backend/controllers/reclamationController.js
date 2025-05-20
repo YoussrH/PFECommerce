@@ -1,13 +1,13 @@
 const fs = require('fs');
 const path = require('path');
 const cloudinary = require('../config/cloudinaryConfig');
-const nodemailer = require('nodemailer');
-const handlebars = require('handlebars');
-// controllers/reclamationController.js
+const { Op } = require('sequelize');
 const { Reclamation, Commande, Utilisateur } = require("../models");
 const { envoyerEmail } = require("../services/emailService");
+const nodemailer = require('nodemailer');
+const handlebars = require('handlebars');
 
-// Email transporter
+// Email transporter setup
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -16,7 +16,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Load and compile templates
+// Template loading function
 const loadTemplate = (templatePath) => {
   try {
     const template = fs.readFileSync(path.join(__dirname, templatePath), 'utf8');
@@ -29,8 +29,34 @@ const loadTemplate = (templatePath) => {
 
 const templates = {
   adminAlert: loadTemplate('../templates/reclamation-alert.html'),
-  userConfirmation: loadTemplate('../templates/reclamation-confirmation.html')
+  userConfirmation: loadTemplate('../templates/reclamation-confirmation.html'),
+  responseTemplate: loadTemplate('../templates/reclamation-response.html'),
+  reminderTemplate: loadTemplate('../templates/reclamation-reminder.html')
 };
+
+// Helper function to format file size
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// Helper to clean up uploaded files on error
+const cleanupFiles = (files) => {
+  if (files && files.length > 0) {
+    files.forEach(file => {
+      if (fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+    });
+  }
+};
+
+// ====================
+// EXISTING FUNCTIONS (PRESERVED)
+// ====================
 
 const creerReclamation = async (req, res) => {
   // Validate request
@@ -101,7 +127,7 @@ const creerReclamation = async (req, res) => {
     // Create reclamation
     const reclamation = await Reclamation.create(reclamationData);
 
-    // Send emails using templates
+    // Send confirmation emails
     await sendReclamationEmails(reclamation);
 
     return res.status(201).json({
@@ -123,327 +149,341 @@ const creerReclamation = async (req, res) => {
   }
 };
 
-async function sendReclamationEmails(reclamation) {
-  const date = new Date(reclamation.date_creation).toLocaleString('fr-FR');
-  const reference = `REC-${reclamation.id.slice(0, 8).toUpperCase()}`;
+// ====================
+// NEW WORKFLOW FUNCTIONS
+// ====================
 
- // Admin email data
-// Prepare data for admin confirmation template
-const adminData = {
-  subject: `Nouvelle réclamation: ${reclamation.sujet}`,
-  time: date,
-  year: new Date().getFullYear(),
-  prefix: reclamation.prefix,
-  nom: reclamation.nom,
-  prenom: reclamation.prenom,
-  email: reclamation.email,
-  telephone: reclamation.telephone || 'Non fourni',
-  numero_commande: reclamation.numero_commande || null,
-  message: reclamation.message,
-  fichiers: reclamation.fichiers || []
-};
-
-
-
-
-  // Prepare data for user confirmation template
-  const userData = {
-    reference: reference,
-    sujet: reclamation.sujet,
-    date: date,
-    year: new Date().getFullYear(),
-    prefix: reclamation.prefix,
-    nom: reclamation.nom,
-    prenom: reclamation.prenom,
-    hasFiles: reclamation.fichiers.length > 0,
-    message: reclamation.message
-  };
-
+const listerReclamations = async (req, res) => {
   try {
-    // Send admin alert
-    await transporter.sendMail({
-      from: `"MGM Boutique" <${process.env.EMAIL_USER}>`,
-      to:  process.env.EMAIL_USER,
-      subject: `Nouvelle réclamation: ${reference}`,
-      html: templates.adminAlert(adminData)
-    });
-
-    // Send user confirmation
-    await transporter.sendMail({
-      from: `"MGM Boutique" <${process.env.EMAIL_USER}>`,
-      to: reclamation.email,
-      subject: `Confirmation de votre réclamation ${reference}`,
-      html: templates.userConfirmation(userData)
-    });
-  } catch (emailError) {
-    console.error('Email sending failed:', emailError);
-  }
-}
-
-function formatFileSize(bytes) {
-  if (!bytes) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-function cleanupFiles(files) {
-  if (files?.length) {
-    files.forEach(file => {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-    });
-  }
-}
-
-const obtenirToutesReclamations = async (req, res) => {
-  try {
+    const { statut } = req.query;
+    const where = {};
+    
+    if (statut) where.statut = statut;
+    
     const reclamations = await Reclamation.findAll({
-      include: [{
-        model: Utilisateur,
-        as: 'utilisateur',
-        attributes: ['id', 'prefix', 'nom', 'prenom', 'email']
-      }],
-      order: [['createdAt', 'DESC']]
+      where,
+      order: [['date_creation', 'DESC']],
+      include: [
+        { 
+          model: Utilisateur, 
+          as: 'utilisateur', 
+          attributes: ['id', 'nom', 'prenom', 'email'] 
+        },
+        { 
+          model: Commande, 
+          as: 'commande', 
+          attributes: ['id', 'reference'] 
+        }
+      ]
     });
-    res.status(200).json(reclamations);
+
+    return res.json({
+      success: true,
+      data: reclamations.map(r => ({
+        ...r.toJSON(),
+        reference: `REC-${r.id.slice(0, 8).toUpperCase()}`
+      }))
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error listing reclamations:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des réclamations'
+    });
   }
 };
 
-const obtenirMesReclamations = async (req, res) => {
-  try {
-    const reclamations = await Reclamation.findAll({
-      where: { utilisateur_id: req.utilisateur.id },
-      order: [['createdAt', 'DESC']]
-    });
-    res.status(200).json(reclamations);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-const obtenirReclamationParId = async (req, res) => {
+const consulterReclamation = async (req, res) => {
   try {
     const reclamation = await Reclamation.findByPk(req.params.id, {
-      include: [{
-        model: Utilisateur,
-        as: 'utilisateur',
-        attributes: ['id', 'prefix', 'nom', 'prenom', 'email']
-      }]
+      include: [
+        { model: Utilisateur, as: 'utilisateur' },
+        { model: Commande, as: 'commande' }
+      ]
     });
 
     if (!reclamation) {
-      return res.status(404).json({ message: "Réclamation non trouvée." });
+      return res.status(404).json({
+        success: false,
+        message: 'Réclamation non trouvée'
+      });
     }
 
-    if (req.utilisateur.role !== 'admin' && reclamation.utilisateur_id !== req.utilisateur.id) {
-      return res.status(403).json({ message: "Non autorisé." });
+    // Auto-update to "brouillon" when admin opens it
+    if (req.utilisateur && ['admin', 'super_admin'].includes(req.utilisateur.role) && reclamation.statut === 'nouveau') {
+      await reclamation.update({ 
+        statut: 'brouillon',
+        admin_id: req.utilisateur.id
+      });
     }
 
-    res.status(200).json(reclamation);
+    return res.json({
+      success: true,
+      data: {
+        ...reclamation.toJSON(),
+        reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`
+      }
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching reclamation:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération de la réclamation'
+    });
   }
 };
 
-const mettreAJourReclamation = async (req, res) => {
+const repondreReclamation = async (req, res) => {
   try {
-    const { statut, reponse } = req.body;
-    
+    const { reponse } = req.body;
+    if (!reponse) {
+      return res.status(400).json({
+        success: false,
+        message: 'La réponse est obligatoire'
+      });
+    }
+
     const reclamation = await Reclamation.findByPk(req.params.id);
     if (!reclamation) {
-      return res.status(404).json({ message: "Réclamation non trouvée." });
-    }
-
-    reclamation.statut = statut || reclamation.statut;
-    reclamation.reponse = reponse || reclamation.reponse;
-    await reclamation.save();
-
-    if (statut && reclamation.email) {
-      await transporter.sendMail({
-        from: `"MGM Boutique" <${process.env.EMAIL_USER}>`,
-        to: reclamation.email,
-        subject: `Mise à jour de votre réclamation #${reclamation.id}`,
-        html: templates.userConfirmation({
-          reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`,
-          sujet: reclamation.sujet,
-          date: new Date().toLocaleString('fr-FR'),
-          prefix: reclamation.prefix,
-          nom: reclamation.nom,
-          message: `Le statut de votre réclamation a été mis à jour:<br><br>
-                   Nouveau statut: ${statut}<br>
-                   ${reponse ? `Réponse:<br>${reponse}` : ''}`
-        })
-      });
-    }
-
-    res.status(200).json(reclamation);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-
-const traiterReclamation = async (req, res) => {
-  const transaction = await sequelize.transaction();
-  try {
-    const { id } = req.params;
-    const { statut, reponse, action } = req.body;
-
-    const reclamation = await Reclamation.findByPk(id, {
-      transaction,
-      include: ['commande']
-    });
-
-    if (!reclamation) {
-      await transaction.rollback();
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Réclamation non trouvée' 
+        message: 'Réclamation non trouvée'
       });
     }
 
-    // Update reclamation status
-    await reclamation.update({ 
-      statut,
+    // Auto-update to "traite" when admin submits response
+    await reclamation.update({
       reponse,
-      traite_par: req.utilisateur.id
-    }, { transaction });
-
-    let result = { reclamation };
-
-    // Handle specific actions
-    if (action === 'remplacement' && reclamation.commande) {
-      const replacementResult = await handleReplacementRequest(
-        reclamation.commande, 
-        req.utilisateur.id,
-        reponse,
-        transaction
-      );
-      result = { ...result, ...replacementResult };
-    } else if (action === 'annulation' && reclamation.commande) {
-      await handleCancellationRequest(
-        reclamation.commande,
-        req.utilisateur.id,
-        reponse,
-        transaction
-      );
-    }
-
-    // Send response to client
-    await sendReclamationResponse(reclamation, reponse);
-
-    await transaction.commit();
-
-    res.status(200).json({ 
-      success: true,
-      data: result
+      date_reponse: new Date(),
+      statut: 'traite',
+      admin_id: req.utilisateur.id
     });
 
+    // Send response email
+    await envoyerReponseEmail(reclamation);
+
+    return res.json({
+      success: true,
+      message: 'Réponse envoyée avec succès',
+      data: {
+        reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`
+      }
+    });
   } catch (error) {
-    await transaction.rollback();
-    console.error('Error in traiterReclamation:', error);
-    res.status(500).json({ 
+    console.error('Error responding to reclamation:', error);
+    return res.status(500).json({
       success: false,
-      message: 'Erreur traitement réclamation'
+      message: 'Erreur lors de l\'envoi de la réponse'
     });
   }
 };
 
-async function handleReplacementRequest(commande, userId, notes, transaction) {
-  // Check if order can be replaced
-  if (commande.statut !== 'en_preparation' && commande.statut !== 'expediee') {
-    throw new Error('La commande ne peut pas être remplacée dans son état actuel');
-  }
-
-  // Create new order with same details
-  const nouvelleCommande = await Commande.create({
-    client_id: commande.client_id,
-    adresse_id: commande.adresse_id,
-    prix_total: commande.prix_total,
-    methode_livraison: commande.methode_livraison,
-    methode_paiement: commande.methode_paiement,
-    frais_livraison: commande.frais_livraison,
-    remplace_commande_id: commande.id,
-    statut: 'en_attente'
-  }, { transaction });
-
-  // Copy articles from original order
-  const articles = await commande.getCommande_articles({ transaction });
-  await Promise.all(articles.map(article => 
-    nouvelleCommande.addCommande_articles(article, { transaction })
-  ));
-
-  // Mark original order as replaced
-  await commande.update({
-    statut: 'remplacee',
-    notes_admin: notes
-  }, { transaction });
-
-  // Handle original parcels
-  const colis = await commande.getColis({ transaction });
-  await Promise.all(colis.map(colis => {
-    const newStatus = colis.statut === 'expediee' ? 'retourne' : 'annulee';
-    return colis.update({ 
-      statut: newStatus,
-      ...(newStatus === 'retourne' && { date_retour: new Date() })
-    }, { transaction });
-  }));
-
-  return {
-    nouvelle_commande: nouvelleCommande,
-    ancienne_commande: commande
-  };
-}
-
-async function handleCancellationRequest(commande, userId, notes, transaction) {
-  // Check if order can be canceled
-  if (commande.statut !== 'en_attente' && commande.statut !== 'en_preparation') {
-    throw new Error('La commande ne peut pas être annulée dans son état actuel');
-  }
-
-  // Cancel order
-  await commande.update({
-    statut: 'annulee',
-    notes_admin: notes
-  }, { transaction });
-
-  // Cancel all parcels
-  await Colis.update(
-    { statut: 'annulee' },
-    { 
-      where: { commande_id: commande.id },
-      transaction
+const archiverReclamation = async (req, res) => {
+  try {
+    const reclamation = await Reclamation.findByPk(req.params.id);
+    if (!reclamation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Réclamation non trouvée'
+      });
     }
-  );
+
+    if (reclamation.statut !== 'traite') {
+      return res.status(400).json({
+        success: false,
+        message: 'Seules les réclamations traitées peuvent être archivées'
+      });
+    }
+
+    await reclamation.update({ statut: 'archive' });
+
+    return res.json({
+      success: true,
+      message: 'Réclamation archivée avec succès',
+      data: {
+        reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`
+      }
+    });
+  } catch (error) {
+    console.error('Error archiving reclamation:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'archivage de la réclamation'
+    });
+  }
+};
+
+const nettoyerReclamations = async (req, res) => {
+  try {
+    // Archive processed reclamations older than 7 days
+    const archiveDate = new Date();
+    archiveDate.setDate(archiveDate.getDate() - 7);
+    
+    const archived = await Reclamation.update(
+      { statut: 'archive' },
+      {
+        where: {
+          statut: 'traite',
+          date_reponse: { [Op.lt]: archiveDate }
+        }
+      }
+    );
+
+    // Send reminders for draft reclamations older than 24h
+    const reminderDate = new Date();
+    reminderDate.setHours(reminderDate.getHours() - 24);
+    
+    const drafts = await Reclamation.findAll({
+      where: {
+        statut: 'brouillon',
+        updatedAt: { [Op.lt]: reminderDate }
+      },
+      include: [{ model: Utilisateur, as: 'admin' }]
+    });
+
+    for (const reclamation of drafts) {
+      await envoyerRappelEmail(reclamation);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Nettoyage terminé',
+      data: {
+        archived: archived[0],
+        remindersSent: drafts.length
+      }
+    });
+  } catch (error) {
+    console.error('Error cleaning reclamations:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors du nettoyage automatique'
+    });
+  }
+};
+
+// ====================
+// EMAIL FUNCTIONS
+// ====================
+
+async function sendReclamationEmails(reclamation) {
+  try {
+    // Send confirmation to user
+    const userHtml = templates.userConfirmation({
+      prenom: reclamation.prenom,
+      nom: reclamation.nom,
+      sujet: reclamation.sujet,
+      reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`
+    });
+
+    await transporter.sendMail({
+      to: reclamation.email,
+      subject: 'Confirmation de votre réclamation',
+      html: userHtml
+    });
+
+    // Send alert to admin team
+    const adminHtml = templates.adminAlert({
+      sujet: reclamation.sujet,
+      reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`,
+      date: new Date().toLocaleDateString('fr-FR')
+    });
+
+    await transporter.sendMail({
+      to: process.env.ADMIN_EMAIL,
+      subject: `Nouvelle réclamation: ${reclamation.sujet}`,
+      html: adminHtml
+    });
+  } catch (error) {
+    console.error('Error sending reclamation emails:', error);
+  }
 }
 
-async function sendReclamationResponse(reclamation, reponse) {
-  const templateData = {
-    sujet: reclamation.sujet,
-    message: reclamation.message,
-    reponse: reponse,
-    date: new Date().toLocaleDateString('fr-FR'),
-    reference: reclamation.numero_commande || 'N/A'
-  };
+async function envoyerReponseEmail(reclamation) {
+  try {
+    const html = templates.responseTemplate({
+      prenom: reclamation.prenom,
+      nom: reclamation.nom,
+      sujet: reclamation.sujet,
+      message: reclamation.message,
+      reponse: reclamation.reponse,
+      reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`
+    });
 
-  await envoyerEmail({
-    to: reclamation.email,
-    subject: `Réponse à votre réclamation #${reclamation.id.slice(0, 8)}`,
-    template: 'reponseReclamation',
-    context: templateData
-  });
+    await transporter.sendMail({
+      to: reclamation.email,
+      subject: `Réponse à votre réclamation: ${reclamation.sujet}`,
+      html
+    });
+  } catch (error) {
+    console.error('Error sending response email:', error);
+  }
 }
 
+async function envoyerRappelEmail(reclamation) {
+  try {
+    if (!reclamation.admin) return;
 
+    const html = templates.reminderTemplate({
+      adminPrenom: reclamation.admin.prenom,
+      sujet: reclamation.sujet,
+      reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`,
+      dateCreation: reclamation.createdAt.toLocaleDateString('fr-FR')
+    });
+
+    await transporter.sendMail({
+      to: reclamation.admin.email,
+      subject: `Rappel: Réclamation en brouillon depuis 24h`,
+      html
+    });
+  } catch (error) {
+    console.error('Error sending reminder email:', error);
+  }
+}
+const restaurerReclamation = async (req, res) => {
+  try {
+    const reclamation = await Reclamation.findByPk(req.params.id);
+    if (!reclamation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Réclamation non trouvée'
+      });
+    }
+
+    if (reclamation.statut !== 'archive') {
+      return res.status(400).json({
+        success: false,
+        message: 'Seules les réclamations archivées peuvent être restaurées'
+      });
+    }
+
+    await reclamation.update({ 
+      statut: 'traite',
+      date_modification: new Date()
+    });
+
+    return res.json({
+      success: true,
+      message: 'Réclamation restaurée avec succès'
+    });
+  } catch (error) {
+    console.error('Error restoring reclamation:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la restauration de la réclamation'
+    });
+  }
+};
 module.exports = {
   creerReclamation,
-  obtenirToutesReclamations,
-  obtenirMesReclamations,
-  obtenirReclamationParId,
-  mettreAJourReclamation,
-  traiterReclamation,
-
+  listerReclamations,
+  consulterReclamation,
+  repondreReclamation,
+  archiverReclamation,
+  nettoyerReclamations,
+  restaurerReclamation
 };
+
+
+
+
