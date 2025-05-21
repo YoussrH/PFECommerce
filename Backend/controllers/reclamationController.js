@@ -72,22 +72,36 @@ const creerReclamation = async (req, res) => {
     const fichiers = [];
     if (req.files?.length > 0) {
       for (const file of req.files) {
+        // Validate file type (only images and PDFs)
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+        if (!allowedTypes.includes(file.mimetype)) {
+          cleanupFiles(req.files);
+          return res.status(400).json({
+            success: false,
+            message: 'Seuls les fichiers JPG, PNG, WEBP et PDF sont autorisés'
+          });
+        }
+
         try {
           const result = await cloudinary.uploader.upload(file.path, {
             folder: 'mgm/reclamations',
             resource_type: 'auto',
             allowed_formats: ['jpg', 'jpeg', 'png', 'pdf', 'webp']
           });
-          
+
           fichiers.push({
             url: result.secure_url,
+            public_id: result.public_id, // Store public_id for potential deletion
             name: file.originalname,
-            size: formatFileSize(file.size)
+            size: formatFileSize(file.size),
+            type: file.mimetype
           });
-          
+
           fs.unlinkSync(file.path);
         } catch (uploadError) {
           console.error('Error uploading file:', uploadError);
+          cleanupFiles(req.files);
+          throw uploadError;
         }
       }
     }
@@ -99,7 +113,7 @@ const creerReclamation = async (req, res) => {
       email: req.body.email,
       telephone: req.body.telephone || null,
       numero_commande: req.body.numeroCommande || null,
-      fichiers,
+      fichiers, // Store as array directly
       statut: 'nouveau'
     };
 
@@ -114,6 +128,7 @@ const creerReclamation = async (req, res) => {
       }
     } else {
       if (!req.body.prenom || !req.body.nom) {
+        cleanupFiles(req.files);
         return res.status(400).json({
           success: false,
           message: 'Pour les visiteurs, le prénom et nom sont obligatoires'
@@ -148,7 +163,6 @@ const creerReclamation = async (req, res) => {
     });
   }
 };
-
 // ====================
 // NEW WORKFLOW FUNCTIONS
 // ====================
@@ -193,7 +207,7 @@ const listerReclamations = async (req, res) => {
   }
 };
 
-const consulterReclamation = async (req, res) => {
+/* const consulterReclamation = async (req, res) => {
   try {
     const reclamation = await Reclamation.findByPk(req.params.id, {
       include: [
@@ -231,15 +245,94 @@ const consulterReclamation = async (req, res) => {
       message: 'Erreur lors de la récupération de la réclamation'
     });
   }
+}; */
+
+const parseFichiers = (fichiers) => {
+  try {
+    if (!fichiers) return [];
+    if (Array.isArray(fichiers)) return fichiers;
+
+    if (typeof fichiers === 'string') {
+      try {
+        // Try parsing as JSON
+        const parsed = JSON.parse(fichiers);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch (e) {
+        // Handle escaped JSON
+        try {
+          const unescaped = fichiers.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+          const parsed = JSON.parse(unescaped);
+          return Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e2) {
+          // Handle invalid paths or other strings
+          if (fichiers.includes('uploads\\')) {
+            console.warn('Invalid file path detected:', fichiers);
+            return [];
+          }
+          console.error('Error parsing fichiers:', e2);
+          return [];
+        }
+      }
+    }
+
+    return [];
+  } catch (e) {
+    console.error('Error parsing fichiers:', e);
+    return [];
+  }
 };
 
+// Updated consulterReclamation function
+const consulterReclamation = async (req, res) => {
+  try {
+    const reclamation = await Reclamation.findByPk(req.params.id, {
+      include: [
+        { model: Utilisateur, as: 'utilisateur' },
+        { model: Commande, as: 'commande' }
+      ]
+    });
+
+    if (!reclamation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Réclamation non trouvée'
+      });
+    }
+
+    // Parse the fichiers properly
+    const fichiers = parseFichiers(reclamation.fichiers);
+    
+    // Auto-update to "brouillon" when admin opens it
+    if (req.utilisateur && ['admin', 'super_admin'].includes(req.utilisateur.role) && reclamation.statut === 'nouveau') {
+      await reclamation.update({ 
+        statut: 'brouillon',
+        admin_id: req.utilisateur.id
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        ...reclamation.toJSON(),
+        fichiers, // Send the properly parsed files
+        reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching reclamation:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération de la réclamation'
+    });
+  }
+};
 const repondreReclamation = async (req, res) => {
   try {
     const { reponse } = req.body;
-    if (!reponse) {
+    if (!reponse || reponse.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'La réponse est obligatoire'
+        message: 'La réponse ne peut pas être vide'
       });
     }
 
@@ -251,15 +344,13 @@ const repondreReclamation = async (req, res) => {
       });
     }
 
-    // Auto-update to "traite" when admin submits response
     await reclamation.update({
-      reponse,
+      reponse: reponse.trim(),
       date_reponse: new Date(),
       statut: 'traite',
       admin_id: req.utilisateur.id
     });
 
-    // Send response email
     await envoyerReponseEmail(reclamation);
 
     return res.json({
@@ -401,13 +492,29 @@ async function sendReclamationEmails(reclamation) {
 
 async function envoyerReponseEmail(reclamation) {
   try {
+    // Register a helper for date formatting
+    handlebars.registerHelper('formatDate', function(dateString) {
+      if (!dateString) return 'Non spécifiée';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    });
+
     const html = templates.responseTemplate({
       prenom: reclamation.prenom,
       nom: reclamation.nom,
+      prefix: reclamation.prefix,
       sujet: reclamation.sujet,
       message: reclamation.message,
-      reponse: reclamation.reponse,
-      reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`
+      reponse: reclamation.reponse || 'Aucune réponse spécifique fournie',
+      date_reponse: reclamation.date_reponse || new Date(),
+      reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`,
+      year: new Date().getFullYear()
     });
 
     await transporter.sendMail({

@@ -1,254 +1,214 @@
-// hooks/useReclamations.js
-"use client";
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import axios from 'axios';
-import { toast } from 'sonner';
-import { useAuth } from '@/app/contexts/AuthContext';
 
-export const useReclamations = () => {
-  const { user, token } = useAuth();
+const useReclamation = () => {
   const [reclamations, setReclamations] = useState([]);
+  const [currentReclamation, setCurrentReclamation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedReclamation, setSelectedReclamation] = useState(null);
 
-  // Common axios instance with base config
-  const api = axios.create({
-    baseURL: 'http://localhost:5000/reclamations',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` })
-    },
-    withCredentials: true
-  });
+  // Base URL for API requests (adjust to your backend URL)
+  const API_BASE_URL = 'http://localhost:5000/reclamations';
 
-  // Fetch all reclamations with optional status filter
-  const fetchReclamations = useCallback(async (status = null) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const params = {};
-      if (status) params.statut = status;
-      
-      const response = await api.get('/lister', { params });
-      
-      if (response.data.success) {
-        setReclamations(response.data.data);
-        return response.data.data;
-      }
-      throw new Error('Failed to fetch reclamations');
-    } catch (err) {
-      console.error('Error fetching reclamations:', err);
-      setError(err.response?.data?.message || err.message);
-      toast.error(err.response?.data?.message || 'Error fetching reclamations');
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, [api]);
+  // Helper to reset error state
+  const resetError = useCallback(() => setError(null), []);
 
-  // Fetch a single reclamation by ID
-  const fetchReclamationById = useCallback(async (id) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await api.get(`/consulter/${id}`);
-      
-      if (response.data.success) {
-        setSelectedReclamation(response.data.data);
-        return response.data.data;
-      }
-      throw new Error('Reclamation not found');
-    } catch (err) {
-      console.error('Error fetching reclamation:', err);
-      setError(err.response?.data?.message || err.message);
-      toast.error(err.response?.data?.message || 'Error fetching reclamation');
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [api]);
-
-  // Create a new reclamation
+  // Create a new reclamation (public route)
   const createReclamation = useCallback(async (reclamationData, files = []) => {
+    setLoading(true);
+    resetError();
+
+    const formData = new FormData();
+    Object.keys(reclamationData).forEach(key => {
+      formData.append(key, reclamationData[key]);
+    });
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+
     try {
-      setLoading(true);
-      setError(null);
-      
-      const formData = new FormData();
-      
-      // Append all fields to formData
-      Object.entries(reclamationData).forEach(([key, value]) => {
-        formData.append(key, value);
+      const response = await axios.post(`${API_BASE_URL}/creerReclamation`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
-      
-      // Append files if any
-      files.forEach(file => {
-        formData.append('files', file);
+      return response.data;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors de la création de la réclamation');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [resetError]);
+
+  // List reclamations (admin route)
+  const listReclamations = useCallback(async (status = null) => {
+    setLoading(true);
+    resetError();
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/lister`, {
+        params: { statut: status },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
       });
-      
+      setReclamations(response.data.data);
+      return response.data.data;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors de la récupération des réclamations');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [resetError]);
+
+  // View a single reclamation (admin route)
+  const viewReclamation = useCallback(async (id) => {
+    setLoading(true);
+    resetError();
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/consulter/${id}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      setCurrentReclamation(response.data.data);
+      return response.data.data;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors de la récupération de la réclamation');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [resetError]);
+
+  // Respond to a reclamation (admin route)
+  const respondToReclamation = useCallback(async (id, responseText) => {
+    setLoading(true);
+    resetError();
+
+    // Optimistic update
+    const previousReclamation = currentReclamation;
+    setCurrentReclamation(prev => prev ? { ...prev, reponse: responseText, statut: 'traite' } : prev);
+
+    try {
       const response = await axios.post(
-        'http://localhost:5000/reclamations/creerReclamation',
-        formData,
+        `${API_BASE_URL}/repondre/${id}`,
+        { reponse: responseText },
         {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
           },
-          withCredentials: true
         }
       );
-      
-      if (response.data.success) {
-        toast.success('Reclamation created successfully');
-        return response.data.data;
-      }
-      throw new Error(response.data.message || 'Failed to create reclamation');
+      setCurrentReclamation(response.data.data);
+      return response.data;
     } catch (err) {
-      console.error('Error creating reclamation:', err);
-      setError(err.response?.data?.message || err.message);
-      toast.error(err.response?.data?.message || 'Error creating reclamation');
-      return null;
+      setCurrentReclamation(previousReclamation); // Rollback on error
+      setError(err.response?.data?.message || 'Erreur lors de l\'envoi de la réponse');
+      throw err;
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentReclamation, resetError]);
 
-  // Respond to a reclamation
-  const respondToReclamation = useCallback(async (id, responseText) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await api.post(`/repondre/${id}`, {
-        reponse: responseText
-      });
-      
-      if (response.data.success) {
-        toast.success('Response sent successfully');
-        // Update the reclamation in state
-        setReclamations(prev => prev.map(r => 
-          r.id === id ? { ...r, statut: 'traite', reponse: responseText } : r
-        ));
-        if (selectedReclamation?.id === id) {
-          setSelectedReclamation(prev => ({
-            ...prev,
-            statut: 'traite',
-            reponse: responseText
-          }));
-        }
-        return response.data.data;
-      }
-      throw new Error('Failed to send response');
-    } catch (err) {
-      console.error('Error responding to reclamation:', err);
-      setError(err.response?.data?.message || err.message);
-      toast.error(err.response?.data?.message || 'Error responding to reclamation');
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [api, selectedReclamation]);
-
-  // Archive a reclamation
+  // Archive a reclamation (admin route)
   const archiveReclamation = useCallback(async (id) => {
+    setLoading(true);
+    resetError();
+
+    // Optimistic update
+    const previousReclamations = reclamations;
+    setReclamations(prev => prev.filter(r => r.id !== id));
+
     try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await api.post(`/archiver/${id}`);
-      
-      if (response.data.success) {
-        toast.success('Reclamation archived successfully');
-        // Update the reclamation in state
-        setReclamations(prev => prev.map(r => 
-          r.id === id ? { ...r, statut: 'archive' } : r
-        ));
-        return response.data.data;
-      }
-      throw new Error('Failed to archive reclamation');
+      const response = await axios.post(
+        `${API_BASE_URL}/archiver/${id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      );
+      return response.data;
     } catch (err) {
-      console.error('Error archiving reclamation:', err);
-      setError(err.response?.data?.message || err.message);
-      toast.error(err.response?.data?.message || 'Error archiving reclamation');
-      return null;
+      setReclamations(previousReclamations); // Rollback on error
+      setError(err.response?.data?.message || 'Erreur lors de l\'archivage de la réclamation');
+      throw err;
     } finally {
       setLoading(false);
     }
-  }, [api]);
+  }, [reclamations, resetError]);
 
-  // Restore an archived reclamation
+  // Restore a reclamation (admin route)
   const restoreReclamation = useCallback(async (id) => {
+    setLoading(true);
+    resetError();
+
     try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await api.post(`/restaurer/${id}`);
-      
-      if (response.data.success) {
-        toast.success('Reclamation restored successfully');
-        // Update the reclamation in state
-        setReclamations(prev => prev.map(r => 
-          r.id === id ? { ...r, statut: 'traite' } : r
-        ));
-        return response.data.data;
-      }
-      throw new Error('Failed to restore reclamation');
+      const response = await axios.post(
+        `${API_BASE_URL}/restaurer/${id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      );
+      // Refresh the reclamations list after restoring
+      await listReclamations('archive');
+      return response.data;
     } catch (err) {
-      console.error('Error restoring reclamation:', err);
-      setError(err.response?.data?.message || err.message);
-      toast.error(err.response?.data?.message || 'Error restoring reclamation');
-      return null;
+      setError(err.response?.data?.message || 'Erreur lors de la restauration de la réclamation');
+      throw err;
     } finally {
       setLoading(false);
     }
-  }, [api]);
+  }, [listReclamations, resetError]);
 
-  // Clean up reclamations (background task)
-  const cleanUpReclamations = useCallback(async () => {
+  // Clean reclamations (admin route, for cron job)
+  const cleanReclamations = useCallback(async () => {
+    setLoading(true);
+    resetError();
+
     try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await api.post('/nettoyer');
-      
-      if (response.data.success) {
-        toast.success('Reclamations cleaned up successfully');
-        // Refresh the list
-        await fetchReclamations();
-        return response.data.data;
-      }
-      throw new Error('Failed to clean up reclamations');
+      const response = await axios.post(
+        `${API_BASE_URL}/nettoyer`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      );
+      // Refresh the reclamations list after cleaning
+      await listReclamations();
+      return response.data;
     } catch (err) {
-      console.error('Error cleaning up reclamations:', err);
-      setError(err.response?.data?.message || err.message);
-      toast.error(err.response?.data?.message || 'Error cleaning up reclamations');
-      return null;
+      setError(err.response?.data?.message || 'Erreur lors du nettoyage des réclamations');
+      throw err;
     } finally {
       setLoading(false);
     }
-  }, [api, fetchReclamations]);
-
-  // Automatically fetch reclamations when the hook is used
-  useEffect(() => {
-    if (user?.role === 'admin' || user?.role === 'super_admin') {
-      fetchReclamations();
-    }
-  }, [user, fetchReclamations]);
+  }, [listReclamations, resetError]);
 
   return {
     reclamations,
-    selectedReclamation,
+    currentReclamation,
     loading,
     error,
-    fetchReclamations,
-    fetchReclamationById,
     createReclamation,
+    listReclamations,
+    viewReclamation,
     respondToReclamation,
     archiveReclamation,
     restoreReclamation,
-    cleanUpReclamations,
-    setSelectedReclamation
+    cleanReclamations,
+    resetError,
   };
 };
+
+export default useReclamation;

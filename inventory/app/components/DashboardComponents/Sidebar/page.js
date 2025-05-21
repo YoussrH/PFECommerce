@@ -121,8 +121,8 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             icon={PieChart}
             label="Rapports & Analyses"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-green-500"
-          />
+/*             iconColor="text-green-500"
+ */          />
         </SidebarSection>
 
         {/* Inventory Section */}
@@ -132,43 +132,43 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             icon={Box}
             label="Liste des produits"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-amber-500"
-          />
+/*             iconColor="text-amber-500"
+ */          />
           <SidebarLink
             href="/admin/inventaire/produits/nouveau"
             icon={Boxes}
             label="Ajouter un produit"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-amber-600"
-          />
+/*             iconColor="text-amber-600"
+ */          />
           <SidebarLink
             href="/admin/inventaire/categories"
             icon={Tags}
             label="Gérer les catégories"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-purple-500"
-          />
+/*             iconColor="text-purple-500"
+ */          />
           <SidebarLink
             href="/admin/inventaire/marque"
             icon={Warehouse}
             label="Gérer les Marques"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-red-500"
-          />
+/*             iconColor="text-red-500"
+ */          />
           <SidebarLink
             href="/admin/inventaire/ajustments"
             icon={Scale}
             label="Ajouter un ajustement"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-emerald-500"
-          />
+/*             iconColor="text-emerald-500"
+ */          />
           <SidebarLink
             href="/admin/inventaire/ajustments/historique"
             icon={Layers}
             label="Historique des ajustements"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-emerald-600"
-          />
+/*             iconColor="text-emerald-600"
+ */          />
         </SidebarSection>
 
         {/* Sales Section */}
@@ -178,45 +178,45 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             icon={ShoppingCart}
             label="Liste des commandes"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-pink-500"
-          />
+/*             iconColor="text-pink-500"
+ */          />
           <SidebarLink
             href="/admin/ventes/factures"
             icon={FileText}
             label="Factures"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-orange-500"
-          />
+/*             iconColor="text-orange-500"
+ */          />
           <SidebarLink
             href="/admin/ventes/paiments"
             icon={CreditCard}
             label="Reçus de paiement"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-blue-400"
-          />
+/*             iconColor="text-blue-400"
+ */          />
 
           <SidebarLink
             href="/admin/ventes/notes-credit"
             icon={Receipt}
             label="Notes de crédit"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-indigo-500"
-          />
+/*             iconColor="text-indigo-500"
+ */          />
           <SidebarLink
             href="/admin/ventes/remise"
             icon={Tags}
             label="Liste des réductions"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-red-400"
-            
+/*             iconColor="text-red-400"
+ */            
           />
           <SidebarLink
             href="/admin/ventes/remise/nouveau"
             icon={Tags}
             label="Créer une réduction"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-red-400"
-            isSubItem
+/*             iconColor="text-red-400"
+ */            isSubItem
           />
 
         </SidebarSection>
@@ -228,22 +228,22 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             icon={Truck}
             label="Suivi des expéditions"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-cyan-500"
-          />
+/*             iconColor="text-cyan-500"
+ */          />
           <SidebarLink
             href="/admin/expeditions/colis"
             icon={Box}
             label="Gestion des colis"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-amber-500"
-          />
+/*             iconColor="text-amber-500"
+ */          />
           <SidebarLink
             href="/admin/expeditions/retours"
             icon={Undo2}
             label="Retours & Remplacements"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-violet-500"
-          />
+/*             iconColor="text-violet-500"
+ */          />
         </SidebarSection>
 
         {/* Users Section */}
@@ -253,8 +253,8 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             icon={Users}
             label="Liste des clients"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-teal-500"
-          />
+/*             iconColor="text-teal-500"
+ */          />
           <SidebarLink
             href="/admin/utilisateurs/livreur"
             customIcon={
@@ -277,8 +277,8 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             icon={UserCog}
             label="Administrateurs"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-blue-600"
-          />
+/*             iconColor="text-blue-600"
+ */          />
         </SidebarSection>
 
         {/* Claims Section */}
@@ -288,29 +288,29 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             icon={Mail}
             label="Boîte de réception"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-rose-500"
-          />
+/*             iconColor="text-rose-500"
+ */          />
           <SidebarLink
             href="/admin/reclamations/traitees"
             icon={FileText}
             label="Traitées"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-green-500"
-          />
+/*             iconColor="text-green-500"
+ */          />
           <SidebarLink
             href="/admin/reclamations/brouillon"
             icon={Undo2}
             label="En brouillon"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-yellow-500"
-          />
+/*             iconColor="text-yellow-500"
+ */          />
           <SidebarLink
             href="/admin/reclamations/archivees"
             icon={Archive}
             label="Archivées"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-gray-500"
-          />
+/*             iconColor="text-gray-500"
+ */          />
         </SidebarSection>
 
         {/* Settings Section */}
@@ -320,29 +320,29 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             icon={Settings}
             label="Paramètres de la Boutique"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-gray-600"
-          />
+/*             iconColor="text-gray-600"
+ */          />
           <SidebarLink
             href="/admin/parametres/Regles"
             icon={DollarSign}
             label="Règles fiscales & Tarification"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-emerald-500"
-          />
+/*             iconColor="text-emerald-500"
+ */          />
           <SidebarLink
             href="/admin/parametres/rapports"
             icon={PieChart}
             label="Rapports d'Entreprise"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-blue-400"
-          />
+/*             iconColor="text-blue-400"
+ */          />
           <SidebarLink
             href="/admin/parametres/journaux"
             icon={Archive}
             label="Journaux d'Activité"
             isSidebarCollapsed={isSidebarCollapsed}
-            iconColor="text-gray-500"
-          />
+/*             iconColor="text-gray-500"
+ */          />
         </SidebarSection>
       </div>
 

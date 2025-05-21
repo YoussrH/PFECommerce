@@ -28,6 +28,7 @@ module.exports = (sequelize) => {
         'expediee',
         'livree',
         'retourne',
+        'remplacee',
         'annulee'
       ),
       defaultValue: 'en_preparation'

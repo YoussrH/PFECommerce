@@ -68,7 +68,24 @@ module.exports = (sequelize, DataTypes) => {
         model: 'utilisateur',
         key: 'id'
       }
+    },
+        reponse: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    date_reponse: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    admin_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: 'utilisateur',
+        key: 'id'
+      }
     }
+
   }, {
     tableName: 'reclamation',
     timestamps: true,

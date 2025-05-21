@@ -31,8 +31,8 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     statut: {
-      type: DataTypes.ENUM('en_attente', 'approuve', 'refuse', 'traite'),
-      defaultValue: 'en_attente',
+      type: DataTypes.ENUM('en_preparation', 'approuve', 'refuse', 'traite'),
+      defaultValue: '"en_preparation',
       allowNull: false
     },
     motif_refus: {

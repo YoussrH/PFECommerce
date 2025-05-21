@@ -47,7 +47,7 @@ const obtenirLivraisonsDisponibles = async (req, res) => {
   }
 };
 
-const assignerLivraison = async (req, res) => {
+/* const assignerLivraison = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
@@ -174,6 +174,182 @@ const assignerLivraison = async (req, res) => {
           DELIVERY_ESTIMATE: commande.methode_livraison === 'express' ? '1-2 jours ouvrables' : '2-3 jours ouvrables',
           TRACKING_LINK: colis.url_suivi,
           CURRENT_YEAR: new Date().getFullYear()
+        }
+      });
+    } catch (emailError) {
+      console.error('Failed to send customer notification:', emailError);
+    }
+
+    // Send real-time notification with QR code info
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`livreur-${livreur_id}`).emit('livraison:assigned', {
+        id: Date.now().toString(),
+        type: 'nouvelle_commande',
+        titre: 'Nouvelle livraison assignée',
+        message: `Vous avez été assigné à la livraison ${commande.reference}`,
+        date: new Date().toISOString(),
+        livraison_id: commande.id,
+        reference: commande.reference,
+        client_nom: `${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`,
+        adresse_livraison: commande.adresse?.adresse || 'Adresse non spécifiée',
+        numero_suivi: colis.numero_suivi,
+        statut: 'expediee',
+        qr_code_data: colis.qr_code_data // Include QR code in real-time notification
+      });
+    }
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Livreur assigné et commande expédiée avec succès',
+      data: {
+        livreur_id,
+        livreur_nom: `${livreur.utilisateur.prenom} ${livreur.utilisateur.nom}`,
+        commande: {
+          id: commande.id,
+          reference: commande.reference,
+          statut: commande.statut
+        },
+        colis: {
+          numero_suivi: colis.numero_suivi,
+          transporteur: colis.transporteur,
+          url_suivi: colis.url_suivi,
+          qr_code_data: colis.qr_code_data // Include QR code in response
+        }
+      }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error assigning delivery:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'assignation du livreur',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+}; */
+
+const assignerLivraison = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { livreur_id } = req.body;
+
+    const commande = await Commande.findByPk(id, { 
+      transaction,
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          include: [{ model: Utilisateur, as: 'utilisateur' }]
+        },
+        { model: Adresse, as: 'adresse' }
+      ]
+    });
+    
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande non trouvée' 
+      });
+    }
+
+    const livreur = await Livreur.findByPk(livreur_id, {
+      include: [{ model: Utilisateur, as: 'utilisateur' }],
+      transaction
+    });
+    
+    if (!livreur) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Livreur non trouvé' 
+      });
+    }
+
+    // Update order status to "expediee" and assign delivery person
+    await commande.update({
+      livreur_id,
+      statut: 'expediee'
+    }, { transaction });
+
+    // Create or update colis record with tracking info
+    const [colis] = await db.Colis.findOrCreate({
+      where: { commande_id: id },
+      defaults: {
+        commande_id: id,
+        livreur_id,
+        statut: 'expediee',
+        transporteur: commande.methode_livraison === 'express' ? 'Express' : 'Standard',
+        numero_suivi: `TRK${Date.now().toString(36).toUpperCase()}`,
+        url_suivi: `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`,
+        date_expedition: new Date()
+      },
+      transaction
+    });
+
+    // Generate QR code data consistent with commandeController.js
+    const qrToken = uuidv4();
+    const qrData = JSON.stringify({
+      colisId: colis.id, // Changed from commandeId to colisId
+      commandeId: commande.id,
+      token: qrToken
+    });
+    const qrCodeData = await QRCode.toDataURL(qrData);
+
+    // Update colis with QR code data
+    await colis.update({
+      qr_token: qrToken,
+      qr_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
+      qr_code_data: qrCodeData
+    }, { transaction });
+
+    await livreur.update({
+      nombre_livraisons: (livreur.nombre_livraisons || 0) + 1
+    }, { transaction });
+
+    // Send notification to the delivery person with QR code
+    try {
+      await envoyerEmail({
+        to: livreur.utilisateur.email,
+        template: 'livraisonAssignee',
+        subject: 'Nouvelle livraison assignée - ' + commande.reference,
+        context: {
+          livreurPrenom: livreur.utilisateur.prenom,
+          reference: commande.reference,
+          clientNom: `${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`,
+          adresseLivraison: commande.adresse?.adresse || 'Adresse non spécifiée',
+          dateCreation: new Date(commande.created_at).toLocaleDateString('fr-FR'),
+          statut: 'Expédiée',
+          numeroSuivi: colis.numero_suivi,
+          transporteur: colis.transporteur,
+          appLink: `${process.env.APP_URL}/livreur/livraisons/${commande.id}`,
+          qrCodeData: colis.qr_code_data // Include QR code in email
+        }
+      });
+    } catch (emailError) {
+      console.error('Failed to send delivery person notification:', emailError);
+    }
+
+    // Send shipping confirmation to customer
+    try {
+      await envoyerEmail({
+        to: commande.client.utilisateur.email,
+        template: 'commandeExpediee',
+        subject: `Votre commande #${commande.reference} a été expédiée`,
+        context: {
+          PRENOM: commande.client.utilisateur.prenom,
+          NOM: commande.client.utilisateur.nom,
+          ORDER_REF: commande.reference,
+          TRACKING_NUMBER: colis.numero_suivi,
+          CARRIER_NAME: colis.transporteur,
+          SHIPPING_DATE: new Date().toLocaleDateString('fr-FR'),
+          DELIVERY_ESTIMATE: commande.methode_livraison === 'express' ? '1-2 jours ouvrables' : '2-3 jours ouvrables',
+          TRACKING_LINK: colis.url_suivi,
+          QR_CODE_URL: colis.qr_code_data // Include QR code in email
         }
       });
     } catch (emailError) {

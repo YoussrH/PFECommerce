@@ -56,13 +56,13 @@
       <h1>Réponse à votre réclamation</h1>
     </div>
     <div class="content">
-      <p>Bonjour {{prefix}} {{nom}},</p>
+      <p>Bonjour {{prefix}} {{prenom}} {{nom}},</p>
       <p>Nous avons traité votre réclamation et vous en remercions.</p>
 
       <div class="response-box">
         <h2 style="margin-top: 0; color: #2980b9;">Référence : {{reference}}</h2>
         <p><strong>Sujet :</strong> {{sujet}}</p>
-        <p><strong>Date de traitement :</strong> {{date}}</p>
+        <p><strong>Date de traitement :</strong> {{formatDate date_reponse}}</p>
         
         <h3 style="color: #2980b9;">Notre réponse :</h3>
         <div class="message">{{reponse}}</div>
