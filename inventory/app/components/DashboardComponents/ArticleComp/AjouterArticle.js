@@ -282,9 +282,9 @@ export default function AjouterArticle() {
             ...prev,
             [couleurId]: !prev[couleurId]
           }))}
-          className="w-full flex justify-between items-center px-4 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black"
+          className="w-full flex justify-between items-center px-4 py-2 text-dm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black"
         >
-          <span className="text-xs">
+          <span className="text-dm">
             {taillesDisponibles.length === 0 ? (
               "Sélectionnez d'abord une catégorie et un genre"
             ) : selectedSizesForColor.length > 0 ? (
@@ -307,13 +307,13 @@ export default function AjouterArticle() {
         {tailleDropdownOpen[couleurId] && (
           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-52 overflow-y-auto">
             <div className="sticky top-0 bg-white px-4 py-2 border-b">
-              <h3 className="text-xs font-medium text-gray-700">
+              <h3 className="text-dm font-medium text-gray-700">
                 {taillesDisponibles.length > 0 ? "Tailles disponibles" : "Tailles non disponibles"}
               </h3>
             </div>
 
             {taillesDisponibles.length === 0 ? (
-              <div className="px-4 py-3 text-xs text-gray-500">
+              <div className="px-4 py-3 text-dm text-gray-500">
                 Veuillez d&apos;abord sélectionner une catégorie et un genre valides
               </div>
             ) : (
@@ -344,7 +344,7 @@ export default function AjouterArticle() {
                         />
                         <label 
                           htmlFor={`taille-${couleurId}-${taille.id}`} 
-                          className="text-xs cursor-pointer"
+                          className="text-dm cursor-pointer"
                         >
                           {taille.libelle}
                         </label>
@@ -365,7 +365,7 @@ export default function AjouterArticle() {
                                 handleTailleQuantiteChange(couleurId, taille.id, 1)
                               }
                             }}
-                            className="w-16 h-8 text-center text-xs border-t border-b border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                            className="w-16 h-8 text-center text-dm border-t border-b border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-400"
                             onClick={e => e.stopPropagation()}
                             inputMode="numeric"
                             pattern="[0-9]*"
@@ -529,16 +529,16 @@ export default function AjouterArticle() {
   }))
 
   return (
-    <section className="container mx-auto px-9 py-8 font-mono">
-      <h1 className="text-lg font-bold text-gray-800 dark:text-white mb-8">Ajouter un Nouvel Article</h1>
+    <section className="container mx-auto p-4 font-mono ">
+      <h1 className="text-xl font-bold text-gray-800 dark:text-white mb-8">Ajouter un Nouvel Article</h1>
 
       <Toaster position="top-center" autoClose={3000} />
 
       {uploadProgress > 0 && uploadProgress < 100 && (
-        <div className="mb-6 bg-gray-100 p-4 rounded-lg">
+        <div className="mb-6 bg-gray-100 p-12 rounded-lg">
           <div className="flex justify-between mb-1">
-            <span className="text-xs font-medium">Chargement d&apos;images...</span>
-            <span className="text-xs font-medium">{uploadProgress}%</span>
+            <span className="text-dm font-medium">Chargement d&apos;images...</span>
+            <span className="text-dm font-medium">{uploadProgress}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2.5">
             <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }} />
@@ -546,11 +546,11 @@ export default function AjouterArticle() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="grid gap-6">
+      <form onSubmit={handleSubmit} className="grid gap-6 bg-white p-4 rounded-lg shadow-md dark:bg-gray-800">
         {/* First row - Product name and SKU */}
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Nom du produit *</label>
+            <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Nom du produit *</label>
             <Input
               type="text"
               name="nom_produit"
@@ -561,7 +561,7 @@ export default function AjouterArticle() {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Référence (SKU)</label>
+            <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Référence (SKU)</label>
             <Input
               type="text"
               name="sku"
@@ -575,7 +575,7 @@ export default function AjouterArticle() {
         {/* Second row - Description and Conseils */}
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+            <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Description</label>
             <Textarea
               name="description"
               value={formData.description}
@@ -585,7 +585,7 @@ export default function AjouterArticle() {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Conseils</label>
+            <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Conseils</label>
             <Textarea
               name="conseils"
               value={formData.conseils}
@@ -600,7 +600,7 @@ export default function AjouterArticle() {
         {/* Third row - Main category and subcategory */}
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Catégorie principale *</label>
+            <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Catégorie principale *</label>
             <CustomDropdown
               options={mainCategoryOptions}
               value={selectedMainCategory}
@@ -611,7 +611,7 @@ export default function AjouterArticle() {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Sous-catégorie *</label>
+            <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Sous-catégorie *</label>
             <CustomDropdown
               options={subcategories}
               value={formData.categorie_id}
@@ -628,7 +628,7 @@ export default function AjouterArticle() {
         {/* Fourth row - Brand and Gender */}
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Marque *</label>
+            <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Marque *</label>
             <CustomDropdown
               options={marques.map(m => ({ value: m.id, label: m.libelle }))}
               value={formData.marque_id}
@@ -639,7 +639,7 @@ export default function AjouterArticle() {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Genre *</label>
+            <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Genre *</label>
             <CustomDropdown
               options={genreOptions}
               value={formData.genre_id}
@@ -652,7 +652,7 @@ export default function AjouterArticle() {
 
         {/* Fifth row - Colors and sizes */}
         <div>
-          <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Couleurs et Tailles *</label>
+          <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Couleurs et Tailles *</label>
           <CouleurDropdown
             couleurs={couleurs}
             setFormData={setFormData}
@@ -669,7 +669,7 @@ export default function AjouterArticle() {
                     className="w-6 h-6 rounded-full mr-2 border border-gray-300"
                     style={{ backgroundColor: couleur?.hexcode || '#ccc' }}
                   />
-                  <span className="text-sm font-medium">{couleur?.libelle || 'Couleur inconnue'}</span>
+                  <span className="text-dm font-medium">{couleur?.libelle || 'Couleur inconnue'}</span>
                 </div>
                 <TailleDropdown couleurId={couleurId} />
               </div>
@@ -677,14 +677,14 @@ export default function AjouterArticle() {
           })}
 
           {formData.variations.length === 0 && (
-            <p className="text-xs text-red-500 mt-1">Sélectionnez au moins une couleur avec des tailles</p>
+            <p className="text-dm text-red-500 mt-1">Sélectionnez au moins une couleur avec des tailles</p>
           )}
         </div>
 
         {/* Sixth row - Price and Discount */}
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Prix (DT) *</label>
+            <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Prix (DT) *</label>
             <Input
               type="number"
               name="prix"
@@ -696,7 +696,7 @@ export default function AjouterArticle() {
               className={isPredicting ? "animate-pulse bg-gray-100" : ""}
             />
             {formData.predictedPrice && (
-              <p className="text-xs text-green-600 mt-1">
+              <p className="text-dm text-green-600 mt-1">
                 Prix suggéré: {formData.predictedPrice} DT
                 <button
                   type="button"
@@ -708,12 +708,12 @@ export default function AjouterArticle() {
               </p>
             )}
             {predictionError && (
-              <div className="text-xs text-red-500 mt-2">Erreur de prédiction: {predictionError}</div>
+              <div className="text-dm text-red-500 mt-2">Erreur de prédiction: {predictionError}</div>
             )}
           </div>
 
           <div>
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Remise (%)</label>
+            <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Remise (%)</label>
             <Input
               type="number"
               name="remise"
@@ -730,7 +730,7 @@ export default function AjouterArticle() {
         {/* Seventh row - SEO Title and Keywords */}
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Titre SEO</label>
+            <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Titre SEO</label>
             <Input
               type="text"
               name="seo_titre"
@@ -741,7 +741,7 @@ export default function AjouterArticle() {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Mots-clés SEO</label>
+            <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Mots-clés SEO</label>
             <Input
               type="text"
               name="mots_cles_seo"

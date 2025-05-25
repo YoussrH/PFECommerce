@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
+import { FileIcon, ImageIcon, DownloadIcon, X } from 'lucide-react';
 
 const initialFormState = {
   prefix: '',
@@ -51,43 +52,115 @@ export default function ContactezNous() {
 
   const handleFileChange = (e, index) => {
     const files = [...formData.fichiers];
-    if (e.target.files?.[0]) {
-      files[index] = e.target.files[0];
+    const newFiles = Array.from(e.target.files);
+    
+    // Validate files
+    const validFiles = newFiles.filter(file => {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`Type de fichier non supporté: ${file.name}`);
+        return false;
+      }
+      if (file.size > maxSize) {
+        toast.error(`Fichier trop volumineux (max 5MB): ${file.name}`);
+        return false;
+      }
+      return true;
+    });
+
+    // Replace or add files based on index
+    if (index >= 0) {
+      if (validFiles[0]) files[index] = validFiles[0];
     } else {
-      files.splice(index, 1);
+      files.push(...validFiles);
     }
+
     setFormData(prev => ({ ...prev, fichiers: files }));
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const handleDownload = async (file, index) => {
+    try {
+      // For files not yet uploaded (in form state)
+      if (file instanceof File) {
+        const url = URL.createObjectURL(file);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      // For already uploaded files (from Cloudinary)
+      if (file.url?.includes('res.cloudinary.com')) {
+        // Force download by adding fl_attachment parameter
+        const downloadUrl = file.url.includes('fl_attachment') 
+          ? file.url 
+          : file.url.replace('/upload/', '/upload/fl_attachment/');
+        
+        if (file.type === 'application/pdf') {
+          window.open(downloadUrl, '_blank');
+        } else {
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = file.name || 'download';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error(`Échec du téléchargement: ${file.name || 'fichier'}`);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-  
-    // Basic validation
-    if (!formData.sujet || !formData.message || !formData.prenom || !formData.nom || !formData.email) {
-      toast.error('Veuillez remplir tous les champs obligatoires');
+
+    // Enhanced validation
+    const requiredFields = ['prefix', 'prenom', 'nom', 'email', 'sujet', 'message'];
+    const missingFields = requiredFields.filter(field => !formData[field]);
+    
+    if (missingFields.length > 0) {
+      toast.error(`Veuillez remplir tous les champs obligatoires`);
       setIsSubmitting(false);
       return;
     }
-  
+
     try {
       const formDataToSend = new FormData();
       
-      // Add all form data
-      Object.entries(formData).forEach(([key, value]) => {
-        if (key !== 'fichiers' && value !== null && value !== undefined) {
-          formDataToSend.append(key, value);
-        }
-      });
-  
-      // Add files
+      // Map frontend field names to backend expected names
+      formDataToSend.append('prefix', formData.prefix);
+      formDataToSend.append('prenom', formData.prenom);
+      formDataToSend.append('nom', formData.nom);
+      formDataToSend.append('email', formData.email);
+      formDataToSend.append('telephone', formData.telephone || '');
+      formDataToSend.append('sujet', formData.sujet);
+      formDataToSend.append('numeroCommande', formData.numeroCommande || '');
+      formDataToSend.append('message', formData.message);
+
+      // Handle file uploads
       formData.fichiers.forEach((file) => {
         if (file) {
           formDataToSend.append('fichiers', file);
         }
       });
-  
-      // Only include auth header if user is authenticated
+
       const config = {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -95,22 +168,27 @@ export default function ContactezNous() {
         },
         withCredentials: true
       };
-  
+
       const response = await axios.post(
         'http://localhost:5000/reclamations/creerReclamation',
         formDataToSend,
         config
       );
-  
+
       if (response.data.success) {
         toast.success('Réclamation envoyée avec succès');
         setFormData(initialFormState);
       }
     } catch (error) {
       console.error('Submission error:', error);
-      toast.error(error.response?.data?.message || 
-                 error.message || 
-                 "Erreur lors de l'envoi");
+      let errorMessage = error.response?.data?.message || error.message;
+      
+      // Handle specific backend validation errors
+      if (error.response?.data?.errors) {
+        errorMessage = Object.values(error.response.data.errors).join(', ');
+      }
+      
+      toast.error(errorMessage || "Erreur lors de l'envoi");
     } finally {
       setIsSubmitting(false);
     }
@@ -265,7 +343,7 @@ export default function ContactezNous() {
             />
           </div>
 
-          <div className="space-y-4">
+          {/* <div className="space-y-4">
             <div className="space-y-1">
               <Label htmlFor="fichier1" className="font-semibold">
                 Joindre un fichier (optionnel)
@@ -278,7 +356,34 @@ export default function ContactezNous() {
                 className="border border-black rounded-none" 
               />
               {formData.fichiers[0] && (
-                <p className="text-xs text-gray-600 mt-1">Fichier sélectionné: {formData.fichiers[0].name}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  {formData.fichiers[0].type?.includes('image/') ? (
+                    <ImageIcon className="h-4 w-4" />
+                  ) : (
+                    <FileIcon className="h-4 w-4" />
+                  )}
+                  <span className="text-xs text-gray-600">
+                    {formData.fichiers[0].name} ({formatFileSize(formData.fichiers[0].size)})
+                  </span>
+                  <button 
+                    type="button" 
+                    onClick={() => handleDownload(formData.fichiers[0], 0)}
+                    className="text-blue-500 hover:text-blue-700"
+                  >
+                    <DownloadIcon className="h-4 w-4" />
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const newFiles = [...formData.fichiers];
+                      newFiles.splice(0, 1);
+                      setFormData(prev => ({ ...prev, fichiers: newFiles }));
+                    }}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               )}
             </div>
             <div className="space-y-1">
@@ -291,11 +396,85 @@ export default function ContactezNous() {
                 className="border border-black rounded-none" 
               />
               {formData.fichiers[1] && (
-                <p className="text-xs text-gray-600 mt-1">Fichier sélectionné: {formData.fichiers[1].name}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  {formData.fichiers[1].type?.includes('image/') ? (
+                    <ImageIcon className="h-4 w-4" />
+                  ) : (
+                    <FileIcon className="h-4 w-4" />
+                  )}
+                  <span className="text-xs text-gray-600">
+                    {formData.fichiers[1].name} ({formatFileSize(formData.fichiers[1].size)})
+                  </span>
+                  <button 
+                    type="button" 
+                    onClick={() => handleDownload(formData.fichiers[1], 1)}
+                    className="text-blue-500 hover:text-blue-700"
+                  >
+                    <DownloadIcon className="h-4 w-4" />
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const newFiles = [...formData.fichiers];
+                      newFiles.splice(1, 1);
+                      setFormData(prev => ({ ...prev, fichiers: newFiles }));
+                    }}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               )}
             </div>
-          </div>
+          </div> */}
 
+  <div className="space-y-1">
+            <Label htmlFor="file-upload" className="font-semibold">
+              Joindre des fichiers (optionnel, max 3)
+            </Label>
+            <Input 
+              type="file" 
+              id="file-upload"
+              accept=".jpg,.jpeg,.png,.webp,.pdf" 
+              onChange={handleFileChange}
+              className="border border-black rounded-none" 
+              multiple
+            />
+            {formData.fichiers.length > 0 && (
+              <div className="mt-2 space-y-2">
+                {formData.fichiers.map((file, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    {file.type?.includes('image/') ? (
+                      <ImageIcon className="h-4 w-4" />
+                    ) : (
+                      <FileIcon className="h-4 w-4" />
+                    )}
+                    <span className="text-xs text-gray-600">
+                      {file.name} ({formatFileSize(file.size)})
+                    </span>
+                    <button 
+                      type="button" 
+                      onClick={() => handleDownload(file, index)}
+                      className="text-blue-500 hover:text-blue-700 ml-auto"
+                    >
+                      <DownloadIcon className="h-4 w-4" />
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        const newFiles = [...formData.fichiers];
+                        newFiles.splice(index, 1);
+                        setFormData(prev => ({ ...prev, fichiers: newFiles }));
+                      }}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="flex justify-end">
             <Button
               type="submit"

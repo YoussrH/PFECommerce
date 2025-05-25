@@ -3,7 +3,7 @@ const path = require('path');
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/'); 
+    cb(null, path.join(__dirname, '../uploads/temp')); // Use absolute path
   },
   filename: function (req, file, cb) {
     const ext = path.extname(file.originalname);
@@ -13,14 +13,18 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Unsupported file type'), false);
+    cb(new Error('Type de fichier non supporté'), false);
   }
 };
 
-const upload = multer({ storage, fileFilter });
+const limits = {
+  fileSize: 5 * 1024 * 1024 // 5MB limit
+};
+
+const upload = multer({ storage, fileFilter, limits });
 
 module.exports = upload;

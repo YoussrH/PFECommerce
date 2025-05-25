@@ -41,10 +41,33 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.TEXT,
       allowNull: false
     },
-    fichiers: {
-      type: DataTypes.ARRAY(DataTypes.STRING),
-      allowNull: true
-    },
+fichiers: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        get() {
+          const rawValue = this.getDataValue('fichiers');
+          try {
+            if (!rawValue) return [];
+            if (typeof rawValue === 'string') {
+              const parsed = JSON.parse(rawValue);
+              return Array.isArray(parsed) ? parsed : [parsed];
+            }
+            return Array.isArray(rawValue) ? rawValue : [];
+          } catch (e) {
+            console.error('Error parsing fichiers:', e);
+            return [];
+          }
+        },
+        set(value) {
+          try {
+            const serialized = value && value.length > 0 ? JSON.stringify(value) : null;
+            this.setDataValue('fichiers', serialized);
+          } catch (e) {
+            console.error('Error serializing fichiers:', e);
+            this.setDataValue('fichiers', null);
+          }
+        },
+      },
     statut: {
       type: DataTypes.ENUM('nouveau', 'brouillon', 'traite', 'archive'),
       defaultValue: 'nouveau'

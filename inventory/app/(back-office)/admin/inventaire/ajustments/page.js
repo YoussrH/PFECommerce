@@ -19,12 +19,15 @@ export default function AdjustmentsPage() {
   }
 
   return (
-    <div className="container mx-auto px-10 py-8">
-      <Tabs defaultValue="size">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="size">Par taille</TabsTrigger>
-          <TabsTrigger value="bulk">Groupé</TabsTrigger>
-        </TabsList>
+    <div className="container mx-auto px-10 py-8 h-screen">
+      <Tabs defaultValue="size" className="w-full h-full ">
+        <TabsList className="grid w-full grid-cols-2 h-12 bg-white gap-3 shadow-sm ">
+        <TabsTrigger
+  value="size"  className="h-10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-100 data-[state=active]:to-white">
+  Par taille</TabsTrigger>
+
+<TabsTrigger value="bulk"  className="h-10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-50 data-[state=active]:to-white">  Groupé</TabsTrigger>
+</TabsList>
 
         <TabsContent value="size">
           <AjustementTaille />

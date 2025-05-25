@@ -66,6 +66,19 @@
         
         <h3 style="color: #2980b9;">Notre réponse :</h3>
         <div class="message">{{reponse}}</div>
+        {{#if fichiers.length}}
+        <div style="margin-top: 20px;">
+          <h3 style="font-size: 16px; color: #333; margin-bottom: 10px;">Pièces jointes :</h3>
+          <ul style="list-style: none; padding-left: 0;">
+            {{#each fichiers}}
+            <li style="margin-bottom: 5px;">
+              <a href="{{this.url}}" style="color: #0066cc; text-decoration: none;">{{this.name}}</a>
+              ({{this.size}})
+            </li>
+            {{/each}}
+          </ul>
+        </div>
+        {{/if}}
       </div>
 
       <p>Si vous avez d'autres questions, vous pouvez répondre directement à cet email.</p>

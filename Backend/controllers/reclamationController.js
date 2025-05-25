@@ -34,6 +34,100 @@ const templates = {
   reminderTemplate: loadTemplate('../templates/reclamation-reminder.html')
 };
 
+const uploadFichiers = async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Aucun fichier téléchargé'
+      });
+    }
+
+    const uploadedFiles = [];
+    
+    for (const file of req.files) {
+      // Validate file type and size
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      if (!allowedTypes.includes(file.mimetype)) {
+        return res.status(400).json({
+          success: false,
+          message: `Type de fichier non autorisé: ${file.mimetype}`
+        });
+      }
+
+      if (file.size > maxSize) {
+        return res.status(400).json({
+          success: false,
+          message: `Fichier trop volumineux (max 5MB): ${file.originalname}`
+        });
+      }
+
+      // Configure upload options based on file type
+      const isPDF = file.mimetype === 'application/pdf';
+        const uploadOptions = {
+        folder: 'mgm/reclamations',
+        resource_type: isPDF ? 'raw' : 'image',
+        type: 'authenticated', // Always use authenticated for consistency
+        access_mode: 'authenticated',
+        sign_url: true,
+        context: `filename=${file.originalname}`,
+        invalidate: true // Ensure CDN cache is cleared
+              // Add context with original filename
+      };
+
+      // Upload to Cloudinary
+      const result = await cloudinary.uploader.upload(file.path, uploadOptions);
+
+      uploadedFiles.push({
+        url: result.secure_url,
+        public_id: result.public_id,
+        name: file.originalname,
+        size: formatFileSize(file.size),
+        type: file.mimetype,
+        // Add signature data for PDFs
+        ...(isPDF && {
+          signature: result.signature,
+          timestamp: result.timestamp
+        })
+      });
+
+      // Delete temp file
+      fs.unlinkSync(file.path);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Fichiers téléchargés avec succès',
+      files: uploadedFiles
+    });
+
+  } catch (error) {
+    console.error('Error uploading files:', {
+      error: error.message,
+      stack: error.stack,
+      files: req.files?.map(f => f.originalname)
+    });
+    
+    // Cleanup any uploaded files on error
+    if (req.files) {
+      req.files.forEach(file => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
+    }
+    
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors du téléchargement des fichiers',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+
 // Helper function to format file size
 const formatFileSize = (bytes) => {
   if (bytes === 0) return '0 Bytes';
@@ -59,50 +153,41 @@ const cleanupFiles = (files) => {
 // ====================
 
 const creerReclamation = async (req, res) => {
-  // Validate request
-  if (!req.body.sujet || !req.body.message || !req.body.email) {
+  // Validate required fields
+  if (!req.body.sujet || !req.body.message || !req.body.email || !req.body.prenom || !req.body.nom) {
     return res.status(400).json({
       success: false,
-      message: 'Le sujet, le message et l\'email sont obligatoires'
+      message: 'Le sujet, le message, l\'email, le prénom et le nom sont obligatoires'
     });
   }
 
   try {
-    // Upload files to Cloudinary
+    // Upload files to Cloudinary if any
     const fichiers = [];
     if (req.files?.length > 0) {
       for (const file of req.files) {
-        // Validate file type (only images and PDFs)
         const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
         if (!allowedTypes.includes(file.mimetype)) {
-          cleanupFiles(req.files);
           return res.status(400).json({
             success: false,
             message: 'Seuls les fichiers JPG, PNG, WEBP et PDF sont autorisés'
           });
         }
 
-        try {
-          const result = await cloudinary.uploader.upload(file.path, {
-            folder: 'mgm/reclamations',
-            resource_type: 'auto',
-            allowed_formats: ['jpg', 'jpeg', 'png', 'pdf', 'webp']
-          });
+        const result = await cloudinary.uploader.upload(file.path, {
+          folder: 'mgm/reclamations',
+          resource_type: file.mimetype === 'application/pdf' ? 'raw' : 'image'
+        });
 
-          fichiers.push({
-            url: result.secure_url,
-            public_id: result.public_id, // Store public_id for potential deletion
-            name: file.originalname,
-            size: formatFileSize(file.size),
-            type: file.mimetype
-          });
+        fichiers.push({
+          url: result.secure_url,
+          public_id: result.public_id,
+          name: file.originalname,
+          type: file.mimetype,
+          size: formatFileSize(file.size)
+        });
 
-          fs.unlinkSync(file.path);
-        } catch (uploadError) {
-          console.error('Error uploading file:', uploadError);
-          cleanupFiles(req.files);
-          throw uploadError;
-        }
+        fs.unlinkSync(file.path); // Remove temp file
       }
     }
 
@@ -113,49 +198,31 @@ const creerReclamation = async (req, res) => {
       email: req.body.email,
       telephone: req.body.telephone || null,
       numero_commande: req.body.numeroCommande || null,
-      fichiers, // Store as array directly
-      statut: 'nouveau'
+      fichiers: fichiers.length > 0 ? fichiers : null, // Will be stringified by model setter
+      statut: 'nouveau',
+      prefix: req.body.prefix || '',
+      prenom: req.body.prenom,
+      nom: req.body.nom
     };
 
-    // Handle user data (authenticated or guest)
+    // If user is authenticated, add user ID
     if (req.utilisateur?.id) {
-      const utilisateur = await Utilisateur.findByPk(req.utilisateur.id);
-      if (utilisateur) {
-        reclamationData.utilisateur_id = utilisateur.id;
-        reclamationData.prefix = utilisateur.prefix || '';
-        reclamationData.prenom = utilisateur.prenom || '';
-        reclamationData.nom = utilisateur.nom || '';
-      }
-    } else {
-      if (!req.body.prenom || !req.body.nom) {
-        cleanupFiles(req.files);
-        return res.status(400).json({
-          success: false,
-          message: 'Pour les visiteurs, le prénom et nom sont obligatoires'
-        });
-      }
-      reclamationData.prefix = req.body.prefix || '';
-      reclamationData.prenom = req.body.prenom;
-      reclamationData.nom = req.body.nom;
+      reclamationData.utilisateur_id = req.utilisateur.id;
     }
 
     // Create reclamation
     const reclamation = await Reclamation.create(reclamationData);
-
-    // Send confirmation emails
-    await sendReclamationEmails(reclamation);
 
     return res.status(201).json({
       success: true,
       message: 'Réclamation créée avec succès',
       data: {
         id: reclamation.id,
-        reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`
+        reference: `REC-${reclamation.id.toString().slice(0, 8).toUpperCase()}`
       }
     });
-
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error creating reclamation:', error);
     cleanupFiles(req.files);
     return res.status(500).json({
       success: false,
@@ -163,6 +230,8 @@ const creerReclamation = async (req, res) => {
     });
   }
 };
+
+
 // ====================
 // NEW WORKFLOW FUNCTIONS
 // ====================
@@ -188,15 +257,21 @@ const listerReclamations = async (req, res) => {
           as: 'commande', 
           attributes: ['id', 'reference'] 
         }
-      ]
+      ],
+      raw: true
+    });
+
+    const processedReclamations = reclamations.map(r => {
+      return {
+        ...r,
+        fichiers: parseFichiers(r.fichiers),
+        reference: `REC-${r.id.slice(0, 8).toUpperCase()}`
+      };
     });
 
     return res.json({
       success: true,
-      data: reclamations.map(r => ({
-        ...r.toJSON(),
-        reference: `REC-${r.id.slice(0, 8).toUpperCase()}`
-      }))
+      data: processedReclamations
     });
   } catch (error) {
     console.error('Error listing reclamations:', error);
@@ -206,83 +281,49 @@ const listerReclamations = async (req, res) => {
     });
   }
 };
-
-/* const consulterReclamation = async (req, res) => {
-  try {
-    const reclamation = await Reclamation.findByPk(req.params.id, {
-      include: [
-        { model: Utilisateur, as: 'utilisateur' },
-        { model: Commande, as: 'commande' }
-      ]
-    });
-
-    if (!reclamation) {
-      return res.status(404).json({
-        success: false,
-        message: 'Réclamation non trouvée'
-      });
-    }
-
-    // Auto-update to "brouillon" when admin opens it
-    if (req.utilisateur && ['admin', 'super_admin'].includes(req.utilisateur.role) && reclamation.statut === 'nouveau') {
-      await reclamation.update({ 
-        statut: 'brouillon',
-        admin_id: req.utilisateur.id
-      });
-    }
-
-    return res.json({
-      success: true,
-      data: {
-        ...reclamation.toJSON(),
-        reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching reclamation:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la récupération de la réclamation'
-    });
-  }
-}; */
-
 const parseFichiers = (fichiers) => {
-  try {
-    if (!fichiers) return [];
-    if (Array.isArray(fichiers)) return fichiers;
-
-    if (typeof fichiers === 'string') {
+  // Handle null/undefined cases
+  if (!fichiers) return [];
+  
+  // Handle already parsed arrays
+  if (Array.isArray(fichiers)) return fichiers;
+  
+  // Handle string cases
+  if (typeof fichiers === 'string') {
+    // Handle empty string case
+    if (fichiers.trim() === '') return [];
+    
+    // Try to parse as JSON
+    try {
+      // First try direct parse
+      const parsed = JSON.parse(fichiers);
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch (firstError) {
       try {
-        // Try parsing as JSON
-        const parsed = JSON.parse(fichiers);
+        // If direct parse fails, try cleaning the string
+        const cleaned = fichiers
+          .replace(/\\"/g, '"')  // Unescape quotes
+          .replace(/\\\\/g, '\\') // Unescape backslashes
+          .replace(/^"|"$/g, ''); // Remove surrounding quotes
+        
+        // Try parsing cleaned string
+        const parsed = JSON.parse(cleaned);
         return Array.isArray(parsed) ? parsed : [parsed];
-      } catch (e) {
-        // Handle escaped JSON
-        try {
-          const unescaped = fichiers.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-          const parsed = JSON.parse(unescaped);
-          return Array.isArray(parsed) ? parsed : [parsed];
-        } catch (e2) {
-          // Handle invalid paths or other strings
-          if (fichiers.includes('uploads\\')) {
-            console.warn('Invalid file path detected:', fichiers);
-            return [];
-          }
-          console.error('Error parsing fichiers:', e2);
-          return [];
-        }
+      } catch (secondError) {
+        console.error('Error parsing fichiers:', {
+          originalValue: fichiers,
+          firstError: firstError.message,
+          secondError: secondError.message
+        });
+        return [];
       }
     }
-
-    return [];
-  } catch (e) {
-    console.error('Error parsing fichiers:', e);
-    return [];
   }
+  
+  // Handle any other cases (numbers, objects, etc.)
+  console.error('Unexpected fichiers type:', typeof fichiers, fichiers);
+  return [];
 };
-
-// Updated consulterReclamation function
 const consulterReclamation = async (req, res) => {
   try {
     const reclamation = await Reclamation.findByPk(req.params.id, {
@@ -299,23 +340,43 @@ const consulterReclamation = async (req, res) => {
       });
     }
 
-    // Parse the fichiers properly
-    const fichiers = parseFichiers(reclamation.fichiers);
-    
+    // Handle fichiers parsing more robustly
+    let fichiers = [];
+    if (reclamation.fichiers) {
+      try {
+        if (typeof reclamation.fichiers === 'string') {
+          // Try to parse as JSON
+          fichiers = JSON.parse(reclamation.fichiers);
+        } else if (Array.isArray(reclamation.fichiers)) {
+          fichiers = reclamation.fichiers;
+        }
+        
+        // Ensure we always have an array
+        if (!Array.isArray(fichiers)) {
+          fichiers = [fichiers];
+        }
+      } catch (e) {
+        console.error('Error parsing fichiers:', e);
+        fichiers = [];
+      }
+    }
+
     // Auto-update to "brouillon" when admin opens it
-    if (req.utilisateur && ['admin', 'super_admin'].includes(req.utilisateur.role) && reclamation.statut === 'nouveau') {
-      await reclamation.update({ 
-        statut: 'brouillon',
-        admin_id: req.utilisateur.id
-      });
+    if (req.utilisateur && ['admin', 'super_admin'].includes(req.utilisateur.role)) {
+      if (reclamation.statut === 'nouveau') {
+        await reclamation.update({ 
+          statut: 'brouillon',
+          admin_id: req.utilisateur.id
+        });
+      }
     }
 
     return res.json({
       success: true,
       data: {
         ...reclamation.toJSON(),
-        fichiers, // Send the properly parsed files
-        reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`
+        fichiers, // Send the properly parsed fichiers array
+        reference: `REC-${reclamation.id.toString().slice(0, 8).toUpperCase()}`
       }
     });
   } catch (error) {
@@ -326,9 +387,10 @@ const consulterReclamation = async (req, res) => {
     });
   }
 };
+
 const repondreReclamation = async (req, res) => {
   try {
-    const { reponse } = req.body;
+    const { reponse, fichiers } = req.body;
     if (!reponse || reponse.trim().length === 0) {
       return res.status(400).json({
         success: false,
@@ -344,13 +406,25 @@ const repondreReclamation = async (req, res) => {
       });
     }
 
+    // Get existing files (already parsed by Sequelize getter)
+    const existingFiles = reclamation.fichiers || [];
+
+    // Combine with new response files
+    const allFiles = [...existingFiles];
+    if (fichiers && fichiers.length > 0) {
+      allFiles.push(...fichiers);
+    }
+
+    // Update reclamation
     await reclamation.update({
       reponse: reponse.trim(),
       date_reponse: new Date(),
       statut: 'traite',
-      admin_id: req.utilisateur.id
+      admin_id: req.utilisateur.id,
+      fichiers: allFiles.length > 0 ? allFiles : null
     });
 
+    // Send response email
     await envoyerReponseEmail(reclamation);
 
     return res.json({
@@ -505,6 +579,29 @@ async function envoyerReponseEmail(reclamation) {
       });
     });
 
+    // Parse the fichiers properly - handle both string and array formats
+    let fichiers = [];
+    if (reclamation.fichiers) {
+      try {
+        if (typeof reclamation.fichiers === 'string') {
+          fichiers = JSON.parse(reclamation.fichiers);
+        } else if (Array.isArray(reclamation.fichiers)) {
+          fichiers = reclamation.fichiers;
+        }
+        
+        // Ensure we have an array
+        if (!Array.isArray(fichiers)) {
+          fichiers = [fichiers];
+        }
+        
+        // Filter only response files (optional)
+        // fichiers = fichiers.filter(file => file.url.includes('/reponses/'));
+      } catch (e) {
+        console.error('Error parsing fichiers:', e);
+        fichiers = [];
+      }
+    }
+
     const html = templates.responseTemplate({
       prenom: reclamation.prenom,
       nom: reclamation.nom,
@@ -514,16 +611,22 @@ async function envoyerReponseEmail(reclamation) {
       reponse: reclamation.reponse || 'Aucune réponse spécifique fournie',
       date_reponse: reclamation.date_reponse || new Date(),
       reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`,
-      year: new Date().getFullYear()
+      year: new Date().getFullYear(),
+      fichiers: fichiers // Pass the parsed files to template
     });
 
-    await transporter.sendMail({
+    // Prepare email options
+    const mailOptions = {
       to: reclamation.email,
       subject: `Réponse à votre réclamation: ${reclamation.sujet}`,
-      html
-    });
+      html: html
+    };
+
+    // Send the email
+    await transporter.sendMail(mailOptions);
   } catch (error) {
     console.error('Error sending response email:', error);
+    throw error;
   }
 }
 
@@ -581,6 +684,45 @@ const restaurerReclamation = async (req, res) => {
     });
   }
 };
+
+
+const generateSignedUrl = async (req, res) => {
+  try {
+    const { fileUrl } = req.body;
+    
+    if (!fileUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'File URL is required'
+      });
+    }
+
+    // Extract public ID from Cloudinary URL
+    const urlParts = fileUrl.split('/');
+    const publicId = urlParts.slice(urlParts.indexOf('upload') + 2).join('/');
+    const resourceType = publicId.endsWith('.pdf') ? 'raw' : 'image';
+
+    // Generate signed URL
+    const signedUrl = cloudinary.url(publicId, {
+      sign_url: true,
+      type: 'authenticated',
+      resource_type: resourceType,
+      secure: true,
+      force_download: true
+    });
+
+    return res.json({
+      success: true,
+      signedUrl
+    });
+  } catch (error) {
+    console.error('Error generating signed URL:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error generating secure download link'
+    });
+  }
+};
 module.exports = {
   creerReclamation,
   listerReclamations,
@@ -588,7 +730,9 @@ module.exports = {
   repondreReclamation,
   archiverReclamation,
   nettoyerReclamations,
-  restaurerReclamation
+  restaurerReclamation,
+  uploadFichiers,
+  generateSignedUrl,
 };
 
 

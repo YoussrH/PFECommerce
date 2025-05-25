@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { use, useEffect, useState } from "react"
 import { notFound, useRouter } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,14 +23,12 @@ import {
   SaveIcon,
   DownloadIcon,
   ImageIcon,
-  FileIcon
+  FileIcon,
+  X
 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { X } from "lucide-react"
-
-import { use } from "react"
 
 export default function ViewReclamation({ params }) {
   const { id } = use(params);
@@ -44,94 +42,139 @@ export default function ViewReclamation({ params }) {
   const router = useRouter()
   const { token } = useAuth()
 
-const parseFichiers = (fichiers) => {
-  try {
-    if (!fichiers) return [];
-    if (Array.isArray(fichiers)) return fichiers;
+  // Parse fichiers array from string or object
+  const parseFichiers = (fichiers) => {
+    try {
+      if (!fichiers) return [];
+      if (Array.isArray(fichiers)) return fichiers;
 
-    if (typeof fichiers === 'string') {
-      try {
-        const parsed = JSON.parse(fichiers);
-        return Array.isArray(parsed) ? parsed : [parsed];
-      } catch (e) {
+      if (typeof fichiers === 'string') {
         try {
-          const unescaped = fichiers.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-          const parsed = JSON.parse(unescaped);
+          // Try direct parse
+          const parsed = JSON.parse(fichiers);
           return Array.isArray(parsed) ? parsed : [parsed];
-        } catch (e2) {
-          if (fichiers.includes('uploads\\')) {
-            console.warn('Invalid file path detected:', fichiers);
-            return [];
-          }
-          console.error('Error parsing fichiers:', e2);
-          return [];
+        } catch (e) {
+          // Try cleaning string if parse fails
+          const cleaned = fichiers
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, '\\')
+            .replace(/^"|"$/g, '');
+          const parsed = JSON.parse(cleaned);
+          return Array.isArray(parsed) ? parsed : [parsed];
         }
       }
+      return [];
+    } catch (e) {
+      console.error('Error parsing fichiers:', e);
+      return [];
     }
-    return [];
-  } catch (e) {
-    console.error('Error parsing fichiers:', e);
-    return [];
-  }
-};
+  };
 
-  useEffect(() => {
-    if (!id) return
+  // Format file size
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
 
-    const fetchReclamation = async () => {
-      try {
-        setLoading(true)
-        const headers = {
-          "Content-Type": "application/json",
-        }
-
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`
-        }
-
-        const response = await fetch(`http://localhost:5000/reclamations/consulter/${id}`, {
-          headers,
-          credentials: "include",
-        })
+const handleDownload = async (fileUrl, fileName, fileType) => {
+  try {
+    // For Cloudinary files
+    if (fileUrl.includes('res.cloudinary.com')) {
+      let downloadUrl = fileUrl;
+      
+      // Check if this is an authenticated resource
+      const isAuthenticated = fileUrl.includes('/authenticated/');
+      
+      // For authenticated files, get signed URL from backend
+      if (isAuthenticated) {
+        const response = await fetch('http://localhost:5000/reclamations/signed-url', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ fileUrl })
+        });
 
         if (!response.ok) {
-          if (response.status === 404) {
-            return notFound()
-          }
-          throw new Error(`HTTP error! status: ${response.status}`)
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to get secure download URL');
         }
 
-        const data = await response.json()
-
-        if (data.success) {
-          // Parse the fichiers properly
-          const parsedFichiers = parseFichiers(data.data.fichiers);
-          setReclamation({
-            ...data.data,
-            fichiers: parsedFichiers
-          });
-          setResponse(data.data.reponse || "")
-        } else {
-          toast.error("Impossible de récupérer les détails de la réclamation")
-          notFound()
-        }
-      } catch (error) {
-        console.error("Error fetching reclamation:", error)
-        toast.error("Erreur lors du chargement de la réclamation")
-        notFound()
-      } finally {
-        setLoading(false)
+        const { signedUrl } = await response.json();
+        downloadUrl = signedUrl;
       }
+
+      // Add force download parameter
+      downloadUrl = downloadUrl.includes('?') 
+        ? `${downloadUrl}&fl_attachment=${encodeURIComponent(fileName || 'file')}` 
+        : `${downloadUrl}?fl_attachment=${encodeURIComponent(fileName || 'file')}`;
+
+      // Create temporary link
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName || 'download';
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => document.body.removeChild(link), 100);
+      return;
     }
 
-    fetchReclamation()
-  }, [id, token])
+    // For non-Cloudinary files
+    const response = await fetch(fileUrl, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      credentials: 'include'
+    });
 
-  // File handling functions
+    if (!response.ok) throw new Error(`Download failed: ${response.statusText}`);
+
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = fileName || 'download';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    }, 100);
+
+  } catch (error) {
+    console.error('Download failed:', {
+      error: error.message,
+      stack: error.stack,
+      fileUrl,
+      fileName,
+      fileType
+    });
+    toast.error(`Échec du téléchargement: ${error.message || 'Erreur inconnue'}`);
+  }
+};
+  // Handle file selection
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
-    if (files.length > 0) {
-      const newAttachments = files.map((file) => ({
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    const validFiles = files.filter(file => {
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`Type de fichier non supporté: ${file.name}`);
+        return false;
+      }
+      if (file.size > maxSize) {
+        toast.error(`Fichier trop volumineux (max 5MB): ${file.name}`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length > 0) {
+      const newAttachments = validFiles.map((file) => ({
         file,
         name: file.name,
         size: formatFileSize(file.size),
@@ -142,17 +185,9 @@ const parseFichiers = (fichiers) => {
     }
   };
 
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
+  // Remove attachment
   const removeAttachment = (index) => {
     const newAttachments = [...attachments];
-    // Revoke object URL to avoid memory leaks
     if (newAttachments[index].preview) {
       URL.revokeObjectURL(newAttachments[index].preview);
     }
@@ -160,225 +195,214 @@ const parseFichiers = (fichiers) => {
     setAttachments(newAttachments);
   };
 
-const handleDownload = async (fileUrl, fileName) => {
-  try {
-    // Verify the URL is valid and accessible
-    const response = await fetch(fileUrl, { method: 'HEAD' });
-    if (!response.ok) {
-      throw new Error('File not accessible');
-    }
-
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = fileName || 'download';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  } catch (error) {
-    console.error('Error downloading file:', error);
-    toast.error(`Impossible de télécharger ${fileName}: fichier non accessible`);
-  }
-};
-
-  // Function to get file icon based on type
-  const getFileIcon = (fileType, fileName) => {
-    if (!fileType) {
-      const extension = fileName?.split('.').pop()?.toLowerCase();
-      if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) {
-        return <ImageIcon className="h-4 w-4 mr-1" />;
-      }
-      return <FileIcon className="h-4 w-4 mr-1" />;
-    }
-    
-    if (fileType.startsWith('image/')) {
-      return <ImageIcon className="h-4 w-4 mr-1" />;
-    }
-    return <FileIcon className="h-4 w-4 mr-1" />;
-  };
-
-  const FileIconComponent = ({ type }) => {
-    if (!type) return <FileIcon className="h-4 w-4" />;
-    if (type.startsWith('image/')) return <ImageIcon className="h-4 w-4" />;
-    return <FileIcon className="h-4 w-4" />;
-  };
-
+  // Submit response
   const handleSubmitResponse = async () => {
     if (!response.trim()) {
-      toast.error("Veuillez écrire une réponse")
-      return
+      toast.error("Veuillez écrire une réponse");
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
     try {
-      let fileUrls = []
+      let fileUrls = [];
 
       if (attachments.length > 0) {
-        setUploadingFiles(true)
-        const formData = new FormData()
+        setUploadingFiles(true);
+        const formData = new FormData();
+        
         attachments.forEach((attachment) => {
-          formData.append("files", attachment.file)
-        })
+          formData.append("files", attachment.file, attachment.name);
+        });
 
-        const headers = {}
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`
-        }
-
-        const uploadResponse = await fetch("http://localhost:5000/fichiers/upload", {
+        const uploadResponse = await fetch("http://localhost:5000/reclamations/fichiers/upload", {
           method: "POST",
-          headers,
+          headers: {
+            "Authorization": `Bearer ${token}`
+          },
           credentials: "include",
           body: formData,
-        })
+        });
 
         if (!uploadResponse.ok) {
-          throw new Error("Erreur lors du téléchargement des fichiers")
+          const errorText = await uploadResponse.text();
+          throw new Error(errorText || "Erreur lors du téléchargement des fichiers");
         }
 
-        const uploadData = await uploadResponse.json()
-        if (uploadData.success) {
-          fileUrls = uploadData.urls || []
-        } else {
-          throw new Error(uploadData.message || "Erreur lors du téléchargement des fichiers")
-        }
-
-        setUploadingFiles(false)
-      }
-
-      const headers = {
-        "Content-Type": "application/json",
-      }
-
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`
+        const uploadData = await uploadResponse.json();
+        fileUrls = uploadData.files || [];
       }
 
       const res = await fetch(`http://localhost:5000/reclamations/repondre/${id}`, {
         method: "POST",
-        headers,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         credentials: "include",
         body: JSON.stringify({
           reponse: response,
-          fichiers: fileUrls.length > 0 ? fileUrls : undefined,
+          fichiers: fileUrls
         }),
-      })
+      });
 
-      const data = await res.json()
+      const data = await res.json();
 
       if (data.success) {
-        toast.success("Réponse envoyée avec succès")
-        router.push("/admin/reclamations")
+        toast.success("Réponse envoyée avec succès");
+        router.push("/admin/reclamations/inbox");
       } else {
-        toast.error(data.message || "Erreur lors de l'envoi de la réponse")
+        toast.error(data.message || "Erreur lors de l'envoi de la réponse");
       }
     } catch (error) {
-      console.error("Error submitting response:", error)
-      toast.error("Erreur lors de l'envoi de la réponse")
+      console.error("Error submitting response:", error);
+      toast.error(error.message || "Erreur lors de l'envoi de la réponse");
     } finally {
-      setSubmitting(false)
-      setUploadingFiles(false)
+      setSubmitting(false);
+      setUploadingFiles(false);
     }
-  }
+  };
 
+  // Save as draft
   const handleSaveDraft = async () => {
-    setSavingDraft(true)
+    setSavingDraft(true);
     try {
-      const headers = {
-        "Content-Type": "application/json",
-      }
-
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`
-      }
-
       const res = await fetch(`http://localhost:5000/reclamations/sauvegarder-brouillon/${id}`, {
         method: "POST",
-        headers,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         credentials: "include",
         body: JSON.stringify({ reponse: response }),
-      })
+      });
 
-      const data = await res.json()
+      const data = await res.json();
 
       if (data.success) {
-        toast.success("Brouillon sauvegardé")
+        toast.success("Brouillon sauvegardé");
       } else {
-        toast.error(data.message || "Erreur lors de la sauvegarde")
+        toast.error(data.message || "Erreur lors de la sauvegarde");
       }
     } catch (error) {
-      console.error("Error saving draft:", error)
-      toast.error("Erreur lors de la sauvegarde du brouillon")
+      console.error("Error saving draft:", error);
+      toast.error("Erreur lors de la sauvegarde du brouillon");
     } finally {
-      setSavingDraft(false)
+      setSavingDraft(false);
     }
-  }
+  };
 
+  // Format date
   const formatDate = (dateString) => {
-    if (!dateString) return "Non spécifiée"
+    if (!dateString) return "Non spécifiée";
     try {
-      return format(new Date(dateString), "PPpp", { locale: fr })
+      return format(new Date(dateString), "PPpp", { locale: fr });
     } catch (e) {
-      console.error("Error formatting date:", e)
-      return dateString
+      console.error("Error formatting date:", e);
+      return dateString;
     }
-  }
+  };
 
+  // Status badge
   const getStatusBadge = (status) => {
     switch (status) {
       case "nouveau":
-        return (
-          <Badge variant="destructive" className="bg-red-100 text-red-700">
-            Nouveau
-          </Badge>
-        )
+        return <Badge variant="destructive">Nouveau</Badge>;
       case "traite":
-        return (
-          <Badge variant="default" className="bg-green-100 text-green-700">
-            Traité
-          </Badge>
-        )
+        return <Badge className="bg-green-100 text-green-700">Traité</Badge>;
       case "archive":
-        return (
-          <Badge variant="secondary" className="bg-gray-100 text-gray-700">
-            Archivé
-          </Badge>
-        )
+        return <Badge variant="secondary">Archivé</Badge>;
       case "brouillon":
-        return (
-          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-            Brouillon
-          </Badge>
-        )
+        return <Badge className="bg-amber-50 text-amber-700">Brouillon</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return <Badge variant="outline">{status}</Badge>;
     }
-  }
+  };
+
+  // Fetch reclamation data
+  useEffect(() => {
+    if (!id) return;
+
+    const fetchReclamation = async () => {
+      try {
+        setLoading(true);
+        const headers = {
+          "Content-Type": "application/json",
+        };
+
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`http://localhost:5000/reclamations/consulter/${id}`, {
+          headers,
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            return notFound();
+          }
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+          const parsedFichiers = parseFichiers(data.data.fichiers);
+          setReclamation({
+            ...data.data,
+            fichiers: parsedFichiers
+          });
+          setResponse(data.data.reponse || "");
+        } else {
+          toast.error("Impossible de récupérer les détails de la réclamation");
+          notFound();
+        }
+      } catch (error) {
+        console.error("Error fetching reclamation:", error);
+        toast.error("Erreur lors du chargement de la réclamation");
+        notFound();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReclamation();
+  }, [id, token]);
+
+  // Clean up object URLs
+  useEffect(() => {
+    return () => {
+      attachments.forEach(attachment => {
+        if (attachment.preview) {
+          URL.revokeObjectURL(attachment.preview);
+        }
+      });
+    };
+  }, [attachments]);
 
   if (loading) {
-    return <ReclamationDetailSkeleton />
+    return <ReclamationDetailSkeleton />;
   }
 
   if (!reclamation) {
-    return notFound()
+    return notFound();
   }
-
-  // Use the properly parsed fichiers from state
-  const fichiers = reclamation.fichiers || [];
 
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center gap-2 mb-6">
-        <Button variant="ghost" size="sm" className="gap-1" onClick={() => router.back()}>
-          <ArrowLeftIcon className="h-4 w-4" />
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <ArrowLeftIcon className="h-4 w-4 mr-2" />
           Retour
         </Button>
       </div>
 
-      <Card className="border-none shadow-sm bg-white">
+      <Card className="border-none shadow-sm">
         <CardHeader className="pb-3 border-b">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="space-y-1">
-              <CardTitle className="text-xl font-serif">Réclamation {reclamation.reference}</CardTitle>
+              <CardTitle className="text-xl">Réclamation {reclamation.reference}</CardTitle>
               <p className="text-muted-foreground text-sm">{reclamation.sujet}</p>
             </div>
             <div>{getStatusBadge(reclamation.statut)}</div>
@@ -461,23 +485,29 @@ const handleDownload = async (fileUrl, fileName) => {
               <MessageSquareIcon className="h-5 w-5 text-primary" />
               <h3 className="font-medium">Message du client</h3>
             </div>
-            <div className="bg-secondary/20 p-4 rounded-lg whitespace-pre-line">{reclamation.message}</div>
+            <div className="bg-secondary/20 p-4 rounded-lg whitespace-pre-line">
+              {reclamation.message}
+            </div>
           </div>
 
-          {fichiers.length > 0 && (
+          {reclamation.fichiers?.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <PaperclipIcon className="h-5 w-5 text-primary" />
-                <h3 className="font-medium">Pièces jointes ({fichiers.length})</h3>
+                <h3 className="font-medium">Pièces jointes ({reclamation.fichiers.length})</h3>
               </div>
               <div className="flex flex-wrap gap-3">
-                {fichiers.map((file, index) => (
+                {reclamation.fichiers.map((file, index) => (
                   <div
                     key={index}
                     className="flex items-center gap-2 bg-secondary/30 hover:bg-secondary/50 transition-colors p-2 px-3 rounded-lg text-sm cursor-pointer"
-                    onClick={() => handleDownload(file.url, file.name)}
+                    onClick={() => handleDownload(file.url, file.name, file.type)}
                   >
-                    {getFileIcon(file.type, file.name)}
+                    {file.type?.startsWith('image/') ? (
+                      <ImageIcon className="h-4 w-4" />
+                    ) : (
+                      <FileIcon className="h-4 w-4" />
+                    )}
                     <span className="truncate max-w-[150px]">{file.name}</span>
                     <span className="text-xs text-muted-foreground">{file.size}</span>
                     <DownloadIcon className="h-4 w-4 ml-1" />
@@ -497,7 +527,7 @@ const handleDownload = async (fileUrl, fileName) => {
                 placeholder="Écrivez votre réponse ici..."
                 value={response}
                 onChange={(e) => setResponse(e.target.value)}
-                className="min-h-[200px] bg-white border-secondary"
+                className="min-h-[200px]"
               />
 
               <div className="space-y-3 pt-2">
@@ -506,12 +536,13 @@ const handleDownload = async (fileUrl, fileName) => {
                   <Label htmlFor="file-upload" className="font-medium cursor-pointer">
                     Joindre des fichiers
                   </Label>
-                  <Input 
-                    id="file-upload" 
-                    type="file" 
-                    multiple 
-                    className="hidden" 
-                    onChange={handleFileChange} 
+                  <Input
+                    id="file-upload"
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={handleFileChange}
+                    accept=".jpg,.jpeg,.png,.webp,.pdf"
                   />
                   <Button
                     type="button"
@@ -534,7 +565,11 @@ const handleDownload = async (fileUrl, fileName) => {
                           className="flex items-center justify-between bg-white p-2 rounded border border-secondary"
                         >
                           <div className="flex items-center gap-2 overflow-hidden">
-                            <FileIconComponent type={file.type} />
+                            {file.type.startsWith("image/") ? (
+                              <ImageIcon className="h-4 w-4" />
+                            ) : (
+                              <FileIcon className="h-4 w-4" />
+                            )}
                             <span className="text-sm truncate">{file.name}</span>
                             <span className="text-xs text-muted-foreground">{file.size}</span>
                           </div>
@@ -561,19 +596,17 @@ const handleDownload = async (fileUrl, fileName) => {
           <CardFooter className="p-6 pt-0 flex justify-end gap-3">
             <Button
               variant="outline"
-              className="gap-2"
               onClick={handleSaveDraft}
               disabled={savingDraft || submitting || uploadingFiles}
             >
-              <SaveIcon className="h-4 w-4" />
+              <SaveIcon className="h-4 w-4 mr-2" />
               {savingDraft ? "Sauvegarde..." : "Enregistrer comme brouillon"}
             </Button>
             <Button
-              className="gap-2 bg-primary hover:bg-primary/90"
               onClick={handleSubmitResponse}
               disabled={submitting || uploadingFiles}
             >
-              <SendIcon className="h-4 w-4" />
+              <SendIcon className="h-4 w-4 mr-2" />
               {uploadingFiles
                 ? "Téléchargement des fichiers..."
                 : submitting
@@ -584,7 +617,7 @@ const handleDownload = async (fileUrl, fileName) => {
         )}
       </Card>
     </div>
-  )
+  );
 }
 
 function ReclamationDetailSkeleton() {
@@ -594,7 +627,7 @@ function ReclamationDetailSkeleton() {
         <Skeleton className="h-9 w-24" />
       </div>
 
-      <Card className="border-none shadow-sm bg-white">
+      <Card className="border-none shadow-sm">
         <CardHeader className="pb-3 border-b">
           <div className="flex justify-between items-center">
             <div className="space-y-2">
@@ -645,5 +678,5 @@ function ReclamationDetailSkeleton() {
         </CardFooter>
       </Card>
     </div>
-  )
+  );
 }

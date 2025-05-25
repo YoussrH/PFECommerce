@@ -40,13 +40,13 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
   }, []);
 
   return (
-    <div className="sticky top-0 z-50 flex justify-between bg-white items-center w-full border-b px-4 py-2">
+    <div className="sticky top-0 z-50 flex justify-between bg-[#fff7ef]  items-center w-full px-4 py-[11px]">
       <div className="flex items-center gap-3 sm:gap-5">
         <button
-          className="p-3 w-10 h-10 border border-gray-100 rounded-md transition-all duration-300"
+          className="p-3 w-10 h-10 border border-gray-100 bg-white rounded-md transition-all duration-300"
           onClick={toggleSidebar}
         >
-          <RiMenu2Fill className="transition-all duration-300 text-gray-500" />
+          <RiMenu2Fill className="transition-all duration-300 text-orange-900" />
         </button>
 
         {!isSidebarCollapsed && (
@@ -82,7 +82,7 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
             required
             placeholder="Rechercher..."
             autoComplete="off"
-            className="w-full sm:w-48 md:w-64 border border-gray-400 font-mono rounded-md bg-white px-3.5 py-2 pl-10 text-sm text-gray-700 placeholder:text-gray-500 focus:ring-0 focus:outline-none focus:border-blue-300 focus:shadow-sm focus:shadow-blue-200"
+            className="w-full sm:w-48 md:w-64 border border-gray-100 font-mono rounded-md bg-white px-3.5 py-2 pl-10 text-sm text-gray-700 placeholder:text-gray-500 focus:ring-0 focus:outline-none focus:border-blue-300 focus:shadow-sm focus:shadow-blue-200"
           />
         </div>
       </div>
@@ -102,7 +102,7 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
         </button>
 
         <div className="relative">
-          <Bell className="text-gray-500 cursor-pointer" size={24} />
+          <Bell className="text-gray-600 cursor-pointer" size={24} />
           <span className="absolute -top-2 -right-2 inline-flex items-center justify-center px-2 py-1 text-xs font-semibold leading-none text-red-100 bg-red-400 rounded-full">
             3
           </span>
@@ -112,7 +112,7 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
           href="/"
           className="p-2 rounded-full hover:bg-gray-200 transition-all duration-300"
         >
-          <TbHome className="text-gray-500" size={24} />
+          <TbHome className="text-gray-600" size={24} />
         </Link>
 
         <div ref={dropdownRef}>
@@ -131,7 +131,7 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-6 w-6 text-gray-500"
+          className="h-6 w-6 text-gray-600"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -156,7 +156,7 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
         <div className="sm:hidden absolute top-16 right-4 bg-white border border-gray-200 rounded-lg shadow-lg z-50 w-48 animate-fadeIn">
           <div className="flex flex-col p-2">
             <div className="flex items-center gap-2 p-2">
-              <TbUserDown className="text-gray-500" size={24} />
+              <TbUserDown className="text-gray-600" size={24} />
               <span className="text-sm font-semibold font-sans">Admin</span>
             </div>
 
@@ -170,9 +170,9 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
                 }`}
               >
                 {isDarkMode ? (
-                  <Sun className="cursor-pointer text-gray-500" size={24} />
+                  <Sun className="cursor-pointer text-gray-600" size={24} />
                 ) : (
-                  <TbMoonStars className="cursor-pointer text-gray-500" size={24} />
+                  <TbMoonStars className="cursor-pointer text-gray-600" size={24} />
                 )}
               </div>
               <span className="text-sm text-gray-700 inline">
@@ -181,7 +181,7 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
             </button>
 
             <div className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 transition-all duration-300">
-              <Bell className="text-gray-500" size={20} />
+              <Bell className="text-gray-600" size={20} />
               <span className="text-sm text-gray-700">Notifications</span>
               <span className="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-semibold leading-none text-red-100 bg-red-400 rounded-full">
                 3
@@ -192,7 +192,7 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
               href="/"
               className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 transition-all duration-300"
             >
-              <TbHome className="text-gray-500" size={20} />
+              <TbHome className="text-gray-600" size={20} />
               <span className="text-sm text-gray-700">Accueil</span>
             </Link>
           </div>
