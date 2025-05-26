@@ -13,10 +13,20 @@ function PowerBIFrame() {
   }, []);
 
   return (
-    <div className="rounded-2xl shadow-xl bg-white p-4 w-full h-screen relative overflow-hidden">
+    <div className="rounded-2xl shadow-xl bg-white w-full h-screen p-4 relative overflow-hidden">
       <h2 className="text-xl font-semibold mb-2 text-gray-800">📊 Tableau Power BI</h2>
-      <iframe title="dashaboard" width="600" height="373.5" src="https://app.powerbi.com/view?r=eyJrIjoiNDVjZGYyNDgtYmRlYi00NjEzLWE4YWMtZjk0ZjBiOWM0ZTE1IiwidCI6ImRiZDY2NjRkLTRlYjktNDZlYi05OWQ4LTVjNDNiYTE1M2M2MSIsImMiOjl9" frameborder="0" allowFullScreen="true"></iframe>
+      <div className="w-full h-[calc(100%-2.5rem)]">
+        <iframe
+          key={key}
+          ref={iframeRef}
+          title="dashboard"
+          src="https://app.powerbi.com/view?r=eyJrIjoiNDVjZGYyNDgtYmRlYi00NjEzLWE4YWMtZjk0ZjBiOWM0ZTE1IiwidCI6ImRiZDY2NjRkLTRlYjktNDZlYi05OWQ4LTVjNDNiYTE1M2M2MSIsImMiOjl9"
+          className="w-full h-full rounded-xl border-0"
+          allowFullScreen
+        />
+      </div>
     </div>
   );
 }
+
 export default PowerBIFrame;

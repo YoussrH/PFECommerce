@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import HomeLayout from "./accueil/HomeLayout";
 import Dashboard from "./accueil/dashboard/page";
 
-import Inventory from "./inventaire/page";
 import Sales from "./ventes/page";
 import Products from "./produits/page";
 import Users from "./utilisateurs/page";
@@ -31,8 +30,6 @@ export default function DashboardPage() {
       }
     } else {
       switch (pathname) {
-        case "/admin/inventory":
-          return <Inventory />;
         case "/admin/sales":
           return <Sales />;
         case "/admin/products":

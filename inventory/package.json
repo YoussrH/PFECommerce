@@ -82,6 +82,7 @@
     "recharts": "^2.15.1",
     "shadcn-ui": "^0.9.4",
     "sharp": "^0.33.5",
+    "socket.io-client": "^4.8.1",
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",

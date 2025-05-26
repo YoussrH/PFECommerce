@@ -55,6 +55,21 @@ io.on('connection', (socket) => {
     console.log(`Livreur ${livreurId} subscribed to notifications`);
   });
 
+    // Add admin subscription handler
+  socket.on('subscribe-admin', () => {
+    socket.join('admin-room');
+    console.log('Admin subscribed to notifications');
+    
+    // Optional: Send any pending notifications when admin first connects
+    // You would need to implement this based on your application needs
+  });
+
+  // Handle reclamation notifications
+  socket.on('subscribe-reclamations', () => {
+    socket.join('reclamations-room');
+    console.log(`Client ${socket.id} subscribed to reclamation updates`);
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });
@@ -91,6 +106,8 @@ app.use(
     name: 'mgm_session_id' 
   })
 );
+
+
 
 const corsOptions = {
   origin: ['http://localhost:3000', 'your-app-url-here'],

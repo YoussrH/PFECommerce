@@ -158,10 +158,11 @@ export default function CommandesPage() {
 
   console.log("[CommandesPage] Rendering commandes list with data");
   return (
-    <div className="space-y-6 p-4">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <h1 className="text-2xl font-bold">Gestion des Commandes</h1>
-        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+    <div className="space-y-6 p-4  ">
+             <h1 className="text-2xl font-bold font-mono ">Gestion des Commandes</h1>
+<div className="bg-white p-6 rounded-xl shadow-md">
+       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 w-full mb-4  md:w-auto">
           <Input
             placeholder="Rechercher par référence ou client..."
             className="w-full"
@@ -184,7 +185,7 @@ export default function CommandesPage() {
         </div>
       </div>
 
-      <div className="rounded-md border overflow-x-auto">
+      <div className="rounded-md border p-5  overflow-x-auto">
         <Table className="min-w-[800px] md:min-w-full">
           <TableHeader>
             <TableRow>
@@ -257,6 +258,7 @@ export default function CommandesPage() {
         </Table>
       </div>
 
+     </div>
 
       {totalPages > 1 && (
         <Pagination>

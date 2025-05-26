@@ -23,7 +23,7 @@ export default function AdjustmentsPage() {
       <Tabs defaultValue="size" className="w-full h-full ">
         <TabsList className="grid w-full grid-cols-2 h-12 bg-white gap-3 shadow-sm ">
         <TabsTrigger
-  value="size"  className="h-10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-100 data-[state=active]:to-white">
+  value="size"  className="h-10  data-[state=active]:bg-black data-[state=active]:text-white   ">
   Par taille</TabsTrigger>
 
 <TabsTrigger value="bulk"  className="h-10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-50 data-[state=active]:to-white">  Groupé</TabsTrigger>

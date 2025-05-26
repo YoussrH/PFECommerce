@@ -530,7 +530,7 @@ export default function AjouterArticle() {
 
   return (
     <section className="container mx-auto p-4 font-mono ">
-      <h1 className="text-xl font-bold text-gray-800 dark:text-white mb-8">Ajouter un Nouvel Article</h1>
+      <h1 className="text-xl font-bold text-black dark:text-white mb-8">Ajouter un Nouvel Article</h1>
 
       <Toaster position="top-center" autoClose={3000} />
 
@@ -546,7 +546,7 @@ export default function AjouterArticle() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="grid gap-6 bg-white p-4 rounded-lg shadow-md dark:bg-gray-800">
+      <form onSubmit={handleSubmit} className="grid gap-6 bg-white p-9 rounded-3xl shadow-lg dark:bg-gray-800">
         {/* First row - Product name and SKU */}
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
@@ -756,7 +756,7 @@ export default function AjouterArticle() {
           <Button
             type="submit"
             disabled={loading}
-            className={`w-1/3 sm:w-1/4 bg-black text-white p-2 rounded-none hover:bg-white hover:text-black border border-black transition ${
+            className={`w-1/3 sm:w-1/4 bg-black  text-white p-2 rounded-md hover:bg-white hover:text-black border border-orange-800 transition ${
               loading ? "opacity-50 cursor-not-allowed" : ""
             }`}
           >

@@ -142,20 +142,21 @@ export default function MarqueTable() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className="flex  mb-6 justify-between items-center">
             <div className="flex items-center gap-4">
               <Button variant="outline" size="icon" onClick={() => router.back()}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <CardTitle>Gestion des marques</CardTitle>
+              <h1 className="text-xl">Gestion des marques</h1>
             </div>
             <Button onClick={() => setIsAddModalOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Ajouter une marque
             </Button>
           </div>
+      <Card>
+        <CardHeader>
+
         </CardHeader>
         <CardContent>
           <div className="relative w-full max-w-md mb-6">

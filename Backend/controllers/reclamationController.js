@@ -6,6 +6,7 @@ const { Reclamation, Commande, Utilisateur } = require("../models");
 const { envoyerEmail } = require("../services/emailService");
 const nodemailer = require('nodemailer');
 const handlebars = require('handlebars');
+const { io } = require("../server");
 
 // Email transporter setup
 const transporter = nodemailer.createTransport({
@@ -212,7 +213,18 @@ const creerReclamation = async (req, res) => {
 
     // Create reclamation
     const reclamation = await Reclamation.create(reclamationData);
-
+ // In your reclamation controller when creating a new reclamation
+if (req.app.get('io')) {
+  req.app.get('io').to('admin-room').emit('new-reclamation', {
+    id: reclamation.id,
+    sujet: reclamation.sujet,
+    message: reclamation.message,
+    prenom: reclamation.prenom,
+    nom: reclamation.nom,
+    email: reclamation.email,
+    created_at: reclamation.created_at
+  });
+}
     return res.status(201).json({
       success: true,
       message: 'Réclamation créée avec succès',
@@ -638,7 +650,7 @@ async function envoyerRappelEmail(reclamation) {
       adminPrenom: reclamation.admin.prenom,
       sujet: reclamation.sujet,
       reference: `REC-${reclamation.id.slice(0, 8).toUpperCase()}`,
-      dateCreation: reclamation.createdAt.toLocaleDateString('fr-FR')
+      dateCreation: reclamation.created_at.toLocaleDateString('fr-FR')
     });
 
     await transporter.sendMail({

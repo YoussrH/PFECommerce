@@ -73,10 +73,8 @@ export default function ColisPage() {
 
   return (
     <div className="container mx-auto p-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Gestion des Colis</CardTitle>
-        </CardHeader>
+      <h1 className="text-xl ">Gestion des Colis</h1>
+      <Card className="mt-6 p-6">
         <CardContent>
           <div className="flex items-center gap-4 mb-4">
             <Select 
