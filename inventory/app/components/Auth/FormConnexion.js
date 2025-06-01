@@ -16,9 +16,17 @@ const FormConnexion = ({ formData, setFormData, handleLogin, onForgotPassword })
       [name]: value,
     });
   };
+  const handleSubmit = async (e) => {
+  e.preventDefault(); // Prevent default form submission behavior
+  try {
+    await handleLogin();
+  } catch (error) {
+    console.error('Login error:', error);
+  }
+};
 
   return (
-    <form className="space-y-4" onSubmit={handleLogin} method="POST">
+    <form className="space-y-4" onSubmit={handleSubmit} method="POST">
       <div className="w-64 mx-auto">
         <label className="block text-black font-medium mb-2 text-xs">
           Email <span className="text-yellow-500">*</span>

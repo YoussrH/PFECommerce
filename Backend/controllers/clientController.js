@@ -1,7 +1,12 @@
 // controllers/clientController.js
-const { Commande,Coupon, Client, Adresse, Utilisateur, ImageArticleCouleur,CommandeArticle, Article, CommandeHistorique, Retour, Remplacement, Colis } = require('../models');
+const { Commande,Coupon,Reclamation, Client, Adresse, Utilisateur, ImageArticleCouleur,CommandeArticle, Article, CommandeHistorique, Retour, Remplacement, Colis } = require('../models');
 const { Sequelize, Op } = require('sequelize');
 const { sequelize } = require("../models");
+const { envoyerEmail } = require('../services/emailService');
+const path = require('path');
+const fs = require('fs');
+const nodemailer = require('nodemailer');
+const handlebars = require('handlebars');
 
 /**
  * @desc Update client profile (without password)
@@ -71,10 +76,6 @@ const mettreAJourProfil = async (req, res) => {
     });
   }
 };
-
-
-
-
 
 
 
@@ -294,6 +295,7 @@ const filtrerCommandesParStatut = async (req, res) => {
  * @desc Filter client orders by date range (based on colis dates)
  * @access Client
  */
+
 const filtrerCommandesParDate = async (req, res) => {
   try {
     const userId = req.utilisateur.id;
@@ -1012,6 +1014,264 @@ const obtenirCouponsClient = async (req, res) => {
   }
 };
 
+
+/**
+ * @desc Get all reclamations for the current client
+ * @access Client
+ */
+const obtenirReclamationsClient = async (req, res) => {
+  try {
+    const userId = req.utilisateur.id;
+    const { page = 1, limit = 10, statut } = req.query;
+    const offset = (page - 1) * limit;
+
+    // First get the client's email from the authenticated user
+    const utilisateur = await Utilisateur.findByPk(userId, {
+      attributes: ['email']
+    });
+
+    if (!utilisateur) {
+      return res.status(404).json({
+        success: false,
+        message: "Utilisateur non trouvé"
+      });
+    }
+
+    // Prepare where clause to match either user ID or email
+    const whereClause = {
+      [Op.or]: [
+        { utilisateur_id: userId },
+        { email: utilisateur.email }
+      ]
+    };
+
+    if (statut) {
+      whereClause.statut = statut;
+    }
+
+    // Get reclamations with pagination
+    const { count, rows: reclamations } = await Reclamation.findAndCountAll({
+      where: whereClause,
+      order: [['date_creation', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      distinct: true
+    });
+
+    // Format the response
+    const formattedReclamations = reclamations.map(reclamation => ({
+      id: reclamation.id,
+      reference: `REC-${reclamation.id.toString().slice(0, 8).toUpperCase()}`,
+      sujet: reclamation.sujet,
+      message: reclamation.message,
+      reponse: reclamation.reponse,
+      statut: reclamation.statut,
+      categorie: reclamation.type_reclamation || 'autre',
+      created_at: reclamation.date_creation,
+      date_reponse: reclamation.date_reponse,
+      fichiers: reclamation.fichiers ? 
+        (typeof reclamation.fichiers === 'string' ? 
+          JSON.parse(reclamation.fichiers) : 
+          reclamation.fichiers) : 
+        []
+    }));
+
+    return res.json({
+      success: true,
+      data: {
+        reclamations: formattedReclamations,
+        pagination: {
+          total: count,
+          page: parseInt(page),
+          totalPages: Math.ceil(count / limit),
+          limit: parseInt(limit)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching client reclamations:', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.utilisateur?.id
+    });
+    return res.status(500).json({
+      success: false,
+      error: "Erreur lors de la récupération des réclamations",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+
+/**
+ * @desc Update client newsletter subscription status
+ * @access Client
+ */
+const mettreAJourNewsletter = async (req, res) => {
+  try {
+    const userId = req.utilisateur.id;
+    const { subscribed } = req.body;
+
+    // First get the client with user information
+    const client = await Client.findOne({
+      where: { utilisateur_id: userId },
+      include: [{
+        model: Utilisateur,
+        as: 'utilisateur',
+        attributes: ['id', 'prenom', 'email', 'newsletter']
+      }]
+    });
+
+    if (!client || !client.utilisateur) {
+      return res.status(404).json({
+        success: false,
+        message: "Client non trouvé"
+      });
+    }
+
+    // Update newsletter status directly in Utilisateur table
+    const [updatedCount] = await Utilisateur.update(
+      { newsletter: subscribed },
+      { 
+        where: { id: userId },
+        returning: true // For PostgreSQL to return the updated record
+      }
+    );
+
+    if (updatedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Échec de la mise à jour de l'abonnement"
+      });
+    }
+
+    // Send confirmation email only when subscribing (not when unsubscribing)
+    if (subscribed) {
+      try {
+        const templatePath = path.join(__dirname, '../templates/Subscription_Confirmation.html');
+        
+        // Verify template exists
+        if (!fs.existsSync(templatePath)) {
+          console.error('Template file not found:', templatePath);
+          throw new Error('Template file not found');
+        }
+
+        const templateContent = fs.readFileSync(templatePath, 'utf8');
+        const template = handlebars.compile(templateContent);
+        
+        const html = template({
+          PRENOM: client.utilisateur.prenom,
+          EMAIL: client.utilisateur.email,
+          SUBSCRIPTION_DATE: new Date().toLocaleDateString('fr-FR'),
+        COMPANY_NAME: "MGM Boutique",
+          CURRENT_YEAR: new Date().getFullYear(),
+          COMPANY_ADDRESS: "ksar hlel, Tunis, Tunisie",
+          WEBSITE_URL: process.env.FRONTEND_URL
+        });
+
+        // Send email
+        await envoyerEmail({
+          to: client.utilisateur.email,
+          subject: "Confirmation d'abonnement à notre newsletter",
+          html: html
+        });
+
+      } catch (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+        // Don't fail the request if email fails, just log it
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: subscribed 
+        ? "Vous êtes maintenant abonné à notre newsletter" 
+        : "Vous avez été désabonné de notre newsletter",
+      data: {
+        newsletter: subscribed
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in mettreAJourNewsletter:', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.utilisateur?.id
+    });
+    return res.status(500).json({
+      success: false,
+      error: "Une erreur technique est survenue. Veuillez réessayer plus tard."
+    });
+  }
+};
+
+/**
+ * @desc Check if current user has purchased the specified article
+ * @access Client
+ */
+const verifierAchatArticle = async (req, res) => {
+  try {
+    const userId = req.utilisateur.id;
+    const { articleId } = req.params;
+
+    if (!articleId) {
+      return res.status(400).json({
+        success: false,
+        message: "L'ID de l'article est requis"
+      });
+    }
+
+    // First get the client record
+    const client = await Client.findOne({
+      where: { utilisateur_id: userId }
+    });
+
+    if (!client) {
+      return res.status(404).json({
+        success: false,
+        message: "Client non trouvé"
+      });
+    }
+
+    // Check if the client has any orders containing this article
+    const hasPurchased = await CommandeArticle.findOne({
+      include: [
+        {
+          model: Commande,
+          as: 'commande',
+          where: {
+            client_id: client.utilisateur_id,
+            statut: {
+              [Op.in]: ['livree', 'expediee'] // Only consider completed/delivered orders
+            }
+          }
+        },
+        {
+          model: Article,
+          as: 'article',
+          where: { id: articleId }
+        }
+      ]
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        hasPurchased: !!hasPurchased,
+        articleId: parseInt(articleId)
+      }
+    });
+
+  } catch (error) {
+    console.error('Error checking article purchase:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Erreur lors de la vérification de l'achat de l'article",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
 module.exports = {
   mettreAJourProfil,
   obtenirCommandesClient,
@@ -1024,5 +1284,8 @@ module.exports = {
   marquerAdressePrincipale,
   mettreAJourAdresse,
   supprimerAdresse,
-  obtenirCouponsClient
+  obtenirCouponsClient,
+  obtenirReclamationsClient,
+  mettreAJourNewsletter,
+  verifierAchatArticle
 };

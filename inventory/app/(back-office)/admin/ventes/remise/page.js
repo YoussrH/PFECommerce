@@ -1,6 +1,6 @@
-"use client"
+'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/custom-select'
 import { Badge } from '@/components/ui/badge'
-import { PlusCircle, Search, Edit, Trash2 } from 'lucide-react'
+import { PlusCircle, Search, Edit, Trash2, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useRemise } from '@/hooks/useRemise'
@@ -38,9 +38,30 @@ import { useRemise } from '@/hooks/useRemise'
 export default function GestionRemises() {
   const router = useRouter()
   const { remises, loading, error, fetchRemises, deleteRemise } = useRemise()
+  
+  // State for search and filters
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('tous')
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  
+  // Debounce search input
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+      // Reset to first page when search term changes
+      setCurrentPage(1)
+    }, 500)
 
+    return () => {
+      clearTimeout(timerId)
+    }
+  }, [searchTerm])
+
+  // Load remises on mount and when debounced term changes
   useEffect(() => {
     const loadRemises = async () => {
       try {
@@ -53,16 +74,18 @@ export default function GestionRemises() {
     loadRemises()
   }, [fetchRemises])
 
+  // Handle errors
   useEffect(() => {
     if (error) {
       toast.error(error)
     }
   }, [error])
 
+  // Filter remises based on search term and status
   const filteredRemises = remises.filter(remise => {
     const matchesSearch = 
-      remise.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      remise.libelle?.toLowerCase().includes(searchTerm.toLowerCase())
+      remise.code?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      remise.libelle?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
     
     const matchesStatus = 
       filterStatus === 'tous' ||
@@ -72,10 +95,20 @@ export default function GestionRemises() {
     return matchesSearch && matchesStatus
   })
 
+  // Pagination logic
+  const totalItems = filteredRemises.length
+  const totalPages = Math.ceil(totalItems / itemsPerPage)
+  const paginatedRemises = filteredRemises.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
   const handleSupprimerRemise = async (id) => {
     try {
       await deleteRemise(id)
       toast.success('Remise supprimée avec succès')
+      // Reset to first page after deletion
+      setCurrentPage(1)
     } catch (error) {
       toast.error(error || 'Échec de la suppression')
     }
@@ -84,6 +117,15 @@ export default function GestionRemises() {
   const formaterDate = (dateString) => {
     if (!dateString) return 'N/A'
     return format(new Date(dateString), 'PP', { locale: fr })
+  }
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(Math.max(1, Math.min(newPage, totalPages)))
+  }
+
+  const handleItemsPerPageChange = (value) => {
+    setItemsPerPage(Number(value))
+    setCurrentPage(1) // Reset to first page when items per page changes
   }
 
   return (
@@ -126,78 +168,161 @@ export default function GestionRemises() {
                 <SelectItem value="inactives">Inactives</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select 
+              value={itemsPerPage.toString()} 
+              onValueChange={handleItemsPerPageChange}
+            >
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Items par page" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5 par page</SelectItem>
+                <SelectItem value="10">10 par page</SelectItem>
+                <SelectItem value="20">20 par page</SelectItem>
+                <SelectItem value="50">50 par page</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Libellé</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Valeur</TableHead>
-                <TableHead>Période</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+          <div className="relative">
+            {loading && (
+              <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            )}
             
-            <TableBody>
-              {loading ? (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
-                    Chargement en cours...
-                  </TableCell>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Libellé</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Valeur</TableHead>
+                  <TableHead>Période</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ) : filteredRemises.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center">
-                    {remises.length === 0 ? 'Aucune remise disponible' : 'Aucune remise ne correspond aux critères'}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredRemises.map((remise) => (
-                  <TableRow key={remise.id}>
-                    <TableCell className="font-medium">{remise.code}</TableCell>
-                    <TableCell>{remise.libelle}</TableCell>
-                    <TableCell>
-                      {remise.type_remise === 'pourcentage' ? 'Pourcentage' : 'Montant fixe'}
-                    </TableCell>
-                    <TableCell>
-                      {remise.type_remise === 'pourcentage' 
-                        ? `${remise.valeur} %` 
-                        : `${remise.valeur} DT`}
-                    </TableCell>
-                    <TableCell>
-                      {formaterDate(remise.date_debut)} - {formaterDate(remise.date_fin)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={remise.est_active ? 'default' : 'secondary'}>
-                        {remise.est_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="icon"
-                          onClick={() => router.push(`/admin/ventes/remise/editer/${remise.id}`)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="destructive" 
-                          size="icon"
-                          onClick={() => handleSupprimerRemise(remise.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+              </TableHeader>
+              
+              <TableBody>
+                {paginatedRemises.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center">
+                      {remises.length === 0 ? 'Aucune remise disponible' : 'Aucune remise ne correspond aux critères'}
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  paginatedRemises.map((remise) => (
+                    <TableRow key={remise.id}>
+                      <TableCell className="font-medium">{remise.code}</TableCell>
+                      <TableCell>{remise.libelle}</TableCell>
+                      <TableCell>
+                        {remise.type_remise === 'pourcentage' ? 'Pourcentage' : 'Montant fixe'}
+                      </TableCell>
+                      <TableCell>
+                        {remise.type_remise === 'pourcentage' 
+                          ? `${remise.valeur} %` 
+                          : `${remise.valeur} DT`}
+                      </TableCell>
+                      <TableCell>
+                        {formaterDate(remise.date_debut)} - {formaterDate(remise.date_fin)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={remise.est_active ? 'default' : 'secondary'}>
+                          {remise.est_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={() => router.push(`/admin/ventes/remise/editer/${remise.id}`)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            size="icon"
+                            onClick={() => handleSupprimerRemise(remise.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-muted-foreground">
+                Affichage de {(currentPage - 1) * itemsPerPage + 1} à{' '}
+                {Math.min(currentPage * itemsPerPage, totalItems)} sur {totalItems} remises
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Précédent
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    // Show pages around current page
+                    let pageNum
+                    if (totalPages <= 5) {
+                      pageNum = i + 1
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i
+                    } else {
+                      pageNum = currentPage - 2 + i
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handlePageChange(pageNum)}
+                      >
+                        {pageNum}
+                      </Button>
+                    )
+                  })}
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <>
+                      <span className="px-2">...</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(totalPages)}
+                      >
+                        {totalPages}
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Suivant
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

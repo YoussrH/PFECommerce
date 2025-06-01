@@ -1,143 +1,109 @@
-"use client"
-import { useState, useEffect } from "react"
-import { Mail, Clock, CheckCircle, ChevronRight, ChevronLeft, Search, Filter, X } from "lucide-react"
-
-// Mock data for messages - in a real app, this would come from an API
-const mockMessages = [
-  {
-    id: "msg-001",
-    subject: "Question sur ma commande #ORD-2023-1234",
-    message:
-      "Bonjour, je n'ai toujours pas reçu ma commande passée il y a 10 jours. Pouvez-vous me donner des informations sur sa livraison ?",
-    response:
-      "Bonjour, nous avons vérifié votre commande #ORD-2023-1234. Elle a été expédiée le 12/05/2023 et devrait être livrée demain. Le numéro de suivi est 1Z999AA10123456784. N'hésitez pas à nous contacter si vous avez d'autres questions.",
-    status: "answered",
-    date: "2023-05-15T14:30:00",
-    responseDate: "2023-05-15T16:45:00",
-    category: "commande",
-  },
-  {
-    id: "msg-002",
-    subject: "Retour produit défectueux",
-    message:
-      "J'ai reçu un article défectueux dans ma dernière commande. La fermeture éclair de la veste ne fonctionne pas correctement. Comment puis-je procéder pour un retour ?",
-    response:
-      "Bonjour, nous sommes désolés pour ce désagrément. Vous pouvez initier un retour directement depuis votre compte client dans la section 'Mes commandes'. Sélectionnez la commande concernée, puis 'Retourner un article'. Nous vous enverrons une étiquette de retour prépayée par email. Dès réception de l'article, nous procéderons à un remboursement ou à un échange selon votre préférence.",
-    status: "answered",
-    date: "2023-05-10T09:15:00",
-    responseDate: "2023-05-10T11:30:00",
-    category: "retour",
-  },
-  {
-    id: "msg-003",
-    subject: "Disponibilité d'un produit",
-    message:
-      "Bonjour, je souhaiterais savoir quand le pull en cachemire bleu marine sera de nouveau disponible en taille M ?",
-    response:
-      "Bonjour, merci pour votre intérêt pour notre pull en cachemire. Nous prévoyons un réapprovisionnement de ce modèle en taille M d'ici 2 semaines. Vous pouvez utiliser la fonction 'Prévenez-moi' sur la page du produit pour recevoir une notification dès qu'il sera de nouveau disponible.",
-    status: "answered",
-    date: "2023-05-05T16:20:00",
-    responseDate: "2023-05-06T10:15:00",
-    category: "produit",
-  },
-  {
-    id: "msg-004",
-    subject: "Problème de connexion à mon compte",
-    message:
-      "Je n'arrive plus à me connecter à mon compte depuis hier. J'ai essayé de réinitialiser mon mot de passe mais je ne reçois pas l'email de réinitialisation.",
-    response:
-      "Bonjour, nous avons identifié un problème technique temporaire avec notre système d'envoi d'emails. Le problème est maintenant résolu. Nous vous avons envoyé un nouveau lien de réinitialisation de mot de passe. Si vous rencontrez toujours des difficultés, n'hésitez pas à nous contacter.",
-    status: "answered",
-    date: "2023-05-02T11:45:00",
-    responseDate: "2023-05-02T14:20:00",
-    category: "compte",
-  },
-  {
-    id: "msg-005",
-    subject: "Question sur les frais de livraison",
-    message:
-      "Bonjour, je souhaite commander plusieurs articles mais je me demande si les frais de livraison sont calculés par article ou par commande ?",
-    response: "",
-    status: "pending",
-    date: "2023-05-18T08:30:00",
-    responseDate: null,
-    category: "autre",
-  },
-]
+"use client";
+import { useState, useEffect } from "react";
+import { Mail, Clock, CheckCircle, ChevronRight, ChevronLeft, Search, Filter, X, Download } from "lucide-react";
+import axios from "axios";
+import { useAuth } from "@/app/contexts/AuthContext";
 
 export default function ServiceClient() {
-  const [messages, setMessages] = useState([])
-  const [selectedMessage, setSelectedMessage] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filterStatus, setFilterStatus] = useState("all")
-  const [filterCategory, setFilterCategory] = useState("all")
+  const { user, token } = useAuth();
+  const [messages, setMessages] = useState([]);
+  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, limit: 10 });
 
-  // Simulate API call to fetch messages
+  const API_BASE_URL = "http://localhost:5000/clients/reclamations";
+
   useEffect(() => {
-    const fetchMessages = async () => {
-      setIsLoading(true)
-      // Simulate API delay
-      setTimeout(() => {
-        setMessages(mockMessages)
-        setIsLoading(false)
-      }, 1000)
-    }
+    const fetchReclamations = async () => {
+      if (!user) return;
+      
+      setIsLoading(true);
+      try {
+        // Map frontend filter values to backend expected values
+        const backendStatus = filterStatus === "repondu" ? "traite" : 
+                            filterStatus === "en_attente" ? "nouveau" : 
+                            undefined;
 
-    fetchMessages()
-  }, [])
+        const response = await axios.get(`${API_BASE_URL}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          params: {
+            page: pagination.page,
+            limit: pagination.limit,
+            statut: filterStatus !== "all" ? backendStatus : undefined,
+            search: searchTerm || undefined,
+            categorie: filterCategory !== "all" ? filterCategory : undefined
+          },
+        });
 
-  // Filter messages based on search term and filters
-  const filteredMessages = messages.filter((message) => {
-    const matchesSearch =
-      message.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      message.message.toLowerCase().includes(searchTerm.toLowerCase())
+        const formattedMessages = response.data.data.reclamations.map((reclamation) => ({
+          id: reclamation.id,
+          reference: reclamation.reference,
+          subject: reclamation.sujet,
+          message: reclamation.message,
+          response: reclamation.reponse,
+          status: reclamation.statut === "traite" ? "repondu" : "en_attente",
+          date: reclamation.created_at,
+          responseDate: reclamation.date_reponse,
+          category: reclamation.categorie,
+          files: reclamation.fichiers || [],
+          responseFiles: reclamation.fichiers?.filter(f => f.url.includes("/reponses/")) || []
+        }));
 
-    const matchesStatus = filterStatus === "all" || message.status === filterStatus
+        setMessages(formattedMessages);
+        setPagination({
+          ...pagination,
+          totalPages: response.data.data.pagination.totalPages,
+        });
+      } catch (error) {
+        console.error("Error fetching reclamations:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    const matchesCategory = filterCategory === "all" || message.category === filterCategory
+    fetchReclamations();
+  }, [pagination.page, filterStatus, filterCategory, searchTerm, user, token]);
 
-    return matchesSearch && matchesStatus && matchesCategory
-  })
-
-  // Format date to a readable format
   const formatDate = (dateString) => {
-    if (!dateString) return ""
-    const date = new Date(dateString)
+    if (!dateString) return "";
+    const date = new Date(dateString);
     return new Intl.DateTimeFormat("fr-FR", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    }).format(date)
-  }
+    }).format(date);
+  };
 
-  // Get status badge color and text
   const getStatusBadge = (status) => {
     switch (status) {
-      case "answered":
+      case "repondu":
         return {
           color: "bg-green-100 text-green-800",
           text: "Répondu",
           icon: <CheckCircle className="w-3 h-3 mr-1" />,
-        }
-      case "pending":
+        };
+      case "en_attente":
         return {
           color: "bg-yellow-100 text-yellow-800",
           text: "En attente",
           icon: <Clock className="w-3 h-3 mr-1" />,
-        }
+        };
       default:
         return {
           color: "bg-gray-100 text-gray-800",
           text: "Inconnu",
           icon: null,
-        }
+        };
     }
-  }
+  };
 
-  // Get category display name
   const getCategoryName = (category) => {
     const categories = {
       commande: "Commande",
@@ -145,14 +111,38 @@ export default function ServiceClient() {
       produit: "Information produit",
       compte: "Mon compte",
       autre: "Autre",
-    }
-    return categories[category] || "Autre"
+    };
+    return categories[category] || "Autre";
+  };
+
+  const handlePageChange = (newPage) => {
+    setPagination({ ...pagination, page: newPage });
+  };
+
+  const handleDownload = (url, name) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  if (!user) {
+    return (
+      <div className="p-4 md:p-6 border border-gray-200 rounded-sm">
+        <div className="text-center py-12">
+          <h3 className="text-md font-medium mb-2">Veuillez vous connecter</h3>
+          <p className="text-sm text-gray-500">Vous devez être connecté pour accéder à vos messages.</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="p-4 md:p-6 border border-gray-200 rounded-sm">
       <div className="mb-6">
-        <h2 className="text-lg md:text-xl font-semibold mb-2">Mes messages</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-2">Mes réclamations</h2>
         <p className="text-sm text-gray-600">Consultez l&apos;historique de vos échanges avec notre service client.</p>
       </div>
 
@@ -163,7 +153,7 @@ export default function ServiceClient() {
             <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Rechercher dans vos messages..."
+              placeholder="Rechercher par sujet, message ou référence..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-sm text-sm"
@@ -187,8 +177,8 @@ export default function ServiceClient() {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-sm text-sm appearance-none"
               >
                 <option value="all">Tous les statuts</option>
-                <option value="answered">Répondus</option>
-                <option value="pending">En attente</option>
+                <option value="repondu">Répondu</option>
+                <option value="en_attente">En attente</option>
               </select>
             </div>
 
@@ -215,7 +205,6 @@ export default function ServiceClient() {
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-black"></div>
         </div>
       ) : selectedMessage ? (
-        // Message detail view
         <div className="border border-gray-200 rounded-sm overflow-hidden">
           <div className="bg-gray-50 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-200">
             <button
@@ -225,12 +214,9 @@ export default function ServiceClient() {
               <ChevronLeft size={16} className="mr-1" />
               Retour à la liste
             </button>
-
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">{formatDate(selectedMessage.date)}</span>
-              <span
-                className={`px-2 py-1 text-xs rounded-full flex items-center ${getStatusBadge(selectedMessage.status).color}`}
-              >
+              <span className={`px-2 py-1 text-xs rounded-full flex items-center ${getStatusBadge(selectedMessage.status).color}`}>
                 {getStatusBadge(selectedMessage.status).icon}
                 {getStatusBadge(selectedMessage.status).text}
               </span>
@@ -239,8 +225,11 @@ export default function ServiceClient() {
 
           <div className="p-4">
             <h3 className="text-md font-medium mb-1">{selectedMessage.subject}</h3>
-            <p className="text-xs text-gray-500 mb-4">Catégorie: {getCategoryName(selectedMessage.category)}</p>
+            <p className="text-xs text-gray-500 mb-4">
+              Référence: {selectedMessage.reference} • Catégorie: {getCategoryName(selectedMessage.category)}
+            </p>
 
+            {/* Original message */}
             <div className="mb-6">
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
@@ -251,11 +240,31 @@ export default function ServiceClient() {
                     <p className="text-sm whitespace-pre-line">{selectedMessage.message}</p>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">{formatDate(selectedMessage.date)}</p>
+                  
+                  {/* Display attached files */}
+                  {selectedMessage.files.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-xs text-gray-500 mb-1">Pièces jointes:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedMessage.files.map((file, index) => (
+                          <div 
+                            key={index} 
+                            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
+                            onClick={() => handleDownload(file.url, file.name)}
+                          >
+                            <Download size={12} />
+                            {file.name} ({file.size})
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {selectedMessage.status === "answered" && (
+            {/* Response section */}
+            {selectedMessage.status === "repondu" && selectedMessage.response && (
               <div className="mt-6">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center flex-shrink-0">
@@ -265,28 +274,49 @@ export default function ServiceClient() {
                     <div className="bg-black text-white p-3 rounded-lg">
                       <p className="text-sm whitespace-pre-line">{selectedMessage.response}</p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">{formatDate(selectedMessage.responseDate)}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Répondu le {formatDate(selectedMessage.responseDate)}
+                    </p>
+
+                    {/* Display response files if any */}
+                    {selectedMessage.responseFiles.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs text-gray-300 mb-1">Pièces jointes:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedMessage.responseFiles.map((file, index) => (
+                            <div 
+                              key={index} 
+                              className="flex items-center gap-1 text-xs text-blue-300 hover:text-blue-100 cursor-pointer"
+                              onClick={() => handleDownload(file.url, file.name)}
+                            >
+                              <Download size={12} />
+                              {file.name} ({file.size})
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             )}
           </div>
         </div>
-      ) : filteredMessages.length === 0 ? (
+      ) : messages.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-gray-300 rounded-sm">
           <Mail size={40} className="mx-auto mb-4 text-gray-300" />
-          <h3 className="text-md font-medium mb-2">Aucun message trouvé</h3>
+          <h3 className="text-md font-medium mb-2">Aucune réclamation trouvée</h3>
           <p className="text-sm text-gray-500">
             {searchTerm || filterStatus !== "all" || filterCategory !== "all"
-              ? "Aucun message ne correspond à vos critères de recherche."
-              : "Vous n'avez pas encore envoyé de message à notre service client."}
+              ? "Aucune réclamation ne correspond à vos critères de recherche."
+              : "Vous n'avez pas encore envoyé de réclamation à notre service client."}
           </p>
           {(searchTerm || filterStatus !== "all" || filterCategory !== "all") && (
             <button
               onClick={() => {
-                setSearchTerm("")
-                setFilterStatus("all")
-                setFilterCategory("all")
+                setSearchTerm("");
+                setFilterStatus("all");
+                setFilterCategory("all");
               }}
               className="mt-4 text-sm text-black underline hover:no-underline"
             >
@@ -295,9 +325,8 @@ export default function ServiceClient() {
           )}
         </div>
       ) : (
-        // Messages list view
         <div className="space-y-4">
-          {filteredMessages.map((message) => (
+          {messages.map((message) => (
             <div
               key={message.id}
               className="border border-gray-200 rounded-sm overflow-hidden hover:border-gray-300 transition-colors cursor-pointer"
@@ -305,7 +334,10 @@ export default function ServiceClient() {
             >
               <div className="p-4">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-sm font-medium">{message.subject}</h3>
+                  <div>
+                    <h3 className="text-sm font-medium">{message.subject}</h3>
+                    <p className="text-xs text-gray-500">Ref: {message.reference}</p>
+                  </div>
                   <span
                     className={`ml-2 px-2 py-1 text-xs rounded-full flex items-center whitespace-nowrap ${getStatusBadge(message.status).color}`}
                   >
@@ -320,8 +352,14 @@ export default function ServiceClient() {
 
                 <p className="text-sm text-gray-700 line-clamp-2 mb-2">{message.message}</p>
 
+                {message.files.length > 0 && (
+                  <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
+                    <span>Pièces jointes: {message.files.length}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between items-center">
-                  {message.status === "answered" ? (
+                  {message.status === "repondu" ? (
                     <p className="text-xs text-gray-500">Répondu le {formatDate(message.responseDate)}</p>
                   ) : (
                     <p className="text-xs text-yellow-600">En attente de réponse</p>
@@ -334,8 +372,31 @@ export default function ServiceClient() {
               </div>
             </div>
           ))}
+          
+          {/* Pagination controls */}
+          {pagination.totalPages > 1 && (
+            <div className="flex justify-between items-center mt-4">
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page === 1}
+                className="px-4 py-2 text-sm text-gray-600 disabled:opacity-50"
+              >
+                Précédent
+              </button>
+              <span className="text-sm text-gray-600">
+                Page {pagination.page} sur {pagination.totalPages}
+              </span>
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page === pagination.totalPages}
+                className="px-4 py-2 text-sm text-gray-600 disabled:opacity-50"
+              >
+                Suivant
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
-  )
+  );
 }

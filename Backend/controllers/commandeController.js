@@ -1959,7 +1959,6 @@ const obtenirCommandesALivrer = async (req, res) => {
   }
 };
 
-
 module.exports = {
   genererFacturePDF,
   listerCommandes,
@@ -1974,5 +1973,5 @@ module.exports = {
   confirmerLivraisonQR,
   notifierExpEdition,
   obtenirCommandesALivrer,
-  remplacerCommande
+  remplacerCommande,
 };

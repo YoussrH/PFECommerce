@@ -9,8 +9,17 @@ import { Menu } from 'lucide-react';
 export default function CustomerLayout({ children }) {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, isAuthenticated, loading, logout } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Set active section from URL
+  React.useEffect(() => {
+    const section = searchParams.get("section");
+    if (section) {
+      setActiveSection(section);
+    }
+  }, [searchParams]);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);

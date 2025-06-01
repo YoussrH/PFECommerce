@@ -309,28 +309,27 @@ const updateProfile = async (profileData) => {
   /**
    * Update newsletter subscription
    */
-  const updateNewsletterSubscription = async (subscribed) => {
-    if (!isAuthenticated) return { success: false, error: 'Non authentifié' };
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await api.put('/mettreAJourNewsletter', { subscribed });
-      
-      if (response.data.success) {
-        toast.success('Préférences newsletter mises à jour');
-        return { success: true, data: response.data.data };
-      }
-      
-      throw new Error(response.data.message || 'Échec de la mise à jour des préférences newsletter');
-    } catch (error) {
-      return handleError(error, 'Échec de la mise à jour des préférences newsletter');
-    } finally {
-      setLoading(false);
-    }
-  };
 
+  const updateNewsletterSubscription = async (subscribed) => {
+  if (!isAuthenticated) return { success: false, error: 'Non authentifié' };
+  
+  try {
+    setLoading(true);
+    setError(null);
+    
+    const response = await api.put('/mettreAJourNewsletter', { subscribed });
+    
+    if (response.data.success) {
+      return { success: true, data: response.data.data };
+    }
+    
+    throw new Error(response.data.message || 'Échec de la mise à jour des préférences newsletter');
+  } catch (error) {
+    return handleError(error, 'Échec de la mise à jour des préférences newsletter');
+  } finally {
+    setLoading(false);
+  }
+};
 
     const markAddressAsPrimary = async (addressId) => {
     if (!isAuthenticated) return { success: false, error: 'Non authentifié' };

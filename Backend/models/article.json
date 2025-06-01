@@ -1835,7 +1835,7 @@
     "nom_produit": "JEAN SLIM CLASSIQUE",
     "description": "Jean coupe slim en tissu denim extensible. Cinq poches. Effet délavé. Fermeture zip et bouton sur le devant.",
     "conseils": "Déteint naturellement\nLaver séparément",
-    "sku": "JEAN-SLIM-CLASSIQUE-018",
+    "sku": "JEAN-SLIM-Coupe-018",
     "prix": 69,
     "remise": 0,
     "seo_titre": "Jean Slim Extensible – Coupe Ajustée et Confort Moderne",
@@ -1879,5 +1879,156 @@
         "https://res.cloudinary.com/dnkd2ksye/image/upload/v1744145465/ecommerce/Jean-slim-Dark-blue-5.jpg"
       ]
     }
-  }
+  },
+  {
+    "nom_produit": "CHEMISE MANCHE LONGUE",
+    "description": "Chemise manche longue pour petit garçon en coton doux. Col classique, boutonnage devant. Coupe droite pour un confort optimal.",
+    "conseils": "Lavage en machine à 30°C\nRepasser à basse température",
+    "prix": 29.90,
+    "remise": 0,
+    "sku": "CHEMISE-ENFANT-B12-018",
+    "seo_titre": "Chemise manche longue garçon  - Coton doux, col classique",
+    "mots_cles_seo": "chemise enfant, chemise garçon, chemise manche longue, vêtement scolaire, chemise coton, mode enfant",
+    "categorie_id": 13,
+    "marque_id": 5,
+    "genre_id": 3,
+    "variations": [
+      {"taille_id": 364, "couleur_id": 2, "quantite": 8},
+      {"taille_id": 365, "couleur_id": 2, "quantite": 6},
+      {"taille_id": 366, "couleur_id": 2, "quantite": 7}
+    ],
+    "images_par_couleur": {
+      "2": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733735/ecommerce/CHEMISE-B12-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733741/ecommerce/CHEMISE-B12-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733746/ecommerce/CHEMISE-B12-3.jpg"
+      ]
+    }
+},
+{
+    "nom_produit": "CHEMISE MANCHE LONGUE ",
+    "description": "Chemise manche longue pour garçonnet en tissu respirant. Design sobre avec pochette poitrine. Parfait pour les occasions formelles.",
+    "conseils": "Lavage à la main recommandé\nSécher à l'ombre",
+    "prix": 34.90,
+    "remise": 0,
+    "sku": "CHEMISE-ENFANT-B19-019",
+    "seo_titre": "Chemise habillée garçon  - Tissu respirant, pochette poitrine",
+    "mots_cles_seo": "chemise habillée enfant, chemise cérémonie, chemise formelle, vêtement garçon, chemise élégante",
+    "categorie_id": 13,
+    "marque_id": 5,
+    "genre_id": 3,
+    "variations": [
+      {"taille_id": 364, "couleur_id": 14, "quantite": 5},
+      {"taille_id": 365, "couleur_id": 14, "quantite": 5},
+      {"taille_id": 366, "couleur_id": 14, "quantite": 5}
+    ],
+    "images_par_couleur": {
+      "14": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733753/ecommerce/CHEMISE-B19-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733758/ecommerce/CHEMISE-B19-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733771/ecommerce/CHEMISE-B19-3.jpg"
+      ]
+    }
+},
+{
+    "nom_produit": "CHEMISE MANCHE LONGUE ",
+    "description": "Chemise manche longue garçon en popeline de coton. Motifs discrets, manches avec boutons de réglage. Idéale pour l'école.",
+    "conseils": "Lavage machine 40°C\nNe pas utiliser d'eau de javel",
+    "prix": 27.50,
+    "remise": 0,
+    "sku": "CHEMISE-ENFANT-B20-020",
+    "seo_titre": "Chemise scolaire garçon  - Popeline de coton, motifs discrets",
+    "mots_cles_seo": "chemise école, chemise scolaire, vêtement quotidien, chemise confort, popeline coton, chemise garçonnet",
+    "categorie_id": 13,
+    "marque_id": 5,
+    "genre_id": 3,
+    "variations": [
+      {"taille_id": 364, "couleur_id": 9, "quantite": 10},
+      {"taille_id": 365, "couleur_id": 9, "quantite": 8},
+      {"taille_id": 366, "couleur_id": 9, "quantite": 6}
+    ],
+    "images_par_couleur": {
+      "9": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733777/ecommerce/CHEMISE-B20-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733782/ecommerce/CHEMISE-B20-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733788/ecommerce/CHEMISE-B20-3.jpg"
+      ]
+    }
+},
+{
+    "nom_produit": "CHEMISE MANCHE LONGUE ",
+    "description": "Chemise classique manche longue pour jeune garçon. Tissu résistant aux froissements, col boutonné pour plus de praticité.",
+    "conseils": "Repassage facile\nSéchage en machine possible",
+    "prix": 31.90,
+    "remise": 0,
+    "sku": "CHEMISE-ENFANT-B3-021",
+    "seo_titre": "Chemise pratique garçon  - Tissu infroissable, col boutonné",
+    "mots_cles_seo": "chemise pratique, chemise infroissable, vêtement facile d'entretien, chemise quotidienne, mode garçon",
+    "categorie_id": 13,
+    "marque_id": 5,
+    "genre_id": 3,
+    "variations": [
+      {"taille_id": 364, "couleur_id": 38, "quantite": 7},
+      {"taille_id": 365, "couleur_id": 38, "quantite": 7},
+      {"taille_id": 366, "couleur_id": 38, "quantite": 7}
+    ],
+    "images_par_couleur": {
+      "38": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733854/ecommerce/CHEMISE-B3-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733859/ecommerce/CHEMISE-B3-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733864/ecommerce/CHEMISE-B3-3.jpg"
+      ]
+    }
+},
+{
+    "nom_produit": "CHEMISE MANCHE LONGUE ",
+    "description": "Chemise manche longue garçon en coton bio. Coupe légèrement ajustée, poignets mousquetaire. Style à la fois classique et moderne.",
+    "conseils": "Lavage écologique recommandé\nSécher à plat",
+    "prix": 36.90,
+    "remise": 0,
+    "sku": "CHEMISE-ENFANT-B5-022",
+    "seo_titre": "Chemise bio garçon  - Coton organique, poignets mousquetaire",
+    "mots_cles_seo": "chemise bio, coton organique, vêtement écologique, chemise qualité, mode responsable enfant",
+    "categorie_id": 13,
+    "marque_id": 5,
+    "genre_id": 3,
+    "variations": [
+      {"taille_id": 364, "couleur_id": 39, "quantite": 6},
+      {"taille_id": 365, "couleur_id": 39, "quantite": 6},
+      {"taille_id": 366, "couleur_id": 39, "quantite": 6}
+    ],
+    "images_par_couleur": {
+      "39": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733921/ecommerce/CHEMISE-B5-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733927/ecommerce/CHEMISE-B5-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733934/ecommerce/CHEMISE-B5-3.jpg"
+      ]
+    }
+},
+{
+    "nom_produit": "CHEMISE MANCHE LONGUE ",
+    "description": "Chemise manche longue fantaisie pour garçon. Motifs originaux, tissu doux au toucher. Parfaite pour égayer la garde-robe enfantine.",
+    "conseils": "Lavage délicat 30°C\nNe pas tordre",
+    "prix": 32.50,
+    "remise": 0,
+    "sku": "CHEMISE-ENFANT-B27-023",
+    "seo_titre": "Chemise fantaisie garçon  - Motifs originaux, tissu doux",
+    "mots_cles_seo": "chemise fantaisie, chemise originale, vêtement enfant design, chemise tendance, mode créative",
+    "categorie_id": 13,
+    "marque_id": 5,
+    "genre_id": 3,
+    "variations": [
+      {"taille_id": 364, "couleur_id": 40, "quantite": 5},
+      {"taille_id": 365, "couleur_id": 40, "quantite": 5},
+      {"taille_id": 366, "couleur_id": 40, "quantite": 5}
+    ],
+    "images_par_couleur": {
+      "40": [
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733827/ecommerce/CHEMISE-B27-1.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733834/ecommerce/CHEMISE-B27-2.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733845/ecommerce/CHEMISE-B27-3.jpg",
+        "https://res.cloudinary.com/dnkd2ksye/image/upload/v1748733849/ecommerce/CHEMISE-B27-4.jpg"
+      ]
+    }
+}
 ]

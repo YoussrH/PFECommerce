@@ -6,36 +6,34 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import MonProfil from "./compte/edit/page";
 import Mywishlist from "./listenvie/page";
 import { useClient } from "@/hooks/useClient";
+import { toast } from "sonner";
 
 export default function Account() {
-  const [isLoading, setIsLoading] = useState(true);
   const [activeSection, setActiveSection] = useState("dashboard");
-  const { user, isAuthenticated, loading, checkAuth } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const { updateNewsletterSubscription } = useClient();
   const searchParams = useSearchParams();
-  const section = searchParams.get("section");
 
-  useEffect(() => {
+  // Set active section from URL
+  React.useEffect(() => {
+    const section = searchParams.get("section");
     if (section) setActiveSection(section);
-  }, [section]);
-
-  useEffect(() => {
-    const verifyAuth = async () => {
-      await checkAuth();
-      setIsLoading(false);
-    };
-    verifyAuth();
-  }, [checkAuth]);
+  }, [searchParams]);
 
   const handleNewsletterChange = async (e) => {
     try {
       const subscribed = e.target.checked;
       const { success } = await updateNewsletterSubscription(subscribed);
       if (success) {
-        // Update local user state if needed
+        toast.success(
+          subscribed 
+            ? "Vous êtes maintenant abonné à notre newsletter" 
+            : "Vous avez été désabonné de notre newsletter"
+        );
       }
     } catch (error) {
       console.error("Failed to update newsletter subscription:", error);
+      toast.error("Une erreur est survenue lors de la mise à jour de votre abonnement");
     }
   };
 
@@ -51,7 +49,7 @@ export default function Account() {
     );
   }
 
-  if (loading || isLoading) {
+  if (loading) {
     return (
       <div className="container mx-auto p-4 md:p-6 flex justify-center items-center">
         Chargement...
@@ -76,7 +74,7 @@ export default function Account() {
               </div>
               <div>
                 <p className="text-gray-700 mb-2 text-sm md:text-base">
-                  <span className="font-semibold">{user?.prefix} {user?.nom} {user?.prenom}</span>
+                  <span className="font-semibold">{user?.client?.prefix} {user?.client?.nom} {user?.client?.prenom}</span>
                 </p>
                 <p className="text-gray-700 mb-4 text-sm md:text-base">{user?.email}</p>
                 <Link 
@@ -93,12 +91,13 @@ export default function Account() {
               <label className="flex items-center gap-2">
                 <input 
                   type="checkbox" 
-                  checked={user?.newsletter || false} 
+                  checked={user?.client?.newsletter || false} 
                   onChange={handleNewsletterChange}
                   className="form-checkbox h-4 w-4 md:h-5 md:w-5 text-black rounded-sm focus:ring-black focus:border-white" 
                 />
                 <p className="text-gray-700 text-sm md:text-base">
-                  {user?.newsletter ? "Vous êtes abonné à notre newsletter."
+                  {user?.client?.newsletter 
+                    ? "Vous êtes abonné à notre newsletter."
                     : "Vous n'êtes abonné à aucune newsletter."}
                 </p>
               </label>

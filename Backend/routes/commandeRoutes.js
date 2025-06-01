@@ -20,5 +20,6 @@ router.get("/genererFacture/:id/facture", authentifier, commandeController.gener
 router.get("/:id/historique", authentifier, commandeController.obtenirHistorique);//est3mltha web
 router.post("/:id/notifier", authentifier, commandeController.envoyerNotificationClient);
 router.get("/commandes-a-livrer", authentifier, verifierAdmin, commandeController.obtenirCommandesALivrer);
+// Replace the existing /checkPurchaseStatus route with this:
 
 module.exports = router;

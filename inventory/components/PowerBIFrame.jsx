@@ -16,13 +16,13 @@ function PowerBIFrame() {
     <div className="rounded-2xl shadow-xl bg-white w-full h-screen p-4 relative overflow-hidden">
       <h2 className="text-xl font-semibold mb-2 text-gray-800">📊 Tableau Power BI</h2>
       <div className="w-full h-[calc(100%-2.5rem)]">
-        <iframe
+        <iframe 
           key={key}
-          ref={iframeRef}
-          title="dashboard"
-          src="https://app.powerbi.com/view?r=eyJrIjoiNDVjZGYyNDgtYmRlYi00NjEzLWE4YWMtZjk0ZjBiOWM0ZTE1IiwidCI6ImRiZDY2NjRkLTRlYjktNDZlYi05OWQ4LTVjNDNiYTE1M2M2MSIsImMiOjl9"
+          title="MGMstat"
           className="w-full h-full rounded-xl border-0"
-          allowFullScreen
+          src="https://app.powerbi.com/view?r=eyJrIjoiMzBjMzlhMjUtYzk2Yy00YmQ2LWE5ZTUtZmM5OTdhNmJhM2UyIiwidCI6ImRiZDY2NjRkLTRlYjktNDZlYi05OWQ4LTVjNDNiYTE1M2M2MSIsImMiOjl9" 
+          frameBorder="0" 
+          allowFullScreen={true}
         />
       </div>
     </div>

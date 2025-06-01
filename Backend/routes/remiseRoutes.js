@@ -19,10 +19,10 @@ router.post('/:remiseId/removeRemiseFromArticles', authentifier, verifierAdmin, 
 // Update a discount
 router.put('/updateRemise/:id',  authentifier, verifierAdmin,remiseController.updateRemise);
 
+
 // Delete a discount
 router.delete('/deleteRemise/:id',  authentifier, verifierAdmin,remiseController.deleteRemise);
 // Add this route before the other routes
-router.get('/:id', authentifier, verifierAdmin, remiseController.getRemiseById);
 
-// The rest of your existing routes...
+router.get('/getRemiseById/:id', authentifier, verifierAdmin, remiseController.getRemiseById);
 module.exports = router;

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const reclamationController = require('../controllers/reclamationController');
 const { authentifier,verifierAdmin } = require('../middleware/authMiddleware');
-const upload = require('../middleware/uploadMiddleware');
+const upload = require('../Middleware/uploadMiddleware');
 // ➕ Public Route - User submits a new reclamation
 router.post('/creerReclamation', 
   upload.array('fichiers'), // Handle file uploads

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Découvrez notre nouveau produit</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+        .header {
+            background: linear-gradient(135deg, #3a7bd5 0%, #00d2ff 100%);
+            padding: 40px 20px;
+            text-align: center;
+            color: white;
+        }
+        .header h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            margin: 0;
+            font-size: 28px;
+        }
+        .header p {
+            font-weight: 400;
+            opacity: 0.9;
+            margin: 8px 0 0;
+        }
+        .content {
+            padding: 35px;
+        }
+        .product-card {
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 25px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border: 1px solid #eaeaea;
+        }
+        .product-image-container {
+            height: 220px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f7fa;
+        }
+        .product-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .product-details {
+            padding: 20px;
+        }
+        .price-container {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+        }
+        .current-price {
+            font-size: 26px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        .old-price {
+            text-decoration: line-through;
+            color: #95a5a6;
+            margin-left: 10px;
+            font-size: 18px;
+        }
+        .discount-badge {
+            background-color: #e74c3c;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-left: 12px;
+        }
+        .action-btn {
+            display: inline-block;
+            background: linear-gradient(to right, #3a7bd5, #00d2ff);
+            color: white;
+            padding: 14px 28px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(58, 123, 213, 0.2);
+        }
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(58, 123, 213, 0.3);
+        }
+        .features {
+            margin: 20px 0;
+        }
+        .feature {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: flex-start;
+            padding-left: 24px;
+            position: relative;
+        }
+        .feature:before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 6px;
+            width: 16px;
+            height: 16px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2327ae60"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>');
+            background-repeat: no-repeat;
+        }
+        .footer {
+            text-align: center;
+            padding: 25px;
+            font-size: 13px;
+            color: #7f8c8d;
+            background-color: #f1f5f9;
+        }
+        .social-icons {
+            margin: 15px 0;
+        }
+        .social-icon {
+            display: inline-block;
+            margin: 0 8px;
+        }
+        .unsubscribe {
+            font-size: 12px;
+            color: #95a5a6;
+            margin-top: 30px;
+            text-align: center;
+        }
+        .unsubscribe a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        .product-title {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0 0 10px 0;
+            font-size: 22px;
+        }
+        .product-description {
+            color: #555;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Découvrez notre nouveauté exclusive</h1>
+            <p>Réservé à nos meilleurs clients</p>
+        </div>
+        <div class="content">
+            <p>Bonjour {{PRENOM}},</p>
+            
+            <p>Nous sommes ravis de vous présenter en avant-première notre dernier produit qui vient tout juste d'arriver :</p>
+            
+            <div class="product-card">
+                <div class="product-image-container">
+                    <img src="{{PRODUCT_IMAGE}}" alt="{{PRODUCT_NAME}}" class="product-image">
+                </div>
+                <div class="product-details">
+                    <h2 class="product-title">{{PRODUCT_NAME}}</h2>
+                    
+                    <div class="price-container">
+                        <span class="current-price">{{PRICE}}DT</span>
+                        {{#DISCOUNT_PRICE}}
+                        <span class="old-price">{{ORIGINAL_PRICE}}DT</span>
+                        <span class="discount-badge">-{{DISCOUNT_PERCENT}}%</span>
+                        {{/DISCOUNT_PRICE}}
+                    </div>
+                    
+                    <p class="product-description">{{PRODUCT_DESCRIPTION}}</p>
+
+                    
+                </div>
+            </div>
+            
+            <p>Ce produit est disponible en édition limitée. Faites vite, les stocks sont comptés !</p>
+            
+            <p>Avec toute notre gratitude,<br><strong>L'équipe {{COMPANY_NAME}}</strong></p>
+
+            
+            <div class="unsubscribe">
+                Vous recevez cet email car vous êtes abonné à notre newsletter. 
+            </div>
+        </div>
+        <div class="footer">
+            <p>© {{CURRENT_YEAR}} {{COMPANY_NAME}}. Tous droits réservés.</p>
+            <p>{{COMPANY_ADDRESS}}</p>
+            <p>
+                <a href="{{WEBSITE_URL}}" style="color: #3a7bd5; text-decoration: none;">Notre site web</a> | 
+                <a href="{{CONTACT_LINK}}" style="color: #3a7bd5; text-decoration: none;">Contact</a> | 
+                <a href="{{PRIVACY_LINK}}" style="color: #3a7bd5; text-decoration: none;">Confidentialité</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -168,7 +168,7 @@ const getPrimaryImage = (produit) => {
                       )}
                     </div>
 
-                    <div className="absolute inset-0 flex items-center justify-center p-3 pt-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="absolute inset-0 flex items-center justify-center p-3 pt-9 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <div className="flex gap-2 w-full">
                         <Button
                           variant="default"

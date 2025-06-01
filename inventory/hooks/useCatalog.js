@@ -86,26 +86,35 @@ const useCatalog = () => {
     }
   }, [categories]);
 
-  const fetchArticlesByGenre = useCallback(async (genreIds) => {
-    setFilterLoading(true);
-    try {
-      const response = await axios.post(`${API_URL}/articles/filtrerArticles`, {
-        filtres: [
-          {
-            category: "Genres",
-            filter: genres.find(g => g.id === genreIds[0])?.libelle
-          }
-        ]
-      });
-      setFilteredArticles(response.data.donnees);
-      return response.data.donnees;
-    } catch (error) {
-      handleError(error, "Failed to fetch articles by genre", setFilterError);
-      return [];
-    } finally {
-      setFilterLoading(false);
-    }
-  }, [genres]);
+const fetchArticlesByGenre = useCallback(async (genreIds) => {
+  setFilterLoading(true);
+  try {
+    // Make separate API calls for each genre ID
+    const articlesPromises = genreIds.map(id => 
+      axios.get(`${API_URL}/articles/obtenirArticlesParGenre/${id}`)
+    );
+    
+    const responses = await Promise.all(articlesPromises);
+    
+    // Combine all articles from all responses
+    const allArticles = responses.flatMap(response => 
+      response.data.success ? response.data.donnees : []
+    );
+    
+    // Remove duplicates (in case an article belongs to multiple selected genres)
+    const uniqueArticles = allArticles.filter(
+      (article, index, self) => index === self.findIndex(a => a.id === article.id)
+    );
+    
+    setFilteredArticles(uniqueArticles);
+    return uniqueArticles;
+  } catch (error) {
+    handleError(error, "Failed to fetch articles by genre", setFilterError);
+    return [];
+  } finally {
+    setFilterLoading(false);
+  }
+}, []);
   // Fetch all articles
   const fetchAllArticles = useCallback(async () => {
     setArticlesLoading(true);

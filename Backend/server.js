@@ -34,7 +34,7 @@ const paimentRoutes = require('./routes/paimentRoutes');
 const factureRoutes = require('./routes/factureRoutes');
 const path = require('path');
 const cronJobs = require('./utils/cronJobs'); 
-
+const avisRoutes = require('./routes/avisRoutes');
 // Create HTTP server for Socket.IO
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -86,42 +86,34 @@ const pool = new Pool({
   port: parseInt(process.env.DB_PORT, 10)|| 2103, 
 });
 
+const corsOptions = {
+  origin: ['http://localhost:3000', 'http://localhost:5000'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Set-Cookie', 'Cache-Control'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  exposedHeaders: ['set-cookie']
+};
+
+// Update session configuration
 app.use(
   session({
     store: new pgSession({
       pool: pool,
       tableName: "session",
-      createTableIfMissing: false,
-      pruneSessionInterval: 60 * 60 
+      createTableIfMissing: true, // Changed to true to ensure table exists
     }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
-      maxAge:  24 * 60 * 60 * 1000,
-      secure: process.env.NODE_ENV === "production",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      secure: false, // Set to true in production with HTTPS
       httpOnly: true,
-      sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
+      sameSite: 'lax', // Changed from 'none' to 'lax' for development
     },
-    name: 'mgm_session_id' 
+    name: 'mgm_session_id'
   })
 );
-
-
-
-const corsOptions = {
-  origin: ['http://localhost:3000', 'your-app-url-here'],
-  credentials: true,
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With',
-    'X-Guest-Token',
-    'guest-token'
-  ],
-  exposedHeaders: ['set-cookie'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
-};
 
 // Apply CORS middleware
 app.use(cors(corsOptions));
@@ -156,7 +148,8 @@ app.use("/livreur", livreurRoutes);
 app.use("/liste-envies", listeEnviesRoutes);
 app.use("/clients", clientRoutes);
 app.use("/paiements", paimentRoutes);
-app.use("/factures", factureRoutes);  
+app.use("/factures", factureRoutes); 
+app.use("/avis", avisRoutes); 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/health', (req, res) => {

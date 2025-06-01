@@ -14,44 +14,34 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = useCallback(async () => {
     try {
+      console.log('[Auth] Checking server session...');
       setLoading(true);
       
-      if (!user) {
-        const token = localStorage.getItem('adminToken');
-        if (token) {
-          const response = await axios.get('http://localhost:5000/auth/utilisateur', {
-            headers: { Authorization: `Bearer ${token}` },
-            withCredentials: true
-          });
-          
-          if (response.data.utilisateur) {
-            setUser({
-              ...response.data.utilisateur,
-              token
-            });
-            return;
-          }
+      const response = await axios.get('http://localhost:5000/auth/utilisateur', {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json'
         }
-        
-        const sessionResponse = await axios.get('http://localhost:5000/auth/utilisateur', {
-          withCredentials: true,
-        });
-        
-        if (sessionResponse.data.utilisateur) {
-          setUser(sessionResponse.data.utilisateur);
-        }
+      });
+      
+      if (response.data.utilisateur) {
+        console.log('[Auth] Server session valid');
+        setUser(response.data.utilisateur);
+      } else {
+        setUser(null);
       }
     } catch (error) {
-      localStorage.removeItem('adminToken');
+      console.error('[Auth] Auth check error:', error);
       setUser(null);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     checkAuth();
     
+    // Check auth when page becomes visible
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         checkAuth();
@@ -62,6 +52,90 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [checkAuth]);
 
+  const login = async (email, mot_de_passe) => {
+    try {
+      console.log('[Auth] Starting login process for email:', email);
+      setAuthLoading(true);
+      
+      const response = await axios.post(
+        'http://localhost:5000/auth/connexion',
+        { email, mot_de_passe },
+        { 
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      
+      console.log('[Auth] Login response:', response.data);
+      
+      if (response.data.success) {
+        const userData = {
+          ...response.data.utilisateur,
+          client: response.data.client
+        };
+        
+        console.log('[Auth] Login successful, setting user:', userData);
+        setUser(userData);
+        
+        // Verify session immediately after login
+        console.log('[Auth] Verifying session after login...');
+        await checkAuth();
+        
+        toast.success("Connexion réussie ! Bienvenue !");
+        return { success: true, user: userData };
+      }
+      
+      console.log('[Auth] Login failed - server response not successful');
+      throw new Error(response.data.message || 'Échec de la connexion');
+    } catch (error) {
+      console.error('[Auth] Login error:', error);
+      
+      const errorMessage = error.response?.data?.message || error.message || 'Échec de la connexion';
+      
+      if (error.response?.status === 401) {
+        toast.error("Email ou mot de passe incorrect");
+      } else if (error.response?.status === 403) {
+        toast.error("Veuillez vérifier votre compte avant de vous connecter");
+      } else {
+        toast.error(errorMessage);
+      }
+      
+      return { 
+        success: false, 
+        error: errorMessage,
+      };
+    } finally {
+      console.log('[Auth] Login process completed');
+      setAuthLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      setAuthLoading(true);
+      await axios.post(
+        'http://localhost:5000/auth/deconnexion', 
+        {}, 
+        { withCredentials: true }
+      );
+  
+      setUser(null);
+      toast.success("Déconnexion réussie");
+      router.push('/');
+  
+    } catch (error) {
+      setUser(null);
+      router.push('/');
+    } finally {
+      setAuthLoading(false);
+      // Force a full page reload to clear any client-side state
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+    }
+  };
   const register = async (userData) => {
     try {
       console.log('Starting registration with data:', userData);
@@ -120,67 +194,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (email, mot_de_passe) => {
-    try {
-      console.log('Attempting login with:', email);
-      setAuthLoading(true);
-      const response = await axios.post(
-        'http://localhost:5000/auth/connexion',
-        { email, mot_de_passe },
-        { 
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      );
-      
-      console.log('Login response:', response.data);
-      
-      if (response.data.success) {
-        const userData = {
-          ...response.data.utilisateur,
-          client: response.data.client
-        };
-        
-        console.log('Setting user data:', userData);
-        setUser(userData);
-        
-        toast.success("Connexion réussie ! Bienvenue !");
-        return { 
-          success: true, 
-          user: userData 
-        };
-      }
-      throw new Error(response.data.message || 'Échec de la connexion');
-    } catch (error) {
-      console.error('Login error:', error.response?.data || error);
-      
-      const errorMessage = error.response?.data?.message || error.message || 'Échec de la connexion';
-      
-      if (error.response?.status === 401) {
-        if (error.response?.data?.message === "Identifiants invalides.") {
-          toast.error("Mot de passe incorrect");
-        } else if (error.response?.data?.message === "Utilisateur non trouvé.") {
-          toast.error("Adresse email non trouvée");
-        } else {
-          toast.error("Identifiants invalides");
-        }
-      } else if (error.response?.status === 403) {
-        toast.error("Compte non vérifié");
-      } else {
-        toast.error(errorMessage);
-      }
-      
-      return { 
-        success: false, 
-        error: errorMessage 
-      };
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
   const loginAdmin = async (email, mot_de_passe) => {
     try {
       setAuthLoading(true);
@@ -223,32 +236,6 @@ export const AuthProvider = ({ children }) => {
       return { success: false, error: errorMessage };
     } finally {
       setAuthLoading(false);
-    }
-  };
-
-  const logout = async () => {
-    try {
-      setAuthLoading(true);
-      await axios.post(
-        'http://localhost:5000/auth/deconnexion', 
-        {}, 
-        { withCredentials: true }
-      );
-  
-      setUser(null);
-      localStorage.removeItem('adminToken');
-      toast.success("Déconnexion réussie");
-      router.push('/');
-  
-    } catch (error) {
-      setUser(null);
-      localStorage.removeItem('adminToken');
-      router.push('/');
-    } finally {
-      setAuthLoading(false);
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
     }
   };
 

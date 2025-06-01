@@ -69,6 +69,8 @@ module.exports = (sequelize, DataTypes) => {
         min: { args: [0], msg: 'Le prix final ne peut pas être négatif' }
       }
     },
+        seo_titre: DataTypes.STRING,
+    mots_cles_seo: DataTypes.STRING,
     sku: {
       type: DataTypes.STRING,
       unique: { msg: 'Ce SKU existe déjà' },

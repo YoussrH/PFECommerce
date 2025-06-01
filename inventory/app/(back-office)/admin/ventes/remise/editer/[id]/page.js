@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -25,7 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
-import { ChevronLeft, Save, CalendarIcon } from 'lucide-react';
+import { ChevronLeft, Save, CalendarIcon, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useRemise } from '@/hooks/useRemise';
@@ -76,91 +76,108 @@ export default function EditerRemise() {
   const [showArticleSelection, setShowArticleSelection] = useState(false);
   const [isFetchingRemise, setIsFetchingRemise] = useState(true);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        // Fetch remise data
-        const response = await getRemiseById(id);
-        const remise = response.data; // Assuming response is { success: true, data: {...} }
+const loadData = useCallback(async () => {
+  try {
+    setIsFetchingRemise(true);
+    
+    // Load all data in parallel
+    const [catalogData, remiseResponse] = await Promise.all([
+      Promise.all([
+        fetchAllArticles(),
+        fetchAllCategories(),
+        fetchAllMarques(),
+        fetchAllGenres()
+      ]),
+      getRemiseById(id)
+    ]);
 
-        // Fetch catalog data
-        await Promise.all([
-          fetchAllArticles(),
-          fetchAllCategories(),
-          fetchAllMarques(),
-          fetchAllGenres()
-        ]);
+    // Check if response has data
+    if (!remiseResponse || !remiseResponse.data) {
+      throw new Error('No remise data received');
+    }
 
-        // Set form data with remise details
-        setFormData({
-          code: remise.code || '',
-          libelle: remise.libelle || '',
-          description: remise.description || '',
-          type_remise: remise.type_remise || 'pourcentage',
-          valeur: remise.valeur ? remise.valeur.toString() : '',
-          date_debut: remise.date_debut ? new Date(remise.date_debut) : null,
-          date_fin: remise.date_fin ? new Date(remise.date_fin) : null,
-          est_active: !!remise.est_active,
-          min_articles: remise.min_articles ? remise.min_articles.toString() : '',
-          min_montant: remise.min_montant ? remise.min_montant.toString() : '',
-          max_utilisation: remise.max_utilisation ? remise.max_utilisation.toString() : '',
-          est_cumulable: !!remise.est_cumulable,
-          apply_to: remise.apply_to || 'tous',
-          articles: remise.discounted_articles?.map(a => a.id) || [],
-          categories: remise.discounted_categories?.map(c => c.id) || [],
-          marques: remise.discounted_marques?.map(m => m.id) || [],
-          genres: remise.discounted_genres?.map(g => g.id) || [],
-        });
+    const remise = remiseResponse.data;
+    console.log('Fetched remise:', remise); // Debug log
 
-        // Trigger article filtering if needed
-        if (remise.apply_to === 'marques' && remise.discounted_marques?.length > 0) {
-          await fetchArticlesByMarque(remise.discounted_marques.map(m => m.id));
-          setShowArticleSelection(true);
-        } else if (remise.apply_to === 'categories' && remise.discounted_categories?.length > 0) {
-          await fetchArticlesByCategorie(remise.discounted_categories.map(c => c.id));
-          setShowArticleSelection(true);
-        } else if (remise.apply_to === 'genres' && remise.discounted_genres?.length > 0) {
-          await fetchArticlesByGenre(remise.discounted_genres.map(g => g.id));
-          setShowArticleSelection(true);
-        } else if (remise.apply_to === 'articles' && remise.discounted_articles?.length > 0) {
-          setShowArticleSelection(true);
-        }
-      } catch (error) {
-        toast.error(error.message || 'Failed to load remise or catalog data');
-      } finally {
-        setIsFetchingRemise(false);
-      }
+    // Set form data with remise details
+    const updatedFormData = {
+      code: remise.code || '',
+      libelle: remise.libelle || '',
+      description: remise.description || '',
+      type_remise: remise.type_remise || 'pourcentage',
+      valeur: remise.valeur ? remise.valeur.toString() : '',
+      date_debut: remise.date_debut ? new Date(remise.date_debut) : null,
+      date_fin: remise.date_fin ? new Date(remise.date_fin) : null,
+      est_active: !!remise.est_active,
+      min_articles: remise.min_articles ? remise.min_articles.toString() : '',
+      min_montant: remise.min_montant ? remise.min_montant.toString() : '',
+      max_utilisation: remise.max_utilisation ? remise.max_utilisation.toString() : '',
+      est_cumulable: !!remise.est_cumulable,
+      apply_to: remise.apply_to || 'tous',
+      articles: remise.discounted_articles?.map(a => a.id) || [],
+      categories: remise.discounted_categories?.map(c => c.id) || [],
+      marques: remise.discounted_marques?.map(m => m.id) || [],
+      genres: remise.discounted_genres?.map(g => g.id) || [],
     };
 
-    loadData();
-  }, [id, getRemiseById, fetchAllArticles, fetchAllCategories, fetchAllMarques, fetchAllGenres, fetchArticlesByMarque, fetchArticlesByCategorie, fetchArticlesByGenre]);
+    setFormData(updatedFormData);
+    console.log('Updated form data:', updatedFormData); // Debug log
 
-  const handleChange = (e) => {
+    // Handle article filtering based on apply_to
+    if (remise.apply_to === 'marques' && remise.discounted_marques?.length > 0) {
+      await fetchArticlesByMarque(remise.discounted_marques.map(m => m.id));
+      setShowArticleSelection(true);
+    } else if (remise.apply_to === 'categories' && remise.discounted_categories?.length > 0) {
+      await fetchArticlesByCategorie(remise.discounted_categories.map(c => c.id));
+      setShowArticleSelection(true);
+    } else if (remise.apply_to === 'genres' && remise.discounted_genres?.length > 0) {
+      await fetchArticlesByGenre(remise.discounted_genres.map(g => g.id));
+      setShowArticleSelection(true);
+    } else if (remise.apply_to === 'articles') {
+      setShowArticleSelection(true);
+    }
+  } catch (error) {
+    console.error('Error loading remise:', error);
+    toast.error(error.message || 'Failed to load remise or catalog data');
+  } finally {
+    setIsFetchingRemise(false);
+  }
+}, [id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Optimized handler for form changes
+  const handleChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
-  };
+  }, []);
 
-  const handleSelectChange = (name, value) => {
-    setFormData(prev => ({
-      ...prev,
+  const handleSelectChange = useCallback(async (name, value) => {
+    const newFormData = {
+      ...formData,
       [name]: value,
       articles: [], // Reset articles when changing apply_to
-    }));
+    };
     
+    setFormData(newFormData);
     setShowArticleSelection(value === 'articles' || ['marques', 'categories', 'genres'].includes(value));
-  };
+  }, [formData]);
 
-  const handleMultiSelectChange = async (name, selectedOptions) => {
+  const handleMultiSelectChange = useCallback(async (name, selectedOptions) => {
     const values = selectedOptions.map(option => Number(option.value)).filter(id => !isNaN(id));
     
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       [name]: values,
       articles: [], // Reset articles when changing selection
-    }));
+    };
+
+    setFormData(newFormData);
 
     if (values.length > 0) {
       if (name === 'marques') {
@@ -176,22 +193,22 @@ export default function EditerRemise() {
     } else {
       setShowArticleSelection(false);
     }
-  };
+  }, [formData]);
 
-  const handleArticleSelection = (selectedOptions) => {
+  const handleArticleSelection = useCallback((selectedOptions) => {
     const values = selectedOptions.map(option => Number(option.value)).filter(id => !isNaN(id));
     setFormData(prev => ({
       ...prev,
       articles: values,
     }));
-  };
+  }, []);
 
-  const handleDateChange = (name, date) => {
+  const handleDateChange = useCallback((name, date) => {
     setFormData(prev => ({
       ...prev,
       [name]: date,
     }));
-  };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -235,7 +252,7 @@ export default function EditerRemise() {
     }
   };
 
-  const getSelectedOptions = (type) => {
+  const getSelectedOptions = useCallback((type) => {
     const items = type === 'articles' ? (showArticleSelection ? filteredArticles : articles) : 
                  type === 'categories' ? categories :
                  type === 'marques' ? marques :
@@ -248,9 +265,10 @@ export default function EditerRemise() {
         label: item ? (type === 'articles' ? `${item.nom_produit} (ID: ${item.id})` : item.libelle) : `ID: ${id}`
       };
     }).filter(option => option.label !== `ID: ${option.value}`);
-  };
+  }, [formData, showArticleSelection, filteredArticles, articles, categories, marques, genres]);
 
-  const renderApplyToFields = () => {
+  // Memoize the renderApplyToFields function
+  const renderApplyToFields = useCallback(() => {
     switch (formData.apply_to) {
       case 'articles':
         return (
@@ -262,7 +280,7 @@ export default function EditerRemise() {
                 label: `${article.nom_produit} (ID: ${article.id})`
               }))}
               selected={getSelectedOptions('articles')}
-              onChange={(selected) => handleArticleSelection(selected)}
+              onChange={handleArticleSelection}
               placeholder="Select articles"
             />
           </div>
@@ -289,7 +307,7 @@ export default function EditerRemise() {
                     label: `${article.nom_produit} (ID: ${article.id})`
                   }))}
                   selected={getSelectedOptions('articles')}
-                  onChange={(selected) => handleArticleSelection(selected)}
+                  onChange={handleArticleSelection}
                   placeholder="Select articles"
                   loading={filterLoading}
                 />
@@ -319,7 +337,7 @@ export default function EditerRemise() {
                     label: `${article.nom_produit} (ID: ${article.id})`
                   }))}
                   selected={getSelectedOptions('articles')}
-                  onChange={(selected) => handleArticleSelection(selected)}
+                  onChange={handleArticleSelection}
                   placeholder="Select articles"
                   loading={filterLoading}
                 />
@@ -349,7 +367,7 @@ export default function EditerRemise() {
                     label: `${article.nom_produit} (ID: ${article.id})`
                   }))}
                   selected={getSelectedOptions('articles')}
-                  onChange={(selected) => handleArticleSelection(selected)}
+                  onChange={handleArticleSelection}
                   placeholder="Select articles"
                   loading={filterLoading}
                 />
@@ -360,10 +378,14 @@ export default function EditerRemise() {
       default:
         return null;
     }
-  };
+  }, [formData.apply_to, showArticleSelection, filterLoading, articles, categories, marques, genres, filteredArticles, getSelectedOptions, handleArticleSelection, handleMultiSelectChange]);
 
   if (isFetchingRemise) {
-    return <div>Loading remise data...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
   return (
@@ -464,7 +486,6 @@ export default function EditerRemise() {
                         <Button
                           variant="outline"
                           className="w-full justify-start text-left font-normal"
-                          disabled={!formData.date_debut}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {formData.date_debut ? (
@@ -492,7 +513,6 @@ export default function EditerRemise() {
                         <Button
                           variant="outline"
                           className="w-full justify-start text-left font-normal"
-                          disabled={!formData.date_fin}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {formData.date_fin ? (
@@ -509,7 +529,7 @@ export default function EditerRemise() {
                           onSelect={(date) => handleDateChange('date_fin', date)}
                           initialFocus
                           locale={fr}
-                          fromDate={formData.date_debut}
+                          fromDate={formData.date_debut || new Date()}
                         />
                       </PopoverContent>
                     </Popover>

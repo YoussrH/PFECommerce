@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useWishlist } from "@/hooks/useWishlist"
+import { useWishlist } from "@/hooks/useListeEnvies"
 
 export default function DetailsProduit() {
   const { id } = useParams()

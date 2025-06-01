@@ -3,7 +3,7 @@ import { useRef, useEffect, useState } from "react"
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
-import { useWishlist } from "@/hooks/useWishlist"
+import { useWishlist } from "@/hooks/useListeEnvies"
 import { toast } from "sonner"
 import { Heart, ShoppingBag, ChevronRight, X, Loader2 } from "lucide-react"
 

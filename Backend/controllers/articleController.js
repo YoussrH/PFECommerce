@@ -1,6 +1,11 @@
 //articelcontroller.js
 const models = require("../models");
-const { Article, Couleur, Taille, Genre, Categorie, Marque, ImageArticleCouleur, ArticleTaille, ArticleCouleur } = models;
+const { Article, Couleur, Taille, Utilisateur,Genre, Categorie, Marque, ImageArticleCouleur, ArticleTaille, ArticleCouleur } = models;
+const { envoyerEmail } = require('../services/emailService');
+const path = require('path');
+const fs = require('fs');
+const nodemailer = require('nodemailer');
+const handlebars = require('handlebars');
 
 const cloudinary = require("../config/cloudinaryConfig");
 const { Op } = require("sequelize");
@@ -86,7 +91,7 @@ const calculateTotalStock = (tailles) => {
 };
 
 
-const ajouterArticle = async (req, res) => {
+/* const ajouterArticle = async (req, res) => {
   const transaction = await sequelize.transaction();
   
   try {
@@ -321,167 +326,92 @@ const ajouterArticle = async (req, res) => {
       } : undefined
     });
   }
-};
+}; */
 
-
-const ajouterArticles = async (req, res) => {
-  console.log('Request body:', req.body);
-
-  if (!req.body.articles) {
-    return res.status(400).json({
-      success: false,
-      message: "Le champ 'articles' est requis dans le corps de la requête"
-    });
-  }
-
+const ajouterArticle = async (req, res) => {
   const transaction = await sequelize.transaction();
   
   try {
-    const { articles } = req.body;
+    const {
+      nom_produit,
+      description,
+      conseils,
+      prix,
+      remise,
+      sku,
+      seo_titre,
+      mots_cles_seo,
+      categorie_id,
+      marque_id,
+      genre_id,
+      variations,
+      images_par_couleur
+    } = req.body;
 
-    if (!Array.isArray(articles) || articles.length === 0) {
+    // Validate required fields
+    if (!nom_produit || !prix || !categorie_id || !marque_id || !genre_id) {
       await transaction.rollback();
-      return res.status(400).json({
+      return res.status(400).json({ 
         success: false,
-        message: "Au moins un article est requis",
-        receivedData: req.body
+        message: "Les champs obligatoires sont manquants (nom_produit, prix, categorie_id, marque_id, genre_id)" 
       });
     }
 
-    // Validate all foreign keys first
-    const allReferences = {
-      couleurIds: new Set(),
-      tailleIds: new Set(),
-      categorieIds: new Set(),
-      marqueIds: new Set(),
-      genreIds: new Set()
-    };
-
-    // Collect all reference IDs
-    articles.forEach(article => {
-      allReferences.categorieIds.add(article.categorie_id);
-      allReferences.marqueIds.add(article.marque_id);
-      allReferences.genreIds.add(article.genre_id);
-      
-      article.variations.forEach(variation => {
-        allReferences.couleurIds.add(variation.couleur_id);
-        allReferences.tailleIds.add(variation.taille_id);
-      });
-    });
-
-    // Convert Sets to Arrays
-    const couleurIds = Array.from(allReferences.couleurIds);
-    const tailleIds = Array.from(allReferences.tailleIds);
-    const categorieIds = Array.from(allReferences.categorieIds);
-    const marqueIds = Array.from(allReferences.marqueIds);
-    const genreIds = Array.from(allReferences.genreIds);
-
-    // Validate all references exist
-    const [
-      existingColors,
-      existingSizes,
-      existingCategories,
-      existingBrands,
-      existingGenres
-    ] = await Promise.all([
-      Couleur.findAll({ where: { id: couleurIds }, transaction }),
-      Taille.findAll({ where: { id: tailleIds }, transaction }),
-      Categorie.findAll({ where: { id: categorieIds }, transaction }),
-      Marque.findAll({ where: { id: marqueIds }, transaction }),
-      Genre.findAll({ where: { id: genreIds }, transaction })
-    ]);
-
-    // Check for missing references
-    const missingReferences = {};
-    
-    if (existingColors.length !== couleurIds.length) {
-      const existingColorIds = existingColors.map(c => c.id);
-      missingReferences.couleurs = couleurIds.filter(id => !existingColorIds.includes(id));
-    }
-    
-    if (existingSizes.length !== tailleIds.length) {
-      const existingSizeIds = existingSizes.map(t => t.id);
-      missingReferences.tailles = tailleIds.filter(id => !existingSizeIds.includes(id));
-    }
-    
-    if (existingCategories.length !== categorieIds.length) {
-      const existingCategoryIds = existingCategories.map(c => c.id);
-      missingReferences.categories = categorieIds.filter(id => !existingCategoryIds.includes(id));
-    }
-    
-    if (existingBrands.length !== marqueIds.length) {
-      const existingBrandIds = existingBrands.map(m => m.id);
-      missingReferences.marques = marqueIds.filter(id => !existingBrandIds.includes(id));
-    }
-    
-    if (existingGenres.length !== genreIds.length) {
-      const existingGenreIds = existingGenres.map(g => g.id);
-      missingReferences.genres = genreIds.filter(id => !existingGenreIds.includes(id));
-    }
-
-    if (Object.keys(missingReferences).length > 0) {
+    // Validate variations
+    if (!variations || !Array.isArray(variations) ){
       await transaction.rollback();
-      return res.status(400).json({
+      return res.status(400).json({ 
         success: false,
-        message: "Certaines références n'existent pas dans la base de données",
-        missingReferences
+        message: "Le champ variations est requis et doit être un tableau" 
       });
     }
 
-    // Process articles
-    const createdArticles = [];
+    // Validate each variation
+    const invalidVariations = variations.filter(v => 
+      !v.taille_id || !v.couleur_id || v.quantite === undefined || v.quantite < 0
+    );
 
-    for (const articleData of articles) {
-      const {
-        nom_produit,
-        description,
-        conseils,
-        prix,
-        remise = 0,
-        sku,
-        seo_titre,
-        mots_cles_seo,
-        categorie_id,
-        marque_id,
-        genre_id,
-        variations,
-        images_par_couleur
-      } = articleData;
+    if (invalidVariations.length > 0) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: "Certaines variations sont invalides",
+        invalidVariations
+      });
+    }
 
-      // Validate required fields
-      if (!nom_produit || !description || !prix || !categorie_id || !marque_id || !genre_id) {
-        await transaction.rollback();
-        return res.status(400).json({
-          success: false,
-          message: `L'article "${nom_produit || 'sans nom'}" a des champs manquants`
-        });
-      }
+    // Create article
+    const article = await Article.create({
+      nom_produit,
+      description,
+      conseils,
+      prix,
+      prix_final: prix * (1 - (remise / 100)),
+      sku,
+      seo_titre,
+      mots_cles_seo,
+      categorie_id,
+      marque_id,
+      genre_id
+    }, { transaction });
 
-      if (!variations || variations.length === 0) {
-        await transaction.rollback();
-        return res.status(400).json({
-          success: false,
-          message: `L'article "${nom_produit}" doit avoir au moins une variation (couleur/taille)`
-        });
-      }
+    if (!article || !article.id) {
+      await transaction.rollback();
+      return res.status(500).json({ 
+        success: false,
+        message: "Échec de la création de l'article" 
+      });
+    }
 
-      // Create article
-      const article = await Article.create({
-        nom_produit,
-        description,
-        conseils,
-        prix,
-        prix_final: prix * (1 - (remise / 100)),
-        sku,
-        seo_titre,
-        mots_cles_seo,
-        categorie_id,
-        marque_id,
-        genre_id
-      }, { transaction });
+    // Process variations
+    const variationPromises = variations.map(async (variation) => {
+      try {
+        // Additional validation
+        if (!variation.taille_id || !variation.couleur_id) {
+          throw new Error(`Variation invalide: taille_id=${variation.taille_id}, couleur_id=${variation.couleur_id}`);
+        }
 
-      // Process variations
-      const variationPromises = variations.map(async (variation) => {
+        // Check if the combination already exists
         const existing = await ArticleTaille.findOne({
           where: {
             article_id: article.id,
@@ -504,146 +434,420 @@ const ajouterArticles = async (req, res) => {
           }, { transaction });
         }
 
-        await ArticleCouleur.findOrCreate({
+        // Create article_couleur record if not exists
+        const [articleCouleur, created] = await ArticleCouleur.findOrCreate({
           where: {
+            article_id: article.id,
+            couleur_id: variation.couleur_id
+          },
+          defaults: {
             article_id: article.id,
             couleur_id: variation.couleur_id
           },
           transaction
         });
-      });
 
-      await Promise.all(variationPromises);
-
-      // Process images
-      if (images_par_couleur && Object.keys(images_par_couleur).length > 0) {
-        // First validate all image colors exist in variations
-        const imageColorIds = Object.keys(images_par_couleur).map(Number);
-        const variationColorIds = variations.map(v => v.couleur_id);
-        
-        const invalidImageColors = imageColorIds.filter(
-          colorId => !variationColorIds.includes(colorId)
-        );
-
-        if (invalidImageColors.length > 0) {
-          await transaction.rollback();
-          return res.status(400).json({
-            success: false,
-            message: `L'article "${nom_produit}" a des images pour des couleurs sans variation`,
-            invalidImageColors
-          });
+        if (!articleCouleur) {
+          throw new Error(`Failed to create ArticleCouleur record for article_id=${article.id}, couleur_id=${variation.couleur_id}`);
         }
 
-        // Delete existing images if any
+      } catch (error) {
+        console.error('Error processing variation:', {
+          article_id: article.id,
+          variation,
+          error: error.message
+        });
+        throw error;
+      }
+    });
+
+    await Promise.all(variationPromises);
+
+    // Process images
+    if (images_par_couleur && typeof images_par_couleur === 'object') {
+      try {
+        // First delete existing images for this article
         await ImageArticleCouleur.destroy({
           where: { article_id: article.id },
           transaction
         });
 
-        // Create new images
-        const imagePromises = Object.entries(images_par_couleur).map(
-          async ([couleur_id, images]) => {
-            const imageCreates = images.map(imageUrl => 
-              ImageArticleCouleur.create({
-                article_id: article.id,
-                couleur_id,
-                image_url: imageUrl
-              }, { transaction })
-            );
-            await Promise.all(imageCreates);
-          }
-        );
+        const imagePromises = Object.entries(images_par_couleur).map(async ([couleur_id, images]) => {
+          if (!Array.isArray(images)) return;
 
+          // Validate that the color exists in variations
+          const colorExistsInVariations = variations.some(v => v.couleur_id == couleur_id);
+          if (!colorExistsInVariations) {
+            throw new Error(`Couleur ${couleur_id} a des images mais n'existe pas dans les variations`);
+          }
+
+          const imageCreates = images.map(imageUrl => {
+            if (typeof imageUrl !== 'string') {
+              throw new Error(`URL d'image invalide pour couleur ${couleur_id}: ${imageUrl}`);
+            }
+            return ImageArticleCouleur.create({
+              article_id: article.id,
+              couleur_id,
+              image_url: imageUrl
+            }, { transaction });
+          });
+          
+          await Promise.all(imageCreates);
+        });
+        
         await Promise.all(imagePromises);
+      } catch (imageError) {
+        console.error('Error processing images:', imageError);
+        throw imageError;
       }
-
-      // Fetch the complete article with associations
-      const completeArticle = await Article.findByPk(article.id, {
-        include: [
-          {
-            model: Taille,
-            as: 'tailles',
-            through: { attributes: ['quantite', 'couleur_id'] }
-          },
-          {
-            model: Couleur,
-            as: 'couleurs',
-            through: { attributes: [] }
-          },
-          {
-            model: ImageArticleCouleur,
-            as: 'images_couleurs'
-          },
-          {
-            model: Categorie,
-            as: 'categorie'
-          },
-          {
-            model: Marque,
-            as: 'marque'
-          },
-          {
-            model: Genre,
-            as: 'genre'
-          }
-        ],
-        transaction
-      });
-
-      createdArticles.push(completeArticle);
     }
 
     await transaction.commit();
 
+    // Fetch the complete article with associations
+    const completeArticle = await Article.findByPk(article.id, {
+      include: [
+        { 
+          model: Taille, 
+          as: 'tailles',
+          through: { attributes: ['quantite', 'couleur_id'] }
+        },
+        { 
+          model: Couleur, 
+          as: 'couleurs',
+          through: { attributes: [] }
+        },
+        {
+          model: ImageArticleCouleur,
+          as: 'images_couleurs'
+        }
+      ]
+    });
+
+// After transaction.commit() and fetching the complete article:
+
+// Send new product notification to newsletter subscribers
+try {
+  // Get all users who have subscribed to newsletter
+  const subscribers = await Utilisateur.findAll({
+    where: {
+      newsletter: true,
+      est_verifie: true // Only send to verified emails
+    },
+    attributes: ['id', 'email', 'prenom', 'prefix']
+  });
+
+  if (subscribers.length > 0) {
+    // Get the first image URL for the product
+    const firstImage = completeArticle.images_couleurs[0]?.image_url || '';
+
+    // Prepare email data
+    const emailData = {
+      PRENOM: '', // Will be replaced for each user
+      PRODUCT_NAME: completeArticle.nom_produit,
+      PRODUCT_IMAGE: firstImage,
+      PRICE: completeArticle.prix_final.toFixed(2),
+      ORIGINAL_PRICE: remise > 0 ? prix.toFixed(2) : null,
+      DISCOUNT_PRICE: remise > 0,
+      PRODUCT_DESCRIPTION: completeArticle.description || 'Découvrez notre nouveau produit!',
+      FEATURES:completeArticle.description,
+      COMPANY_NAME: 'MGM Boutique',
+      WEBSITE_URL: process.env.FRONTEND_URL,
+      CONTACT_LINK: `${process.env.FRONTEND_URL}/contact`,
+      CURRENT_YEAR: new Date().getFullYear()
+    };
+
+    // Send emails to all subscribers
+    const emailPromises = subscribers.map(utilisateur => {
+      // Determine greeting based on prefix
+      let greeting = 'Client';
+      if (utilisateur.prenom) {
+        greeting = utilisateur.prenom;
+      } else if (utilisateur.prefix) {
+        greeting = utilisateur.prefix;
+      }
+
+      const userData = {
+        ...emailData,
+        PRENOM: greeting
+      };
+      
+      return envoyerEmail({
+        to: utilisateur.email,
+        subject: `Nouveau produit disponible: ${completeArticle.nom_produit}`,
+        template: 'newproduit',
+        context: userData
+      }).catch(emailError => {
+        console.error(`Failed to send email to ${utilisateur.email}:`, emailError.message);
+      });
+    });
+
+    await Promise.all(emailPromises);
+    console.log(`Sent new product notification to ${subscribers.length} subscribers`);
+  }
+} catch (emailError) {
+  console.error('Error sending new product notifications:', emailError);
+  // Don't fail the whole operation if email sending fails
+}
+
     return res.status(201).json({
       success: true,
-      message: "Articles ajoutés avec succès",
-      data: createdArticles
+      message: "Article ajouté avec succès",
+      data: completeArticle
     });
 
   } catch (error) {
     await transaction.rollback();
-    console.error('Error in ajouterArticles:', error);
+    console.error('Complete error in ajouterArticle:', {
+      error: error.message,
+      stack: error.stack,
+      requestBody: req.body
+    });
+    
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({ 
+        success: false,
+        message: "Une combinaison article/taille/couleur existe déjà",
+        error: error.errors 
+      });
+    }
     
     if (error.name === 'SequelizeForeignKeyConstraintError') {
-      return res.status(400).json({
+      return res.status(400).json({ 
         success: false,
-        message: "Violation de contrainte de clé étrangère",
+        message: "Référence invalide (couleur, taille, ou autre clé étrangère non trouvée)",
         error: error.parent ? error.parent.detail : error.message
       });
     }
     
-    if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(400).json({
-        success: false,
-        message: "Violation de contrainte d'unicité",
-        error: error.errors.map(err => ({
-          field: err.path,
-          message: err.message
-        }))
-      });
-    }
-    
-    if (error.name === 'SequelizeValidationError') {
-      return res.status(400).json({
-        success: false,
-        message: "Erreur de validation",
-        errors: error.errors.map(err => ({
-          field: err.path,
-          message: err.message
-        }))
-      });
-    }
-    
-    return res.status(500).json({
+    return res.status(500).json({ 
       success: false,
-      message: "Erreur interne du serveur",
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: error.message || "Erreur lors de l'ajout de l'article",
+      error: process.env.NODE_ENV === 'development' ? {
+        stack: error.stack,
+        details: error.errors
+      } : undefined
     });
   }
 };
 
+const ajouterArticles = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const { articles } = req.body;
+
+    if (!articles || !Array.isArray(articles)) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: "Le champ articles est requis et doit être un tableau" 
+      });
+    }
+
+    // Validate all articles first
+    for (const articleData of articles) {
+      const { 
+        nom_produit, prix, categorie_id, marque_id, genre_id, variations 
+      } = articleData;
+
+      if (!nom_produit || !prix || !categorie_id || !marque_id || !genre_id) {
+        await transaction.rollback();
+        return res.status(400).json({ 
+          success: false,
+          message: `Article invalide: champs obligatoires manquants (${nom_produit || 'sans nom'})` 
+        });
+      }
+
+      if (!variations || !Array.isArray(variations)) {
+        await transaction.rollback();
+        return res.status(400).json({ 
+          success: false,
+          message: `Article invalide: variations manquantes ou invalides (${nom_produit})` 
+        });
+      }
+
+      const invalidVariations = variations.filter(v => 
+        !v.taille_id || !v.couleur_id || v.quantite === undefined || v.quantite < 0
+      );
+
+      if (invalidVariations.length > 0) {
+        await transaction.rollback();
+        return res.status(400).json({ 
+          success: false,
+          message: `Article invalide: variations invalides (${nom_produit})`,
+          invalidVariations
+        });
+      }
+    }
+
+    // Create all articles in bulk
+    const createdArticles = await Article.bulkCreate(
+      articles.map(articleData => ({
+        nom_produit: articleData.nom_produit,
+        description: articleData.description,
+        conseils: articleData.conseils,
+        prix: articleData.prix,
+        remise: articleData.remise || 0,
+        prix_final: articleData.prix * (1 - ((articleData.remise || 0) / 100)),
+        sku: articleData.sku,
+        seo_titre: articleData.seo_titre,
+        mots_cles_seo: articleData.mots_cles_seo,
+        categorie_id: articleData.categorie_id,
+        marque_id: articleData.marque_id,
+        genre_id: articleData.genre_id
+      })), 
+      { transaction, returning: true }
+    );
+
+    // Prepare all variations and color associations
+    const allVariations = [];
+    const allArticleColors = [];
+    const allImages = [];
+
+    createdArticles.forEach((article, index) => {
+      const articleData = articles[index];
+      const colorSet = new Set();
+
+      // Process variations
+      articleData.variations.forEach(variation => {
+        allVariations.push({
+          article_id: article.id,
+          taille_id: variation.taille_id,
+          couleur_id: variation.couleur_id,
+          quantite: variation.quantite
+        });
+        
+        // Track unique color combinations
+        if (!colorSet.has(variation.couleur_id)) {
+          colorSet.add(variation.couleur_id);
+          allArticleColors.push({
+            article_id: article.id,
+            couleur_id: variation.couleur_id
+          });
+        }
+      });
+
+      // Process images
+      if (articleData.images_par_couleur) {
+        Object.entries(articleData.images_par_couleur).forEach(([couleur_id, images]) => {
+          if (Array.isArray(images)) {
+            images.forEach(imageUrl => {
+              allImages.push({
+                article_id: article.id,
+                couleur_id,
+                image_url: imageUrl
+              });
+            });
+          }
+        });
+      }
+    });
+
+    // Perform bulk database operations
+    await Promise.all([
+      ArticleTaille.bulkCreate(allVariations, { transaction }),
+      ArticleCouleur.bulkCreate(allArticleColors, { transaction }),
+      ImageArticleCouleur.bulkCreate(allImages, { transaction })
+    ]);
+
+    await transaction.commit();
+
+    // Send email notifications asynchronously after transaction
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        const subscribers = await Utilisateur.findAll({
+          where: { newsletter: true, est_verifie: true },
+          attributes: ['id', 'email', 'prenom', 'prefix']
+        });
+
+        if (subscribers.length > 0) {
+          const emailPromises = createdArticles.map(article => {
+            const firstImage = articles.find(a => a.sku === article.sku)
+              ?.images_par_couleur?.[Object.keys(articles.find(a => a.sku === article.sku).images_par_couleur)[0]]?.[0] || '';
+
+            const emailData = {
+              PRENOM: '', // Will be replaced per user
+              PRODUCT_NAME: article.nom_produit,
+              PRODUCT_IMAGE: firstImage,
+              PRICE: article.prix_final.toFixed(2),
+              ORIGINAL_PRICE: article.remise > 0 ? article.prix.toFixed(2) : null,
+              DISCOUNT_PRICE: article.remise > 0,
+              PRODUCT_DESCRIPTION: article.description || 'Découvrez notre nouveau produit!',
+              FEATURES: article.description,
+              COMPANY_NAME: 'MGM Boutique',
+              WEBSITE_URL: process.env.FRONTEND_URL,
+              CONTACT_LINK: `${process.env.FRONTEND_URL}/contact`,
+              CURRENT_YEAR: new Date().getFullYear()
+            };
+
+            return Promise.all(
+              subscribers.map(utilisateur => {
+                const userData = {
+                  ...emailData,
+                  PRENOM: utilisateur.prenom || utilisateur.prefix || 'Client'
+                };
+                
+                return envoyerEmail({
+                  to: utilisateur.email,
+                  subject: `Nouveau produit disponible: ${article.nom_produit}`,
+                  template: 'newproduit',
+                  context: userData
+                }).catch(emailError => {
+                  console.error(`Failed to send email to ${utilisateur.email}:`, emailError.message);
+                });
+              })
+            );
+          });
+
+          Promise.all(emailPromises)
+            .then(() => console.log('Email notifications sent'))
+            .catch(err => console.error('Error sending emails:', err));
+        }
+      } catch (emailError) {
+        console.error('Error preparing email notifications:', emailError);
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `${createdArticles.length} articles ajoutés avec succès`,
+      data: createdArticles.map(article => article.id)
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Complete error in ajouterArticles:', {
+      error: error.message,
+      stack: error.stack
+    });
+    
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({ 
+        success: false,
+        message: "Une contrainte d'unicité a été violée (SKU peut-être dupliqué)",
+        error: error.errors 
+      });
+    }
+    
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({ 
+        success: false,
+        message: "Référence invalide (couleur, taille, ou autre clé étrangère non trouvée)",
+        error: error.parent ? error.parent.detail : error.message
+      });
+    }
+    
+    return res.status(500).json({ 
+      success: false,
+      message: error.message || "Erreur lors de l'ajout des articles",
+      error: process.env.NODE_ENV === 'development' ? {
+        stack: error.stack,
+        details: error.errors
+      } : undefined
+    });
+  }
+};
 
 const mettreAJourArticle = async (req, res) => {
   const transaction = await sequelize.transaction();
@@ -998,29 +1202,34 @@ const filtrerArticles = async (req, res) => {
 
 const rechercherArticles = async (req, res) => {
   try {
-    const { requete } = req.query;
-    if (!requete) {
-      return res.status(400).json({ 
+    const { query } = req.query;
+    
+    if (!query || query.trim().length < 2) {
+      return res.status(400).json({
         success: false,
-        message: "La requête de recherche est obligatoire!" 
+        message: "La requête de recherche doit contenir au moins 2 caractères"
       });
     }
 
     const articles = await Article.findAll({
       where: {
         [Op.or]: [
-          { nom_produit: { [Op.iLike]: `%${requete}%` } },
-          { description: { [Op.iLike]: `%${requete}%` } },
-        ],
+          { nom_produit: { [Op.iLike]: `%${query}%` } },
+          { seo_titre: { [Op.iLike]: `%${query}%` } },
+          { mots_cles_seo: { [Op.iLike]: `%${query}%` } }
+        ]
       },
       include: [
         { 
-          model: Taille, 
+          model: Taille,
           as: 'tailles',
-          through: { attributes: ['quantite'] }
+          through: { 
+            attributes: ['quantite', 'couleur_id'],
+            as: 'ArticleTaille'
+          }
         },
         { 
-          model: Couleur, 
+          model: Couleur,
           as: 'couleurs',
           through: { attributes: [] }
         },
@@ -1033,26 +1242,12 @@ const rechercherArticles = async (req, res) => {
           include: [{ model: Couleur, as: 'couleur' }],
           limit: 1
         }
-      ]
+      ],
+      limit: 20,
+      order: [['nom_produit', 'ASC']]
     });
 
-    if (articles.length === 0) {
-      return res.status(404).json({ 
-        success: false,
-        message: "Aucun article trouvé correspondant à votre recherche." 
-      });
-    }
-
-    const formattedArticles = articles.map(article => {
-      const plainArticle = article.get({ plain: true });
-      return {
-        ...plainArticle,
-        stock: calculateTotalStock(plainArticle.tailles),
-        primaryImage: plainArticle.images_couleurs.length > 0 
-          ? plainArticle.images_couleurs[0].image_url 
-          : null
-      };
-    });
+    const formattedArticles = articles.map(article => formatArticleData(article));
 
     res.json({
       success: true,
@@ -1060,10 +1255,10 @@ const rechercherArticles = async (req, res) => {
     });
   } catch (error) {
     console.error("Erreur lors de la recherche d'articles:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: "Erreur lors de la recherche d'articles", 
-      error: error.message 
+      message: "Erreur lors de la recherche d'articles",
+      error: error.message
     });
   }
 };

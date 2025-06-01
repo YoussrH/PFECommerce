@@ -194,10 +194,9 @@ export default function NouvelleRemise() {
       console.log('Sending remise data:', remiseData); // Debug log
 
       await createRemise(remiseData);
-      toast.success('Discount created successfully');
       router.push('/admin/ventes/remise');
     } catch (error) {
-      toast.error(error.message || 'Failed to create discount');
+      toast.error(error.message || 'error de creation de remise  ');
     } finally {
       setLoading(false);
     }
@@ -223,7 +222,7 @@ export default function NouvelleRemise() {
       case 'articles':
         return (
           <div className="space-y-4">
-            <Label>Select Articles *</Label>
+            <Label>Selectioner Articles *</Label>
             <MultiSelectDropdown
               options={articles.map(article => ({
                 value: article.id.toString(),
@@ -238,7 +237,7 @@ export default function NouvelleRemise() {
       case 'categories':
         return (
           <div className="space-y-4">
-            <Label>Select Categories *</Label>
+            <Label>Selectioner Categories *</Label>
             <MultiSelectDropdown
               options={categories.map(categorie => ({
                 value: categorie.id.toString(),
@@ -250,7 +249,7 @@ export default function NouvelleRemise() {
             />
             {showArticleSelection && (
               <>
-                <Label>Select Articles from Selected Categories *</Label>
+                <Label>Select Articles depuis  Categories Selectionée *</Label>
                 <MultiSelectDropdown
                   options={filteredArticles.map(article => ({
                     value: article.id.toString(),
@@ -265,67 +264,75 @@ export default function NouvelleRemise() {
             )}
           </div>
         );
-      case 'marques':
-        return (
-          <div className="space-y-4">
-            <Label>Select Brands *</Label>
-            <MultiSelectDropdown
-              options={marques.map(marque => ({
-                value: marque.id.toString(),
-                label: marque.libelle
-              }))}
-              selected={getSelectedOptions('marques')}
-              onChange={(selected) => handleMultiSelectChange('marques', selected)}
-              placeholder="Select brands"
-            />
-            {showArticleSelection && (
-              <>
-                <Label>Select Articles from Selected Brands *</Label>
+          case 'marques':
+                  return (
+                    <div className="space-y-4">
+                      <Label>Select Brands *</Label>
+                      <MultiSelectDropdown
+                        options={marques.map(marque => ({
+                          value: marque.id.toString(),
+                          label: marque.libelle
+                        }))}
+                        selected={getSelectedOptions('marques')}
+                        onChange={(selected) => handleMultiSelectChange('marques', selected)}
+                        placeholder="Select brands"
+                      />
+                      {showArticleSelection && (
+                        <>
+                          <Label>Select Articles from Selected Brands *</Label>
+                          <MultiSelectDropdown
+                            options={filteredArticles.map(article => ({
+                              value: article.id.toString(),
+                              label: `${article.nom_produit} (ID: ${article.id})`
+                            }))}
+                            selected={getSelectedOptions('articles')}
+                            onChange={(selected) => handleArticleSelection(selected)}
+                            placeholder="Select articles"
+                            loading={filterLoading}
+                          />
+                        </>
+                      )}
+                    </div>
+                  );
+          case 'genres':
+            return (
+              <div className="space-y-4">
+                <Label>Selectioner Genres *</Label>
                 <MultiSelectDropdown
-                  options={filteredArticles.map(article => ({
-                    value: article.id.toString(),
-                    label: `${article.nom_produit} (ID: ${article.id})`
+                  options={genres.map(genre => ({
+                    value: genre.id.toString(),
+                    label: `${genre.libelle} (ID: ${genre.id})`
                   }))}
-                  selected={getSelectedOptions('articles')}
-                  onChange={(selected) => handleArticleSelection(selected)}
-                  placeholder="Select articles"
-                  loading={filterLoading}
+                  selected={getSelectedOptions('genres')}
+                  onChange={(selected) => handleMultiSelectChange('genres', selected)}
+                  placeholder="Select genres"
                 />
-              </>
-            )}
-          </div>
-        );
-      case 'genres':
-        return (
-          <div className="space-y-4">
-            <Label>Select Genders *</Label>
-            <MultiSelectDropdown
-              options={genres.map(genre => ({
-                value: genre.id.toString(),
-                label: genre.libelle
-              }))}
-              selected={getSelectedOptions('genres')}
-              onChange={(selected) => handleMultiSelectChange('genres', selected)}
-              placeholder="Select genders"
-            />
-            {showArticleSelection && (
-              <>
-                <Label>Select Articles from Selected Genders *</Label>
-                <MultiSelectDropdown
-                  options={filteredArticles.map(article => ({
-                    value: article.id.toString(),
-                    label: `${article.nom_produit} (ID: ${article.id})`
-                  }))}
-                  selected={getSelectedOptions('articles')}
-                  onChange={(selected) => handleArticleSelection(selected)}
-                  placeholder="Select articles"
-                  loading={filterLoading}
-                />
-              </>
-            )}
-          </div>
-        );
-      default:
+                {showArticleSelection && (
+                  <>
+                    <Label>Articles des Genres Selectionés *</Label>
+                    {filterLoading ? (
+                      <div>Loading articles...</div>
+                    ) : filteredArticles.length > 0 ? (
+                      <MultiSelectDropdown
+                        options={filteredArticles.map(article => ({
+                          value: article.id.toString(),
+                          label: `${article.nom_produit} (ID: ${article.id})`
+                        }))}
+                        selected={getSelectedOptions('articles')}
+                        onChange={(selected) => handleArticleSelection(selected)}
+                        placeholder="Select articles"
+                      />
+                    ) : (
+                      <div className="text-sm text-gray-500">
+                        No articles found for selected genres
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+              
+                  default:
         return null;
     }
   };

@@ -133,7 +133,7 @@ const getRemiseById = useCallback(async (id) => {
       setLoading(true);
       setError(null);
       
-      const response = await axios.get(`http://localhost:5000/remises/${id}`, {
+      const response = await axios.get(`http://localhost:5000/remises/getRemiseById/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'

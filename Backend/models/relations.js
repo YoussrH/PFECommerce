@@ -1,3 +1,5 @@
+const Avis = require("./Avis");
+
 module.exports = function(models) {
   try {
     console.log('Setting up model relations...');
@@ -6,7 +8,7 @@ module.exports = function(models) {
     const requiredModels = [
       'Remise', 'Article', 'Categorie', 'Genre', 'Taille', 'Client', 'Evenement', 'ImageArticleCouleur',
       'Marque', 'Couleur', 'Commande', 'Panier', 'AjustementStock', 'Livreur',
-      'LivreurLocalisation','RemiseArticle', 'RemiseCategorie', 'RemiseMarque', 'RemiseGenre', 
+      'LivreurLocalisation','RemiseArticle', 'RemiseCategorie', 'RemiseMarque', 'RemiseGenre', 'Avis',
       'CommandeArticle', 'ArticlePanier', 'Adresse', 'ArticleCouleur', 'ArticleTaille', 'Utilisateur',
       'Facture','ListeEnvies','Reclamation','Coupon', 'CommandeHistorique', 'Colis', 'Retour', 'HistoriqueAction'
     ];
@@ -19,6 +21,7 @@ module.exports = function(models) {
 
     // Destructure models after verification
     const {
+      Avis,
       Reclamation,
       Coupon,
       RemiseArticle,
@@ -703,6 +706,38 @@ Commande.hasMany(Reclamation, {
   foreignKey: 'commande_id',
   as: 'reclamations',
   onDelete: 'SET NULL'
+});
+
+/* ==============================================
+ * 20. REVIEWS (AVIS) RELATIONS
+ * ============================================== */
+
+// Client has many Reviews
+Client.hasMany(Avis, {
+  foreignKey: 'client_id',
+  as: 'avis',
+  onDelete: 'CASCADE'
+});
+
+// Review belongs to Client
+Avis.belongsTo(Client, {
+  foreignKey: 'client_id',
+  as: 'client', // Consistent with model definition
+  onDelete: 'CASCADE'
+});
+
+// Review belongs to Article
+Avis.belongsTo(Article, {
+  foreignKey: 'article_id',
+  as: 'article',
+  onDelete: 'CASCADE'
+});
+
+// Article has many Reviews
+Article.hasMany(Avis, {
+  foreignKey: 'article_id',
+  as: 'avis',
+  onDelete: 'CASCADE'
 });
 
     console.log('✅ All model associations set up successfully');
