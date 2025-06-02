@@ -7,9 +7,7 @@ import HomeLayout from "./accueil/HomeLayout";
 import Dashboard from "./accueil/dashboard/page";
 
 import Sales from "./ventes/page";
-import Products from "./produits/page";
 import Users from "./utilisateurs/page";
-import Integration from "./integrations/page";
 import Reports from "./rapport/page";
 import Settings from "./parametres/page";
 
@@ -32,12 +30,10 @@ export default function DashboardPage() {
       switch (pathname) {
         case "/admin/sales":
           return <Sales />;
-        case "/admin/products":
-          return <Products />;
+
         case "/admin/users":
           return <Users />;
-        case "/admin/integration":
-          return <Integration />;
+
         case "/admin/reports":
           return <Reports />;
         case "/admin/settings":

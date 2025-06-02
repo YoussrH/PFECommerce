@@ -27,6 +27,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DATE,
       allowNull: false
     },
+
     client_id: {
       type: DataTypes.UUID,
       references: {

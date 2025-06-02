@@ -50,7 +50,7 @@ const SidebarLink = ({
         ) : (
           <Icon className={cn(
             "transition-transform group-hover:scale-110",
-            isSidebarCollapsed ? "w-7 h-7 mx-auto" : "w-5 h-5 mr-3", // Increased icon size when collapsed
+            isSidebarCollapsed ? "w-7 h-7 mx-auto" : "w-5 h-5 mr-3",
             isActive ? "text-orange-800" : iconColor
           )} />
         )}
@@ -277,30 +277,24 @@ const Sidebar = ({ isSidebarCollapsed }) => {
           />
         </SidebarSection>
 
-        {/* Settings Section */}
+        {/* Updated Settings Section */}
         <SidebarSection title="Paramètres" icon={Settings} isSidebarCollapsed={isSidebarCollapsed}>
           <SidebarLink
-            href="/admin/parametres"
+            href="/admin/parametres/informations-personnelles"
+            icon={UserCog}
+            label="Informations Personnelles"
+            isSidebarCollapsed={isSidebarCollapsed}
+          />
+          <SidebarLink
+            href="/admin/parametres/notifications"
+            icon={Mail}
+            label="Notifications"
+            isSidebarCollapsed={isSidebarCollapsed}
+          />
+          <SidebarLink
+            href="/admin/parametres/preferences"
             icon={Settings}
-            label="Paramètres de la Boutique"
-            isSidebarCollapsed={isSidebarCollapsed}
-          />
-          <SidebarLink
-            href="/admin/parametres/Regles"
-            icon={DollarSign}
-            label="Règles fiscales & Tarification"
-            isSidebarCollapsed={isSidebarCollapsed}
-          />
-          <SidebarLink
-            href="/admin/parametres/rapports"
-            icon={PieChart}
-            label="Rapports d'Entreprise"
-            isSidebarCollapsed={isSidebarCollapsed}
-          />
-          <SidebarLink
-            href="/admin/parametres/journaux"
-            icon={Archive}
-            label="Journaux d'Activité"
+            label="Préférences"
             isSidebarCollapsed={isSidebarCollapsed}
           />
         </SidebarSection>
@@ -308,7 +302,7 @@ const Sidebar = ({ isSidebarCollapsed }) => {
 
       {!isSidebarCollapsed && (
         <div className="p-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-          <p className="text-center text-xs text-gray-500">&copy; 2025 MGM NEGOCE Sarl</p>
+          <p className="text-center text-xs text-gray-500">© 2025 MGM NEGOCE Sarl</p>
         </div>
       )}
     </div>

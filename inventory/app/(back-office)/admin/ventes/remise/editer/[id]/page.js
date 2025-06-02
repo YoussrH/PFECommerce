@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react'; // Add useMemo
 import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -36,20 +36,20 @@ export default function EditerRemise() {
   const router = useRouter();
   const { id } = useParams();
   const { getRemiseById, updateRemise } = useRemise();
-  const { 
-    articles, 
-    categories, 
-    marques, 
+  const {
+    articles,
+    categories,
+    marques,
     genres,
-    filteredArticles,
+    filteredArticles, // Keep this for dynamic filtering after initial load
     filterLoading,
     fetchArticlesByMarque,
     fetchArticlesByCategorie,
     fetchArticlesByGenre,
-    fetchAllArticles, 
-    fetchAllCategories, 
-    fetchAllMarques, 
-    fetchAllGenres 
+    fetchAllArticles,
+    fetchAllCategories,
+    fetchAllMarques,
+    fetchAllGenres
   } = useCatalog();
 
   const [formData, setFormData] = useState({
@@ -76,79 +76,165 @@ export default function EditerRemise() {
   const [showArticleSelection, setShowArticleSelection] = useState(false);
   const [isFetchingRemise, setIsFetchingRemise] = useState(true);
 
-const loadData = useCallback(async () => {
-  try {
-    setIsFetchingRemise(true);
-    
-    // Load all data in parallel
-    const [catalogData, remiseResponse] = await Promise.all([
-      Promise.all([
-        fetchAllArticles(),
-        fetchAllCategories(),
-        fetchAllMarques(),
-        fetchAllGenres()
-      ]),
-      getRemiseById(id)
-    ]);
+  // Load ALL static catalog data once
+  useEffect(() => {
+    const loadAllCatalogData = async () => {
+      try {
+        await Promise.all([
+          fetchAllArticles(),
+          fetchAllCategories(),
+          fetchAllMarques(),
+          fetchAllGenres()
+        ]);
+      } catch (error) {
+        toast.error('Failed to load catalog data');
+      }
+    };
+    loadAllCatalogData();
+  }, [fetchAllArticles, fetchAllCategories, fetchAllMarques, fetchAllGenres]);
 
-    // Check if response has data
-    if (!remiseResponse || !remiseResponse.data) {
-      throw new Error('No remise data received');
-    }
+  // Load the specific remise data and pre-fill form
+/*   useEffect(() => {
+    const loadRemiseData = async () => {
+      if (!id) return; // Ensure ID exists before fetching
 
-    const remise = remiseResponse.data;
-    console.log('Fetched remise:', remise); // Debug log
+      setIsFetchingRemise(true);
+      try {
+        const remiseResponse = await getRemiseById(id);
 
-    // Set form data with remise details
-    const updatedFormData = {
-      code: remise.code || '',
-      libelle: remise.libelle || '',
-      description: remise.description || '',
-      type_remise: remise.type_remise || 'pourcentage',
-      valeur: remise.valeur ? remise.valeur.toString() : '',
-      date_debut: remise.date_debut ? new Date(remise.date_debut) : null,
-      date_fin: remise.date_fin ? new Date(remise.date_fin) : null,
-      est_active: !!remise.est_active,
-      min_articles: remise.min_articles ? remise.min_articles.toString() : '',
-      min_montant: remise.min_montant ? remise.min_montant.toString() : '',
-      max_utilisation: remise.max_utilisation ? remise.max_utilisation.toString() : '',
-      est_cumulable: !!remise.est_cumulable,
-      apply_to: remise.apply_to || 'tous',
-      articles: remise.discounted_articles?.map(a => a.id) || [],
-      categories: remise.discounted_categories?.map(c => c.id) || [],
-      marques: remise.discounted_marques?.map(m => m.id) || [],
-      genres: remise.discounted_genres?.map(g => g.id) || [],
+        if (!remiseResponse || !remiseResponse.data) {
+          throw new Error('No remise data received');
+        }
+
+        const remise = remiseResponse.data;
+        console.log('Fetched remise:', remise);
+
+        const updatedFormData = {
+          code: remise.code || '',
+          libelle: remise.libelle || '',
+          description: remise.description || '',
+          type_remise: remise.type_remise || 'pourcentage',
+          valeur: remise.valeur ? remise.valeur.toString() : '',
+          date_debut: remise.date_debut ? new Date(remise.date_debut) : null,
+          date_fin: remise.date_fin ? new Date(remise.date_fin) : null,
+          est_active: !!remise.est_active,
+          min_articles: remise.min_articles ? remise.min_articles.toString() : '',
+          min_montant: remise.min_montant ? remise.min_montant.toString() : '',
+          max_utilisation: remise.max_utilisation ? remise.max_utilisation.toString() : '',
+          est_cumulable: !!remise.est_cumulable,
+          apply_to: remise.apply_to || 'tous',
+          // Ensure these are arrays and map correctly
+          articles: remise.discounted_articles?.map(a => a.id) || [],
+          categories: remise.discounted_categories?.map(c => c.id) || [],
+          marques: remise.discounted_marques?.map(m => m.id) || [],
+          genres: remise.discounted_genres?.map(g => g.id) || [],
+        };
+
+        setFormData(updatedFormData);
+        console.log('Updated form data:', updatedFormData);
+
+        // Set showArticleSelection based on apply_to from fetched data
+        if (updatedFormData.apply_to === 'articles' || ['marques', 'categories', 'genres'].includes(updatedFormData.apply_to)) {
+          setShowArticleSelection(true);
+        } else {
+          setShowArticleSelection(false);
+        }
+
+        // Trigger filtered articles fetch ONLY if apply_to is relevant and there are IDs
+        if (updatedFormData.apply_to === 'marques' && updatedFormData.marques.length > 0) {
+          await fetchArticlesByMarque(updatedFormData.marques);
+        } else if (updatedFormData.apply_to === 'categories' && updatedFormData.categories.length > 0) {
+          await fetchArticlesByCategorie(updatedFormData.categories);
+        } else if (updatedFormData.apply_to === 'genres' && updatedFormData.genres.length > 0) {
+          await fetchArticlesByGenre(updatedFormData.genres);
+        }
+
+      } catch (error) {
+        console.error('Error loading remise:', error);
+        toast.error(error.message || 'Failed to load remise data');
+      } finally {
+        setIsFetchingRemise(false);
+      }
     };
 
-    setFormData(updatedFormData);
-    console.log('Updated form data:', updatedFormData); // Debug log
-
-    // Handle article filtering based on apply_to
-    if (remise.apply_to === 'marques' && remise.discounted_marques?.length > 0) {
-      await fetchArticlesByMarque(remise.discounted_marques.map(m => m.id));
-      setShowArticleSelection(true);
-    } else if (remise.apply_to === 'categories' && remise.discounted_categories?.length > 0) {
-      await fetchArticlesByCategorie(remise.discounted_categories.map(c => c.id));
-      setShowArticleSelection(true);
-    } else if (remise.apply_to === 'genres' && remise.discounted_genres?.length > 0) {
-      await fetchArticlesByGenre(remise.discounted_genres.map(g => g.id));
-      setShowArticleSelection(true);
-    } else if (remise.apply_to === 'articles') {
-      setShowArticleSelection(true);
+    // Only run this effect if id is available and catalog data (e.g., categories, marques, genres) is loaded
+    // This prevents re-fetching remise data prematurely or unnecessarily
+    if (id && categories.length > 0 && marques.length > 0 && genres.length > 0) {
+        loadRemiseData();
     }
-  } catch (error) {
-    console.error('Error loading remise:', error);
-    toast.error(error.message || 'Failed to load remise or catalog data');
-  } finally {
-    setIsFetchingRemise(false);
-  }
-}, [id]);
+  }, [id, getRemiseById, categories, marques, genres, fetchArticlesByMarque, fetchArticlesByCategorie, fetchArticlesByGenre]);
+ */
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    const loadRemiseData = async () => {
+      if (!id) return; // Ensure ID exists before fetching
 
-  // Optimized handler for form changes
+      setIsFetchingRemise(true);
+      try {
+        const remiseResponse = await getRemiseById(id);
+
+        if (!remiseResponse || !remiseResponse.data) {
+          throw new Error('No remise data received');
+        }
+
+        const remise = remiseResponse.data;
+        console.log('Fetched remise:', remise);
+
+        const updatedFormData = {
+          code: remise.code || '',
+          libelle: remise.libelle || '',
+          description: remise.description || '',
+          type_remise: remise.type_remise || 'pourcentage',
+          valeur: remise.valeur ? remise.valeur.toString() : '',
+          date_debut: remise.date_debut ? new Date(remise.date_debut) : null,
+          date_fin: remise.date_fin ? new Date(remise.date_fin) : null,
+          est_active: !!remise.est_active,
+          min_articles: remise.min_articles ? remise.min_articles.toString() : '',
+          min_montant: remise.min_montant ? remise.min_montant.toString() : '',
+          max_utilisation: remise.max_utilisation ? remise.max_utilisation.toString() : '',
+          est_cumulable: !!remise.est_cumulable,
+          apply_to: remise.apply_to || 'tous',
+          // Ensure these are arrays and map correctly
+          articles: remise.discounted_articles?.map(a => a.id) || [],
+          categories: remise.discounted_categories?.map(c => c.id) || [],
+          marques: remise.discounted_marques?.map(m => m.id) || [],
+          genres: remise.discounted_genres?.map(g => g.id) || [],
+        };
+
+        setFormData(updatedFormData);
+        console.log('Updated form data:', updatedFormData);
+
+        // Set showArticleSelection based on apply_to from fetched data
+        if (updatedFormData.apply_to === 'articles' || ['marques', 'categories', 'genres'].includes(updatedFormData.apply_to)) {
+          setShowArticleSelection(true);
+        } else {
+          setShowArticleSelection(false);
+        }
+
+        // Trigger filtered articles fetch ONLY if apply_to is relevant and there are IDs
+        if (updatedFormData.apply_to === 'marques' && updatedFormData.marques.length > 0) {
+          await fetchArticlesByMarque(updatedFormData.marques);
+        } else if (updatedFormData.apply_to === 'categories' && updatedFormData.categories.length > 0) {
+          await fetchArticlesByCategorie(updatedFormData.categories);
+        } else if (updatedFormData.apply_to === 'genres' && updatedFormData.genres.length > 0) {
+          await fetchArticlesByGenre(updatedFormData.genres);
+        }
+
+      } catch (error) {
+        console.error('Error loading remise:', error);
+        toast.error(error.message || 'Failed to load remise data');
+      } finally {
+        setIsFetchingRemise(false);
+      }
+    };
+
+    // Only run this effect if id is available and catalog data (e.g., categories, marques, genres) is loaded
+    // This prevents re-fetching remise data prematurely or unnecessarily
+    if (id && categories.length > 0 && marques.length > 0 && genres.length > 0) {
+        loadRemiseData();
+    }
+  }, [id, getRemiseById, categories, marques, genres, fetchArticlesByMarque, fetchArticlesByCategorie, fetchArticlesByGenre]);
+  // Optimized handler for form changes (input, textarea)
   const handleChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -157,44 +243,54 @@ const loadData = useCallback(async () => {
     }));
   }, []);
 
+  // Optimized handler for select (dropdowns) and switches
   const handleSelectChange = useCallback(async (name, value) => {
-    const newFormData = {
-      ...formData,
-      [name]: value,
-      articles: [], // Reset articles when changing apply_to
-    };
-    
-    setFormData(newFormData);
-    setShowArticleSelection(value === 'articles' || ['marques', 'categories', 'genres'].includes(value));
-  }, [formData]);
+    setFormData(prev => {
+      const newFormData = {
+        ...prev,
+        [name]: value,
+      };
 
+      // When `apply_to` changes, reset all related selections for articles, categories, marques, genres
+      if (name === 'apply_to') {
+        newFormData.articles = [];
+        newFormData.categories = [];
+        newFormData.marques = [];
+        newFormData.genres = [];
+        // Determine whether to show article selection based on the new apply_to value
+        setShowArticleSelection(value === 'articles' || ['marques', 'categories', 'genres'].includes(value));
+      }
+
+      return newFormData;
+    });
+  }, []);
+
+  // Optimized handler for multi-select dropdowns (categories, marques, genres)
   const handleMultiSelectChange = useCallback(async (name, selectedOptions) => {
     const values = selectedOptions.map(option => Number(option.value)).filter(id => !isNaN(id));
-    
-    const newFormData = {
-      ...formData,
+
+    setFormData(prev => ({
+      ...prev,
       [name]: values,
-      articles: [], // Reset articles when changing selection
-    };
+      articles: [], // Always reset articles when parent selection changes
+    }));
 
-    setFormData(newFormData);
-
+    // Fetch filtered articles immediately after selection changes for categories/marques/genres
     if (values.length > 0) {
       if (name === 'marques') {
         await fetchArticlesByMarque(values);
-        setShowArticleSelection(true);
       } else if (name === 'categories') {
         await fetchArticlesByCategorie(values);
-        setShowArticleSelection(true);
       } else if (name === 'genres') {
         await fetchArticlesByGenre(values);
-        setShowArticleSelection(true);
       }
+      setShowArticleSelection(true); // Always show article selection if a parent is selected
     } else {
-      setShowArticleSelection(false);
+      setShowArticleSelection(false); // Hide if no parent is selected
     }
-  }, [formData]);
+  }, [fetchArticlesByMarque, fetchArticlesByCategorie, fetchArticlesByGenre]);
 
+  // Optimized handler for article multi-select dropdown
   const handleArticleSelection = useCallback((selectedOptions) => {
     const values = selectedOptions.map(option => Number(option.value)).filter(id => !isNaN(id));
     setFormData(prev => ({
@@ -203,6 +299,7 @@ const loadData = useCallback(async () => {
     }));
   }, []);
 
+  // Optimized handler for date changes
   const handleDateChange = useCallback((name, date) => {
     setFormData(prev => ({
       ...prev,
@@ -212,38 +309,47 @@ const loadData = useCallback(async () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.code || !formData.libelle || !formData.valeur || !formData.date_debut || !formData.date_fin) {
       toast.error('Please fill all required fields');
       return;
     }
 
-    if (formData.apply_to !== 'tous' && !formData[formData.apply_to]?.length) {
-      toast.error(`Please select at least one ${formData.apply_to}`);
-      return;
+    if (formData.apply_to !== 'tous') {
+      const selectedItems = formData[formData.apply_to];
+      if (!selectedItems || selectedItems.length === 0) {
+        toast.error(`Please select at least one ${formData.apply_to}`);
+        return;
+      }
+      // Special validation for apply_to categories/marques/genres when articles are expected
+      if (['marques', 'categories', 'genres'].includes(formData.apply_to) && showArticleSelection && formData.articles.length === 0) {
+        toast.error(`Please select articles from the selected ${formData.apply_to}`);
+        return;
+      }
+    } else if (formData.apply_to === 'articles' && formData.articles.length === 0) {
+        toast.error('Please select at least one article.');
+        return;
     }
 
-    if (['marques', 'categories', 'genres'].includes(formData.apply_to) && showArticleSelection && !formData.articles.length) {
-      toast.error(`Please select articles for the selected ${formData.apply_to}`);
-      return;
-    }
 
     setLoading(true);
 
     try {
       const remiseData = {
         ...formData,
-        date_debut: formData.date_debut.toISOString(),
-        date_fin: formData.date_fin.toISOString(),
+        date_debut: formData.date_debut ? formData.date_debut.toISOString() : null,
+        date_fin: formData.date_fin ? formData.date_fin.toISOString() : null,
         valeur: parseFloat(formData.valeur) || 0,
         min_articles: formData.min_articles ? parseInt(formData.min_articles) : null,
         min_montant: formData.min_montant ? parseFloat(formData.min_montant) : null,
         max_utilisation: formData.max_utilisation ? parseInt(formData.max_utilisation) : null,
-        articles: showArticleSelection ? formData.articles : [],
+        articles: showArticleSelection && formData.apply_to !== 'tous' ? formData.articles : [], // Only send articles if applicable
+        categories: formData.apply_to === 'categories' ? formData.categories : [],
+        marques: formData.apply_to === 'marques' ? formData.marques : [],
+        genres: formData.apply_to === 'genres' ? formData.genres : [],
       };
 
       await updateRemise(id, remiseData);
-      toast.success('Discount updated successfully');
       router.push('/admin/ventes/remise');
     } catch (error) {
       toast.error(error.message || 'Failed to update discount');
@@ -252,23 +358,25 @@ const loadData = useCallback(async () => {
     }
   };
 
+  // Memoize getSelectedOptions to prevent unnecessary re-creations
   const getSelectedOptions = useCallback((type) => {
-    const items = type === 'articles' ? (showArticleSelection ? filteredArticles : articles) : 
-                 type === 'categories' ? categories :
-                 type === 'marques' ? marques :
-                 genres;
-    
+    const items = type === 'articles' ? (showArticleSelection ? filteredArticles : articles) :
+      type === 'categories' ? categories :
+      type === 'marques' ? marques :
+      genres;
+
     return formData[type].map(id => {
       const item = items.find(item => item?.id === id);
       return {
         value: id.toString(),
         label: item ? (type === 'articles' ? `${item.nom_produit} (ID: ${item.id})` : item.libelle) : `ID: ${id}`
       };
-    }).filter(option => option.label !== `ID: ${option.value}`);
+    }).filter(option => option.label !== `ID: ${option.value}`); // Filter out options where label is just "ID: id"
   }, [formData, showArticleSelection, filteredArticles, articles, categories, marques, genres]);
 
+
   // Memoize the renderApplyToFields function
-  const renderApplyToFields = useCallback(() => {
+  const renderApplyToFields = useMemo(() => {
     switch (formData.apply_to) {
       case 'articles':
         return (
@@ -380,10 +488,12 @@ const loadData = useCallback(async () => {
     }
   }, [formData.apply_to, showArticleSelection, filterLoading, articles, categories, marques, genres, filteredArticles, getSelectedOptions, handleArticleSelection, handleMultiSelectChange]);
 
-  if (isFetchingRemise) {
+
+  if (isFetchingRemise || (filterLoading && showArticleSelection)) {
     return (
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading discount details...</span>
       </div>
     );
   }
@@ -570,7 +680,7 @@ const loadData = useCallback(async () => {
                 </Select>
               </div>
 
-              {renderApplyToFields()}
+              {renderApplyToFields} {/* Use the memoized value */}
 
               <div className="space-y-2">
                 <Label htmlFor="min_articles">Nombre minimum d&apos;articles</Label>

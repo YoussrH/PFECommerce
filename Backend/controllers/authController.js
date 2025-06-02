@@ -169,71 +169,7 @@ const verifierOTP = async (req, res) => {
   }
 };
 
-
 /* const connecterUtilisateur = async (req, res) => {
-  try {
-    const { email, mot_de_passe } = req.body;
-
-    if (!email || !mot_de_passe) {
-      return res.status(400).json({ 
-        success: false,
-        message: "Email et mot de passe sont obligatoires." 
-      });
-    }
-
-    const utilisateur = await Utilisateur.findOne({ where: { email } });
-    if (!utilisateur) {
-      return res.status(404).json({ 
-        success: false,
-        message: "Utilisateur non trouvé." 
-      });
-    }
-
-    const motDePasseValide = await bcrypt.compare(mot_de_passe, utilisateur.mot_de_passe);
-    if (!motDePasseValide) {
-      return res.status(401).json({ 
-        success: false,
-        message: "Identifiants invalides." 
-      });
-    }
-
-    if (!utilisateur.est_verifie) {
-      return res.status(403).json({ 
-        success: false,
-        message: "Compte non vérifié." 
-      });
-    }
-
-    const client = await Client.findOne({ where: { utilisateur_id: utilisateur.id } }) || null;
-
-    req.session.utilisateur = {
-      id: utilisateur.id,
-      email: utilisateur.email,
-      role: utilisateur.role,
-      nom: utilisateur.nom,
-      prenom: utilisateur.prenom,
-      est_verifie: utilisateur.est_verifie,
-    };
-
-    req.session.cookie.expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 1 week
-    req.session.save();
-
-    res.json({
-      success: true,
-      message: "Connexion réussie",
-      utilisateur: req.session.utilisateur,
-      client,
-    });
-  } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ 
-      success: false,
-      error: "Échec de la connexion." 
-    });
-  }
-}; */
-
-const connecterUtilisateur = async (req, res) => {
   try {
     console.log('Login attempt started for email:', req.body.email);
     const { email, mot_de_passe } = req.body;
@@ -316,8 +252,103 @@ const connecterUtilisateur = async (req, res) => {
       error: "Échec de la connexion." 
     });
   }
-};
+}; */
 
+
+const connecterUtilisateur = async (req, res) => {
+  try {
+    console.log('Login attempt started for email:', req.body.email);
+    const { email, mot_de_passe } = req.body;
+
+    if (!email || !mot_de_passe) {
+      console.log('Missing email or password');
+      return res.status(400).json({ 
+        success: false,
+        message: "Email et mot de passe sont obligatoires." 
+      });
+    }
+
+    console.log('Looking for user in database');
+    const utilisateur = await Utilisateur.findOne({ where: { email } });
+    if (!utilisateur) {
+      console.log('User not found for email:', email);
+      return res.status(404).json({ 
+        success: false,
+        message: "Utilisateur non trouvé." 
+      });
+    }
+
+    // Add this check for account status
+    if (!utilisateur.est_actif) {
+      console.log('Account is deactivated');
+      return res.status(403).json({ 
+        success: false,
+        message: "Ce compte a été désactivé. Contactez l'administrateur." 
+      });
+    }
+
+    console.log('Comparing passwords');
+    const motDePasseValide = await bcrypt.compare(mot_de_passe, utilisateur.mot_de_passe);
+    if (!motDePasseValide) {
+      console.log('Password comparison failed');
+      return res.status(401).json({ 
+        success: false,
+        message: "Identifiants invalides." 
+      });
+    }
+
+    if (!utilisateur.est_verifie) {
+      console.log('Account not verified');
+      return res.status(403).json({ 
+        success: false,
+        message: "Compte non vérifié." 
+      });
+    }
+
+    console.log('Looking for client data');
+    const client = await Client.findOne({ where: { utilisateur_id: utilisateur.id } }) || null;
+
+    console.log('Creating session data');
+    req.session.utilisateur = {
+      id: utilisateur.id,
+      email: utilisateur.email,
+      role: utilisateur.role,
+      nom: utilisateur.nom,
+      prenom: utilisateur.prenom,
+      est_verifie: utilisateur.est_verifie,
+      est_actif: utilisateur.est_actif // Include account status in session
+    };
+
+    req.session.cookie.expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 1 week
+    
+    console.log('Saving session');
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+          reject(err);
+        } else {
+          console.log('Session saved successfully');
+          resolve();
+        }
+      });
+    });
+
+    console.log('Login successful for user:', utilisateur.id);
+    res.json({
+      success: true,
+      message: "Connexion réussie",
+      utilisateur: req.session.utilisateur,
+      client,
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ 
+      success: false,
+      error: "Échec de la connexion." 
+    });
+  }
+};
 const connecterAdmin = async (req, res) => {
   try {
     const { email, mot_de_passe } = req.body;
@@ -359,6 +390,44 @@ const connecterAdmin = async (req, res) => {
       });
     }
 
+// Create JWT token
+const token = jwt.sign(
+  {
+    id: utilisateur.id,
+    email: utilisateur.email,
+    role: utilisateur.role,
+  },
+  process.env.JWT_SECRET,
+  { expiresIn: "8h" }
+);
+
+// ===== ADD THESE DEBUG LINES =====
+console.log('=== JWT DEBUGGING ===');
+console.log('1. Token generated:', token);
+
+// Verify the token can be decoded (sanity check)
+try {
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  console.log('2. Token successfully decoded:', decoded);
+  console.log('3. Token structure valid:', decoded.iat && decoded.exp && decoded.id);
+  console.log('4. Token expiration:', new Date(decoded.exp * 1000).toISOString());
+} catch (verifyErr) {
+  console.error('2. Token verification failed:', verifyErr);
+}
+
+// Check token structure
+const tokenParts = token.split('.');
+console.log('5. Token parts count:', tokenParts.length);
+console.log('6. Header:', tokenParts[0]?.length, 'chars');
+console.log('7. Payload:', tokenParts[1]?.length, 'chars');
+console.log('8. Signature:', tokenParts[2]?.length, 'chars');
+
+// Environment check
+console.log('9. JWT_SECRET exists:', !!process.env.JWT_SECRET);
+console.log('10. JWT_SECRET length:', process.env.JWT_SECRET?.length);
+// ===== END DEBUG LINES =====
+
+    // Create session data
     req.session.utilisateur = {
       id: utilisateur.id,
       email: utilisateur.email,
@@ -366,25 +435,29 @@ const connecterAdmin = async (req, res) => {
       nom: utilisateur.nom,
       prenom: utilisateur.prenom,
       est_verifie: utilisateur.est_verifie,
+      token: token // Store the token in session
     };
 
-    const token = jwt.sign(
-      {
-        id: utilisateur.id,
-        email: utilisateur.email,
-        role: utilisateur.role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "8h" } 
-    );
-
-    req.session.save();
+    // Ensure session is saved before responding
+    await new Promise((resolve, reject) => {
+      req.session.save(err => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
 
     res.json({
       success: true,
       message: "Admin login successful",
-      token, 
-      utilisateur: req.session.utilisateur,
+      token: token, // Send token in response
+      utilisateur: {
+        id: utilisateur.id,
+        email: utilisateur.email,
+        role: utilisateur.role,
+        nom: utilisateur.nom,
+        prenom: utilisateur.prenom,
+        est_verifie: utilisateur.est_verifie
+      }
     });
 
   } catch (err) {

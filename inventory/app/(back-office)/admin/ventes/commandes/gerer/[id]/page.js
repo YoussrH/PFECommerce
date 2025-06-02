@@ -75,7 +75,7 @@ const statusOptions = [
 export default function GereCommandePage() {
   const { id } = useParams();
   const router = useRouter();
-  const { token } = useAuth();
+  const { token,user } = useAuth();
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showReplaceDialog, setShowReplaceDialog] = useState(false);
@@ -183,9 +183,10 @@ export default function GereCommandePage() {
       const response = await fetch(`http://localhost:5000/livraisons/${commande.id}/modifierLivreurLivraison`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
         body: JSON.stringify({ livreur_id: newLivreurId })
       });
 
@@ -256,9 +257,10 @@ export default function GereCommandePage() {
       const response = await fetch(`http://localhost:5000/commandes/ajouterNoteAdmin/${id}/notes`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
         body: JSON.stringify({ notes_admin: notesAdmin })
       });
 

@@ -3,7 +3,7 @@ const { Client, Article, CommandeArticle, Commande,Utilisateur, Avis } = require
 const db = require('../models'); // Assuming your models are exported from this file
 const sequelize = db.sequelize;
 
-const createAvis = async (req, res) => {
+/* const createAvis = async (req, res) => {
   try {
     const { articleId, note, commentaire } = req.body;
     const clientId =req.utilisateur.id; // Assuming the authenticated user's ID is available here
@@ -86,8 +86,136 @@ const createAvis = async (req, res) => {
       message: 'Internal server error'
     });
   }
-};
+}; */
 
+const createAvis = async (req, res) => {
+  try {
+    const { articleId, note, commentaire } = req.body;
+    const clientId = req.utilisateur.id; // Assuming the authenticated user's ID is available here
+    console.log('Server: createAvis called', { articleId, note, commentaire, clientId });
+
+    // Validate input
+    if (!articleId || !note) {
+      console.log('Server: Validation failed - missing articleId or note');
+      return res.status(400).json({
+        success: false,
+        message: 'Product ID and rating are required'
+      });
+    }
+
+    if (note < 1 || note > 5) {
+      console.log('Server: Validation failed - invalid note', { note });
+      return res.status(400).json({
+        success: false,
+        message: 'Rating must be between 1 and 5'
+      });
+    }
+
+    // Check if the client has purchased the product
+    const hasPurchased = await Commande.findOne({
+      include: [
+        {
+          model: CommandeArticle,
+          as: 'commande_articles',
+          where: { article_id: articleId },
+          required: true
+        }
+      ],
+      where: {
+        client_id: clientId,
+        statut: {
+          [Op.in]: ['livree', 'expediee'] // Only consider delivered or shipped orders
+        }
+      }
+    });
+
+    if (!hasPurchased) {
+      console.log('Server: User has not purchased the product', { clientId, articleId });
+      return res.status(403).json({
+        success: false,
+        message: 'You can only review products you have purchased'
+      });
+    }
+
+    // Check if the client has already reviewed this product
+    const existingReview = await Avis.findOne({
+      where: {
+        client_id: clientId,
+        article_id: articleId
+      }
+    });
+
+    if (existingReview) {
+      console.log('Server: User has already reviewed this product', { clientId, articleId });
+      return res.status(400).json({
+        success: false,
+        message: 'You have already reviewed this product'
+      });
+    }
+
+    // Create the review
+    const newReview = await Avis.create({
+      note,
+      commentaire,
+      client_id: clientId,
+      article_id: articleId
+    });
+    console.log('Server: Review created', { reviewId: newReview.id });
+
+    // Fetch client and article details for notification
+    const client = await Client.findOne({
+      where: { utilisateur_id: clientId },
+      include: [{ 
+        model: Utilisateur, 
+        as: 'utilisateur', 
+        attributes: ['prenom', 'nom', 'email'],
+        required: false // Allow null utilisateur
+      }]
+    });
+    const article = await Article.findByPk(articleId, {
+      attributes: ['nom_produit']
+    });
+    console.log('Server: Fetched client and article', { 
+      client: client ? { id: client.id, utilisateur: client.utilisateur } : null, 
+      article: article ? article.nom_produit : null 
+    });
+
+    // Emit Socket.IO notification for new review
+    if (req.app.get('io')) {
+      const notification = {
+        id: newReview.id,
+        article_id: articleId,
+        article_nom: article?.nom_produit || 'Produit inconnu',
+        note: newReview.note,
+        commentaire: commentaire || 'Aucun commentaire',
+        prenom: client?.utilisateur?.prenom || 'Utilisateur',
+        nom: client?.utilisateur?.nom || 'Inconnu',
+        email: client?.utilisateur?.email || 'N/A',
+        created_at: newReview.created_at,
+        message: `Nouvel avis sur ${article?.nom_produit || 'un produit'} par ${client?.utilisateur?.prenom || 'Utilisateur'} ${client?.utilisateur?.nom || 'Inconnu'}`
+      };
+      console.log('Server: Emitting new-review notification', notification);
+      req.app.get('io').to('admin-room').emit('new-review', notification);
+    } else {
+      console.warn('Server: Socket.IO instance not available');
+    }
+
+    // Update product average rating
+    await updateProductRating(articleId);
+
+    return res.status(201).json({
+      success: true,
+      data: newReview
+    });
+
+  } catch (error) {
+    console.error('Server: Error creating review:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
 // Helper function to update product average rating
 async function updateProductRating(articleId) {
   try {

@@ -19,22 +19,20 @@ export default function ProcessedReclamations() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const router = useRouter()
-  const { token } = useAuth()
+  const { token ,user} = useAuth()
 
   useEffect(() => {
     const fetchProcessed = async () => {
       try {
         setLoading(true)
-        const headers = {
-          "Content-Type": "application/json",
-        }
 
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`
-        }
 
         const response = await fetch("http://localhost:5000/reclamations/lister?statut=traite", {
-          headers,
+           headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
           credentials: "include",
         })
 

@@ -830,63 +830,7 @@ const updateRemise = async (req, res) => {
   }
 };
 
-/* const getRemiseById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const remise = await Remise.findByPk(id, {
-      include: [
-        { 
-          model: Article, 
-          as: 'discounted_articles',
-          through: { attributes: [] },
-          attributes: ['id', 'nom_produit', 'prix', 'prix_final'],
-          required: false // Change to false to make it a LEFT JOIN
-        },
-        { 
-          model: Categorie, 
-          as: 'discounted_categories',
-          through: { attributes: [] },
-          attributes: ['id', 'libelle'],
-          required: false // Change to false
-        },
-        { 
-          model: Marque, 
-          as: 'discounted_marques',
-          through: { attributes: [] },
-          attributes: ['id', 'libelle'],
-          required: false // Change to false
-        },
-        { 
-          model: Genre, 
-          as: 'discounted_genres',
-          through: { attributes: [] },
-          attributes: ['id', 'libelle'],
-          required: false // Change to false
-        }
-      ]
-    });
 
-    if (!remise) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Discount not found' 
-      });
-    }
-
-    res.json({
-      success: true,
-      data: remise
-    });
-  } catch (error) {
-    console.error('Error fetching discount by ID:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to fetch discount',
-      error: error.message 
-    });
-  }
-}; */
 
 const getRemiseById = async (req, res) => {
   try {

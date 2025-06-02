@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 export default function MarqueForm({ onSuccess }) {
   const [libelle, setLibelle] = useState("");
   const [loading, setLoading] = useState(false);
-  const { token } = useAuth();
+  const { token ,user} = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,9 +24,11 @@ export default function MarqueForm({ onSuccess }) {
         "http://localhost:5000/marques/ajouterMarque", 
         { libelle },
         {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+           headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
         }
       );
       

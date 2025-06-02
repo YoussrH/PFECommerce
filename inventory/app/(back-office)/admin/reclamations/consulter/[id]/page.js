@@ -40,7 +40,7 @@ export default function ViewReclamation({ params }) {
   const [attachments, setAttachments] = useState([])
   const [uploadingFiles, setUploadingFiles] = useState(false)
   const router = useRouter()
-  const { token } = useAuth()
+  const { token,user } = useAuth()
 
   // Parse fichiers array from string or object
   const parseFichiers = (fichiers) => {
@@ -93,9 +93,10 @@ const handleDownload = async (fileUrl, fileName, fileType) => {
         const response = await fetch('http://localhost:5000/reclamations/signed-url', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
           body: JSON.stringify({ fileUrl })
         });
 
@@ -126,7 +127,11 @@ const handleDownload = async (fileUrl, fileName, fileType) => {
 
     // For non-Cloudinary files
     const response = await fetch(fileUrl, {
-      headers: { 'Authorization': `Bearer ${token}` },
+       headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
       credentials: 'include'
     });
 
@@ -216,9 +221,11 @@ const handleDownload = async (fileUrl, fileName, fileType) => {
 
         const uploadResponse = await fetch("http://localhost:5000/reclamations/fichiers/upload", {
           method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`
-          },
+           headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
           credentials: "include",
           body: formData,
         });
@@ -235,9 +242,10 @@ const handleDownload = async (fileUrl, fileName, fileType) => {
       const res = await fetch(`http://localhost:5000/reclamations/repondre/${id}`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
         credentials: "include",
         body: JSON.stringify({
           reponse: response,
@@ -269,9 +277,10 @@ const handleDownload = async (fileUrl, fileName, fileType) => {
       const res = await fetch(`http://localhost:5000/reclamations/sauvegarder-brouillon/${id}`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
         credentials: "include",
         body: JSON.stringify({ reponse: response }),
       });

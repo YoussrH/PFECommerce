@@ -1,11 +1,13 @@
 import { useState, useCallback } from 'react';
 import axios from 'axios';
+import { useAuth } from '@/app/contexts/AuthContext';
 
 const useReclamation = () => {
   const [reclamations, setReclamations] = useState([]);
   const [currentReclamation, setCurrentReclamation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+    const { user } = useAuth()
 
   // Base URL for API requests (adjust to your backend URL)
   const API_BASE_URL = 'http://localhost:5000/reclamations';
@@ -49,9 +51,11 @@ const useReclamation = () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/lister`, {
         params: { statut: status },
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+         headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
       });
       setReclamations(response.data.data);
       return response.data.data;
@@ -70,9 +74,11 @@ const useReclamation = () => {
 
     try {
       const response = await axios.get(`${API_BASE_URL}/consulter/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+         headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
       });
       setCurrentReclamation(response.data.data);
       return response.data.data;
@@ -97,10 +103,11 @@ const useReclamation = () => {
       const response = await axios.post(
         `${API_BASE_URL}/repondre/${id}`,
         { reponse: responseText },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
+        { headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
         }
       );
       setCurrentReclamation(response.data.data);
@@ -128,9 +135,11 @@ const useReclamation = () => {
         `${API_BASE_URL}/archiver/${id}`,
         {},
         {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
+           headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
         }
       );
       return response.data;
@@ -152,10 +161,11 @@ const useReclamation = () => {
       const response = await axios.post(
         `${API_BASE_URL}/restaurer/${id}`,
         {},
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
+        { headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
         }
       );
       // Refresh the reclamations list after restoring
@@ -179,9 +189,11 @@ const useReclamation = () => {
         `${API_BASE_URL}/nettoyer`,
         {},
         {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
+           headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
         }
       );
       // Refresh the reclamations list after cleaning

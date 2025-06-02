@@ -2,6 +2,7 @@
 import { create } from 'zustand'
 import axios from 'axios'
 import { toast } from 'sonner'
+import { useAuth } from '@/app/contexts/AuthContext'
 
 const api = axios.create({
   baseURL: 'http://localhost:5000/livraisons',
@@ -26,7 +27,8 @@ export const useLivraison = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       const res = await api.get('/disponibles', {
-        headers: { Authorization: `Bearer ${token}` }
+               headers: { Authorization: `Bearer ${token}` }
+
       });
       
       if (!res.data?.success) {
@@ -60,7 +62,8 @@ export const useLivraison = create((set, get) => ({
       const res = await api.put(
         `/${livraisonId}/assigner`,
         { livreur_id: livreurId },
-        { headers: { Authorization: `Bearer ${token}` } }
+        {        headers: { Authorization: `Bearer ${token}` }
+}
       );
       
       if (!res.data?.success) {
@@ -91,7 +94,8 @@ export const useLivraison = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       const res = await api.get(`/livreur/${livreurId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+             headers: { Authorization: `Bearer ${token}` }
+
       });
       
       if (!res.data?.success) {

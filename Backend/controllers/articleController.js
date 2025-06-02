@@ -1024,11 +1024,10 @@ const supprimerArticle = async (req, res) => {
   const transaction = await sequelize.transaction();
   
   try {
-    const article = await Article.findByPk(req.params.id, {
-      include: [{ model: ImageArticleCouleur, as: 'images_couleurs' }],
-      transaction
-    });
-    
+    const { id } = req.params;
+
+    // First check if the article exists
+    const article = await Article.findByPk(id, { transaction });
     if (!article) {
       await transaction.rollback();
       return res.status(404).json({ 
@@ -1037,53 +1036,52 @@ const supprimerArticle = async (req, res) => {
       });
     }
 
-    // Supprimer les images de Cloudinary
-    const images = article.images_couleurs || [];
-    for (const image of images) {
-      try {
-        const publicId = image.image_url.split('/').pop().split('.')[0];
-        await cloudinary.uploader.destroy(`articles/${publicId}`);
-      } catch (error) {
-        console.error("Erreur lors de la suppression de l'image de Cloudinary:", error);
-      }
-    }
+    // Delete all related records first to maintain referential integrity
+    await Promise.all([
+      ImageArticleCouleur.destroy({ 
+        where: { article_id: id },
+        transaction 
+      }),
+      ArticleTaille.destroy({ 
+        where: { article_id: id },
+        transaction 
+      }),
+      ArticleCouleur.destroy({ 
+        where: { article_id: id },
+        transaction 
+      })
+    ]);
 
-    // Supprimer les enregistrements de la base de données
-    await models.ArticleTaille.destroy({ 
-      where: { article_id: article.id },
-      transaction 
-    });
-    
-    await models.ArticleCouleur.destroy({ 
-      where: { article_id: article.id },
-      transaction 
-    });
-    
-    await ImageArticleCouleur.destroy({ 
-      where: { article_id: article.id },
-      transaction 
-    });
-    
+    // Finally delete the article itself
     await article.destroy({ transaction });
 
-    // Valider la transaction
     await transaction.commit();
 
-    res.json({ 
+    res.json({
       success: true,
-      message: "Article supprimé avec succès" 
+      message: "Article supprimé avec succès",
+      donnees: { id }
     });
+
   } catch (error) {
     await transaction.rollback();
     console.error("Erreur lors de la suppression de l'article:", error);
-    res.status(500).json({ 
+    
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({ 
+        success: false,
+        message: "Impossible de supprimer l'article car il est référencé dans d'autres tables",
+        error: error.parent ? error.parent.detail : error.message
+      });
+    }
+    
+    res.status(500).json({
       success: false,
-      message: "Erreur lors de la suppression de l'article", 
-      error: error.message 
+      message: "Erreur lors de la suppression de l'article",
+      error: error.message
     });
   }
 };
-
 
 const filtrerArticles = async (req, res) => {
   try {

@@ -5,17 +5,29 @@ import { TbUserDown } from "react-icons/tb";
 import { TbSun, TbMoonStars, TbHome } from "react-icons/tb";
 import { RiMenu2Fill } from "react-icons/ri";
 import Link from "next/link";
-import React, { useState, useEffect,useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import AdminDropdown from "./AdminDropdown";
+import { useSocket } from "@/app/contexts/SocketContext";
+import { toast } from "sonner";
 
 const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const notificationRef = useRef(null);
+  const { notifications, unreadCount, markAsRead } = useSocket();
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+
+  const toggleNotification = () => {
+    if (isNotificationOpen) {
+      markAsRead();
+    }
+    setIsNotificationOpen(!isNotificationOpen);
+  };
 
   const handleMouseEnter = (dropdownName) => {
     setActiveDropdown(dropdownName);
@@ -25,11 +37,14 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
     setActiveDropdown(null);
   };
 
-  // Fermer le dropdown quand on clique à l'extérieur
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setActiveDropdown(null);
+      }
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setIsNotificationOpen(false);
       }
     };
 
@@ -38,9 +53,34 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+useEffect(() => {
+  const handleScroll = () => {
+    setIsScrolled(window.scrollY > 10);
+  };
+
+  window.addEventListener("scroll", handleScroll);
+  return () => {
+    window.removeEventListener("scroll", handleScroll);
+  };
+}, []);
+
+
+  // Format notification time
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
-    <div className="sticky top-0 z-50 flex justify-between bg-[#fff7ef]  items-center w-full px-4 py-[11px]">
+    <div
+
+  className={`sticky top-0 z-50 flex justify-between rounded-3xl -pr-9 items-center w-full px-4 py-[11px] transition-all duration-300 ${
+    isScrolled ? "bg-white border-b border-gray-100 shadow-sm" : "bg-transparent border-b border-transparent"
+  }`}
+>
+      {/* Left side (search and sidebar toggle) */}
       <div className="flex items-center gap-3 sm:gap-5">
         <button
           className="p-3 w-10 h-10 border border-gray-100 bg-white rounded-md transition-all duration-300"
@@ -87,6 +127,7 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
         </div>
       </div>
 
+      {/* Right side (icons and dropdowns) */}
       <div className="hidden sm:flex items-center gap-3 sm:gap-5">
         <button
           onClick={toggleDarkMode}
@@ -101,11 +142,65 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
           </div>
         </button>
 
-        <div className="relative">
-          <Bell className="text-gray-600 cursor-pointer" size={24} />
-          <span className="absolute -top-2 -right-2 inline-flex items-center justify-center px-2 py-1 text-xs font-semibold leading-none text-red-100 bg-red-400 rounded-full">
-            3
-          </span>
+        <div className="relative" ref={notificationRef}>
+          <button 
+            onClick={toggleNotification}
+            className="p-2 rounded-full hover:bg-gray-200 transition-all duration-300 relative"
+          >
+            <Bell className="text-gray-600 cursor-pointer" size={24} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-2 -right-2 inline-flex items-center justify-center px-2 py-1 text-xs font-semibold leading-none text-red-100 bg-red-400 rounded-full">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+          
+          {/* Notification dropdown */}
+          {isNotificationOpen && (
+            <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg overflow-hidden z-50 animate-fadeIn">
+              <div className="p-3 border-b border-gray-200 bg-gray-50">
+                <h3 className="text-sm font-semibold text-gray-700">Notifications</h3>
+              </div>
+              
+              <div className="max-h-96 overflow-y-auto">
+                {notifications.length > 0 ? (
+                  notifications.map((notification, index) => (
+                    <div 
+                      key={index} 
+                      className="p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-800">{notification.sujet}</h4>
+                          <p className="text-xs text-gray-500 mt-1">{notification.message.substring(0, 50)}...</p>
+                        </div>
+                        <span className="text-xs text-gray-400">{formatTime(notification.createdAt)}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        From: {notification.prenom} {notification.nom}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-sm text-gray-500">
+                    No new notifications
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-2 border-t border-gray-200 bg-gray-50 text-center">
+                <button 
+                  className="text-xs text-blue-500 hover:text-blue-700"
+                  onClick={() => {
+                    // Navigate to reclamations page
+                    window.location.href = '/admin/reclamations/inbox';
+                  }}
+                >
+                  View all
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <Link
@@ -125,6 +220,7 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
         </div>
       </div>
 
+      {/* Mobile menu button */}
       <button
         onClick={toggleMenu}
         className="sm:hidden p-2 rounded-full hover:bg-gray-200 transition-all duration-300"
@@ -145,13 +241,7 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
         </svg>
       </button>
 
-      {!isSidebarCollapsed && (
-        <div
-          className="fixed inset-0 sm:hidden transition-opacity duration-300"
-          onClick={toggleSidebar}
-        ></div>
-      )}
-
+      {/* Mobile menu dropdown */}
       {isMenuOpen && (
         <div className="sm:hidden absolute top-16 right-4 bg-white border border-gray-200 rounded-lg shadow-lg z-50 w-48 animate-fadeIn">
           <div className="flex flex-col p-2">
@@ -180,12 +270,17 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
               </span>
             </button>
 
-            <div className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 transition-all duration-300">
+            <div 
+              className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 transition-all duration-300"
+              onClick={toggleNotification}
+            >
               <Bell className="text-gray-600" size={20} />
               <span className="text-sm text-gray-700">Notifications</span>
-              <span className="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-semibold leading-none text-red-100 bg-red-400 rounded-full">
-                3
-              </span>
+              {unreadCount > 0 && (
+                <span className="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-semibold leading-none text-red-100 bg-red-400 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
             </div>
 
             <Link

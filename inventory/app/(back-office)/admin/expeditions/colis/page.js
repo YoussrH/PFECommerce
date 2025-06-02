@@ -20,6 +20,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { useCommandesStore } from '@/hooks/useCommandesStore'
+import { Package, Truck, CheckCircle, AlertCircle, XCircle } from 'lucide-react'
 
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
@@ -49,8 +50,29 @@ const statusVariant = {
   annulee: 'destructive'
 }
 
+const statusIcons = {
+  preparation: <Package className="h-4 w-4 mr-2" />,
+  expediee: <Truck className="h-4 w-4 mr-2" />,
+  livre: <CheckCircle className="h-4 w-4 mr-2" />,
+  retourne: <AlertCircle className="h-4 w-4 mr-2" />,
+  annulee: <XCircle className="h-4 w-4 mr-2" />
+}
+
 export default function ColisPage() {
-  const { colis, loading, fetchColis } = useExpeditionsStore()
+  const { 
+    colis, 
+    loading, 
+    stats = {
+      totalColis: 0,
+      enPreparation: 0,
+      expediees: 0,
+      livrees: 0,
+      retournees: 0,
+      annulees: 0
+    },
+    fetchColis 
+  } = useExpeditionsStore()
+  
   const { generateColisInvoice } = useCommandesStore()
   const [filters, setFilters] = useState({
     page: 1,
@@ -71,43 +93,108 @@ export default function ColisPage() {
     }
   }
 
+  // Ensure stats are numbers and fallback to 0 if undefined/NaN
+  const safeStats = {
+    totalColis: Number(stats.totalColis) || 0,
+    enPreparation: Number(stats.enPreparation) || 0,
+    expediees: Number(stats.expediees) || 0,
+    livrees: Number(stats.livrees) || 0,
+    retournees: Number(stats.retournees) || 0,
+    annulees: Number(stats.annulees) || 0
+  }
+
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-xl ">Gestion des Colis</h1>
-      <Card className="mt-6 p-6">
-        <CardContent>
-          <div className="flex items-center gap-4 mb-4">
-            <Select 
-              value={filters.statut} 
-              onValueChange={(value) => setFilters({...filters, statut: value})}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Statut" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="preparation">En préparation</SelectItem>
-                <SelectItem value="expediee">Expédié</SelectItem>
-                <SelectItem value="livre">Livré</SelectItem>
-                <SelectItem value="retourne">Retourné</SelectItem>
-                <SelectItem value="annulee">Annulé</SelectItem>
-              </SelectContent>
-            </Select>
+      <h1 className="text-2xl font-bold mb-6">Gestion des Colis</h1>
 
-            <Input
-              placeholder="Filtrer par commande"
-              value={filters.commande_id}
-              onChange={(e) => setFilters({...filters, commande_id: e.target.value})}
-              className="max-w-sm"
-            />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Colis</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{safeStats.totalColis}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">En Préparation</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{safeStats.enPreparation}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Expédiés</CardTitle>
+            <Truck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{safeStats.expediees}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Livrés</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{safeStats.livrees}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Retournés/Annulés</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{safeStats.retournees + safeStats.annulees}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters and Colis List */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <CardTitle>Liste des Colis</CardTitle>
+            <div className="flex items-center gap-4">
+              <Select 
+                value={filters.statut} 
+                onValueChange={(value) => setFilters({...filters, statut: value})}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les statuts</SelectItem>
+                  <SelectItem value="en_preparation">En préparation</SelectItem>
+                  <SelectItem value="expediee">Expédié</SelectItem>
+                  <SelectItem value="livree">Livré</SelectItem>
+                  <SelectItem value="retourne">Retourné</SelectItem>
+                  <SelectItem value="remplacee">Remplacée</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Input
+                placeholder="Filtrer par commande"
+                value={filters.commande_id}
+                onChange={(e) => setFilters({...filters, commande_id: e.target.value})}
+                className="max-w-sm"
+              />
+            </div>
           </div>
-
+        </CardHeader>
+        <CardContent>
           <div className="space-y-4">
             {loading ? (
-              <div className="text-center">Chargement...</div>
+              <div className="text-center py-8">Chargement des colis...</div>
             ) : colis.length > 0 ? (
               colis.map((colis) => (
-                <Card key={colis.id}>
+                <Card key={colis.id} className="border rounded-lg">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                       <h3 className="font-medium">Colis #{colis.numero_suivi}</h3>
@@ -115,12 +202,13 @@ export default function ColisPage() {
                         Commande: {colis.commande?.reference || 'N/A'}
                       </p>
                     </div>
-                    <Badge variant={statusVariant[colis.statut]}>
+                    <Badge variant={statusVariant[colis.statut]} className="flex items-center">
+                      {statusIcons[colis.statut]}
                       {colis.statut}
                     </Badge>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <p className="text-sm font-medium">Client</p>
                         <p className="text-sm">
@@ -141,8 +229,7 @@ export default function ColisPage() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2 mt-4">
-                      {/* QR Code Display */}
+                    <div className="flex flex-wrap gap-2 mt-4">
                       {colis.qr_code_data && (
                         <Dialog>
                           <DialogTrigger asChild>
@@ -168,7 +255,6 @@ export default function ColisPage() {
                         </Dialog>
                       )}
 
-                      {/* Download Colis Invoice Button */}
                       <Button 
                         variant="outline" 
                         size="sm"
@@ -177,7 +263,6 @@ export default function ColisPage() {
                         Télécharger Facture Colis
                       </Button>
 
-                      {/* View Order Button */}
                       {colis.commande_id && (
                         <Button 
                           variant="outline" 
@@ -192,11 +277,27 @@ export default function ColisPage() {
                 </Card>
               ))
             ) : (
-              <div className="text-center">Aucun colis trouvé</div>
+              <div className="text-center py-8">Aucun colis trouvé</div>
             )}
           </div>
         </CardContent>
       </Card>
+
+      {/* Summary Footer */}
+      <div className="mt-6 p-4 bg-white rounded-lg border">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h3 className="font-semibold">Récapitulatif</h3>
+            <p className="text-sm text-gray-600">
+              {colis.length} colis affichés
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-gray-600">Dernière mise à jour</p>
+            <p className="text-sm font-medium">{new Date().toLocaleString('fr-FR')}</p>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -12,11 +12,15 @@ export const ReviewForm = ({ productId, onReviewSubmit }) => {
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [comment, setComment] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Prevent multiple submissions
+    if (isSubmitting) return;
+
+    // Validation
     if (!isAuthenticated) {
       toast.error("Vous devez être connecté pour laisser un avis");
       return;
@@ -27,8 +31,12 @@ export const ReviewForm = ({ productId, onReviewSubmit }) => {
       return;
     }
 
-    setLoading(true);
+    setIsSubmitting(true);
+
     try {
+      // Small delay to prevent accidental double-clicks
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       const response = await fetch("http://localhost:5000/avis/createAvis", {
         method: "POST",
         headers: {
@@ -42,23 +50,27 @@ export const ReviewForm = ({ productId, onReviewSubmit }) => {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erreur lors de l'ajout de l'avis");
-      }
-
       const data = await response.json();
 
+      if (!response.ok) {
+        throw new Error(data.message || "Erreur lors de l'ajout de l'avis");
+      }
+
+      // Success handling
       toast.success("Votre avis a été ajouté avec succès");
       setRating(0);
       setComment("");
-      if (onReviewSubmit) onReviewSubmit();
-      
+
+      // Wait a moment before refreshing to show success
+      setTimeout(() => {
+        if (onReviewSubmit) onReviewSubmit();
+      }, 1000);
+
     } catch (error) {
       console.error('Review submission error:', error);
       toast.error(error.message || "Une erreur est survenue");
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -81,6 +93,7 @@ export const ReviewForm = ({ productId, onReviewSubmit }) => {
                   onMouseEnter={() => setHoveredRating(star)}
                   onMouseLeave={() => setHoveredRating(0)}
                   className="p-1 hover:scale-110 transition-transform"
+                  disabled={isSubmitting}
                 >
                   <Star
                     className={`h-6 w-6 sm:h-7 sm:w-7 transition-colors ${
@@ -122,6 +135,7 @@ export const ReviewForm = ({ productId, onReviewSubmit }) => {
               placeholder="Partagez votre expérience avec ce produit..."
               className="min-h-[80px] sm:min-h-[100px] text-sm resize-none"
               maxLength={500}
+              disabled={isSubmitting}
             />
             <div className="text-xs text-gray-500 text-right">
               {comment.length}/500 caractères
@@ -132,10 +146,10 @@ export const ReviewForm = ({ productId, onReviewSubmit }) => {
           <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <Button
               type="submit"
-              disabled={loading || rating === 0}
+              disabled={isSubmitting || rating === 0}
               className="flex-1 sm:flex-none bg-black hover:bg-gray-800 text-white text-sm"
             >
-              {loading ? (
+              {isSubmitting ? (
                 <span className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Publication...
@@ -151,9 +165,8 @@ export const ReviewForm = ({ productId, onReviewSubmit }) => {
                 setRating(0);
                 setHoveredRating(0);
                 setComment("");
-                onReviewSubmit();
               }}
-              disabled={loading}
+              disabled={isSubmitting}
               className="text-sm"
             >
               Annuler

@@ -385,6 +385,173 @@ export const useUtilisateur = create((set, get) => ({
       set({ loading: false });
     }
   },
+// Add these methods to your useUtilisateur hook
+desactiverUtilisateur: async (id, raison, token) => {
+  if (!id || get().loading) return;
+  
+  set({ loading: true });
+  try {
+    const res = await api.put(`/desactiverUtilisateur/${id}`, { raison }, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    if (!res.data?.success) {
+      throw new Error(res.data?.message || 'Failed to deactivate user');
+    }
+    
+    toast.success(res.data.message || "Account deactivated successfully");
+    
+    // Update local state if needed
+    if (get().utilisateur?.id === id) {
+      set({ utilisateur: { ...get().utilisateur, est_actif: false } });
+    }
+    
+    // Update in lists
+    set({
+      utilisateurs: get().utilisateurs.map(u => 
+        u.id === id ? { ...u, est_actif: false } : u
+      ),
+      clients: get().clients.map(c => 
+        c.utilisateur_id === id ? { ...c, utilisateur: { ...c.utilisateur, est_actif: false } } : c
+      ),
+      livreurs: get().livreurs.map(l => 
+        l.utilisateur_id === id ? { ...l, utilisateur: { ...l.utilisateur, est_actif: false } } : l
+      )
+    });
+    
+    return res.data;
+  } catch (error) {
+    const message = error.response?.data?.message || 
+                   error.message || 
+                   'Failed to deactivate account';
+    toast.error(message);
+    throw error;
+  } finally {
+    set({ loading: false });
+  }
+},
 
+reactiverUtilisateur: async (id, token) => {
+  if (!id || get().loading) return;
+  
+  set({ loading: true });
+  try {
+    const res = await api.put(`/reactiverUtilisateur/${id}`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    if (!res.data?.success) {
+      throw new Error(res.data?.message || 'Failed to reactivate user');
+    }
+    
+    toast.success(res.data.message || "Account reactivated successfully");
+    
+    // Update local state if needed
+    if (get().utilisateur?.id === id) {
+      set({ utilisateur: { ...get().utilisateur, est_actif: true } });
+    }
+    
+    // Update in lists
+    set({
+      utilisateurs: get().utilisateurs.map(u => 
+        u.id === id ? { ...u, est_actif: true } : u
+      ),
+      clients: get().clients.map(c => 
+        c.utilisateur_id === id ? { ...c, utilisateur: { ...c.utilisateur, est_actif: true } } : c
+      ),
+      livreurs: get().livreurs.map(l => 
+        l.utilisateur_id === id ? { ...l, utilisateur: { ...l.utilisateur, est_actif: true } } : l
+      )
+    });
+    
+    return res.data;
+  } catch (error) {
+    const message = error.response?.data?.message || 
+                   error.message || 
+                   'Failed to reactivate account';
+    toast.error(message);
+    throw error;
+  } finally {
+    set({ loading: false });
+  }
+},
+  activerLivreur: async (id, token) => {
+    if (!id || get().loading) return;
+    
+    set({ loading: true });
+    try {
+      const res = await api.put(`/reactiverUtilisateur/${id}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || 'Failed to activate delivery person');
+      }
+      
+      toast.success(res.data.message || "Delivery person activated successfully");
+      
+      // Update local state
+      set({
+        livreurs: get().livreurs.map(livreur => 
+          livreur.utilisateur_id === id 
+            ? { ...livreur, statut: 'actif', utilisateur: { ...livreur.utilisateur, est_actif: true } } 
+            : livreur
+        ),
+        livreur: get().livreur?.utilisateur_id === id 
+          ? { ...get().livreur, statut: 'actif', utilisateur: { ...get().livreur.utilisateur, est_actif: true } }
+          : get().livreur
+      });
+      
+      return res.data;
+    } catch (error) {
+      const message = error.response?.data?.message || 
+                     error.message || 
+                     'Failed to activate delivery person';
+      toast.error(message);
+      throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  // Deactivate livreur account
+  desactiverLivreur: async (id, raison, token) => {
+    if (!id || get().loading) return;
+    
+    set({ loading: true });
+    try {
+      const res = await api.put(`/desactiverUtilisateur/${id}`, { raison }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || 'Failed to deactivate delivery person');
+      }
+      
+      toast.success(res.data.message || "Delivery person deactivated successfully");
+      
+      // Update local state
+      set({
+        livreurs: get().livreurs.map(livreur => 
+          livreur.utilisateur_id === id 
+            ? { ...livreur, statut: 'inactif', utilisateur: { ...livreur.utilisateur, est_actif: false } } 
+            : livreur
+        ),
+        livreur: get().livreur?.utilisateur_id === id 
+          ? { ...get().livreur, statut: 'inactif', utilisateur: { ...get().livreur.utilisateur, est_actif: false } }
+          : get().livreur
+      });
+      
+      return res.data;
+    } catch (error) {
+      const message = error.response?.data?.message || 
+                     error.message || 
+                     'Failed to deactivate delivery person';
+      toast.error(message);
+      throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
   clearError: () => set({ error: null })
 }))

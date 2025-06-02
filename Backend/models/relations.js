@@ -739,7 +739,23 @@ Article.hasMany(Avis, {
   as: 'avis',
   onDelete: 'CASCADE'
 });
+/* ==============================================
+ * 21. COUPON RELATIONS
+ * ============================================== */
 
+// Client has many Coupons
+Client.hasMany(Coupon, {
+  foreignKey: 'client_id',
+  as: 'coupons',  // This must match the alias in your Client model
+  onDelete: 'CASCADE'
+});
+
+// Coupon belongs to Client
+Coupon.belongsTo(Client, {
+  foreignKey: 'client_id',
+  as: 'client',  // This must match the alias in your Coupon model
+  onDelete: 'CASCADE'
+});
     console.log('✅ All model associations set up successfully');
   } catch (error) {
     console.error('❌ Error setting up model relations:', error);

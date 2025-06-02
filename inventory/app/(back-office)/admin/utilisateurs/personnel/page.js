@@ -71,9 +71,10 @@ export default function Personnel() {
       setLoading(true);
       const response = await axios.get('http://localhost:5000/admin/personnel', {
         headers: {
-          Authorization: `Bearer ${token}`
-        },
-        withCredentials: true
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
       });
   
       setPersonnel(response.data?.data || []);
@@ -121,10 +122,11 @@ export default function Personnel() {
   
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+         headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
         body: JSON.stringify({
           prefix: formData.prefix,
           nom: formData.nom,
@@ -167,9 +169,10 @@ export default function Personnel() {
       const response = await fetch(`http://localhost:5000/admin/supprimer-admin/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
         credentials: 'include'
       });
   

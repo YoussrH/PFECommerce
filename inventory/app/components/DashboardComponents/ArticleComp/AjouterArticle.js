@@ -42,95 +42,98 @@ export default function AjouterArticle() {
   const [predictionError, setPredictionError] = useState(null)
   const [tailleDropdownOpen, setTailleDropdownOpen] = useState({})
 
-  // Fetch initial data
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        if (!user?.token) {
-          toast.error("Veuillez vous connecter")
-          return
-        }
+useEffect(() => {
+  const fetchInitialData = async () => {
+    try {
+      // Simplified check - just verify authentication
+      if (!user) {
+        toast.error("Veuillez vous connecter");
+        return;
+      }
 
-        const config = {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        }
+      const config = {
+        withCredentials: true // This will send the session cookie
+      };
 
-        const [categoriesRes, marquesRes, genresRes, couleursRes, countRes] = await Promise.all([
+      const [categoriesRes, marquesRes, genresRes, couleursRes, countRes] = 
+        await Promise.all([
           axios.get("http://localhost:5000/categories", config),
           axios.get("http://localhost:5000/marques", config),
           axios.get("http://localhost:5000/genres", config),
           axios.get("http://localhost:5000/couleurs", config),
           axios.get("http://localhost:5000/articles/count", config)
-        ])
+        ]);
 
-        setCategories(categoriesRes.data)
-        setMarques(marquesRes.data)
-        setGenres(genresRes.data)
-        setCouleurs(couleursRes.data)
-        setArticleCount(countRes.data.count || 0)
-        
-        const generatedSKU = `ARTICLE-${String(countRes.data.count + 1).padStart(3, "0")}`
-        setFormData(prev => ({ ...prev, sku: generatedSKU }))
-      } catch (error) {
-        console.error("Error in fetchInitialData:", error)
-        toast.error("Erreur lors du chargement des données initiales")
+      setCategories(categoriesRes.data);
+      setMarques(marquesRes.data);
+      setGenres(genresRes.data);
+      setCouleurs(couleursRes.data);
+      setArticleCount(countRes.data.count || 0);
+      
+      const generatedSKU = `ARTICLE-${String(countRes.data.count + 1).padStart(3, "0")}`
+      setFormData(prev => ({ ...prev, sku: generatedSKU }))
+    } catch (error) {
+      console.error("Error in fetchInitialData:", error);
+      
+      if (error.response?.status === 401) {
+        toast.error("Session expirée, veuillez vous reconnecter");
+      } else {
+        toast.error("Erreur lors du chargement des données initiales");
       }
     }
+  };
 
-    fetchInitialData()
-  }, [user])
+  fetchInitialData();
+}, [user]); // Only depend on user
 
-  // Price prediction effect
   useEffect(() => {
-    let timer
-    const shouldPredict = formData.categorie_id && formData.marque_id && formData.genre_id && formData.variations.length > 0
+  let timer;
+  const shouldPredict = formData.categorie_id && formData.marque_id && formData.genre_id && formData.variations.length > 0;
 
-    if (shouldPredict) {
-      setIsPredicting(true)
-      setPredictionError(null)
+  if (shouldPredict) {
+    setIsPredicting(true);
+    setPredictionError(null);
 
-      timer = setTimeout(async () => {
-        try {
-          const toastId = toast.loading("Calcul du prix estimé...")
-          const response = await axios.post("http://127.0.0.1:5000/predict", {
-            categorie_id: formData.categorie_id,
-            marque_id: formData.marque_id,
-            genre_id: formData.genre_id,
-            couleur_id: formData.variations[0]?.couleur_id || 1,
-            tailles: formData.variations.map(v => v.taille_id),
-            quantite_totale: formData.variations.reduce((sum, v) => sum + v.quantite, 0) || 1,
-          }, {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${user.token}`,
-            },
-            timeout: 10000,
-          })
+    timer = setTimeout(async () => {
+      let toastId;
+      try {
+        toastId = toast.loading("Calcul du prix estimé...");
+        const response = await axios.post("http://127.0.0.1:5000/predict", {
+          categorie_id: formData.categorie_id,
+          marque_id: formData.marque_id,
+          genre_id: formData.genre_id,
+          couleur_id: formData.variations[0]?.couleur_id || 1,
+          tailles: formData.variations.map(v => v.taille_id),
+          quantite_totale: formData.variations.reduce((sum, v) => sum + v.quantite, 0) || 1,
+        }, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user?.token}`,
+          },
+          timeout: 10000,
+        });
 
-          if (!response.data.predicted_price) throw new Error("Invalid response format")
+        if (!response.data.predicted_price) throw new Error("Invalid response format");
 
-          setFormData(prev => ({
-            ...prev,
-            predictedPrice: response.data.predicted_price,
-            prix: prev.prix || response.data.predicted_price,
-          }))
+        setFormData(prev => ({
+          ...prev,
+          predictedPrice: response.data.predicted_price,
+          prix: prev.prix || response.data.predicted_price,
+        }));
 
-          toast.success(`Prix estimé: ${response.data.predicted_price} DT`, { id: toastId })
-        } catch (error) {
-          console.error("Prediction error:", error)
-          setPredictionError(error.message)
-          toast.error("Échec de l'estimation du prix", { id: toastId })
-        } finally {
-          setIsPredicting(false)
-        }
-      }, 1000)
+        toast.success(`Prix estimé: ${response.data.predicted_price} DT`, { id: toastId });
+      } catch (error) {
+        console.error("Prediction error:", error);
+        setPredictionError(error.message);
+        toast.error("Échec de l'estimation du prix", { id: toastId });
+      } finally {
+        setIsPredicting(false);
+      }
+    }, 1000);
 
-      return () => clearTimeout(timer)
-    }
-  }, [formData.categorie_id, formData.marque_id, formData.genre_id, formData.variations, user?.token])
-
+    return () => clearTimeout(timer);
+  }
+}, [formData.categorie_id, formData.marque_id, formData.genre_id, formData.variations, user?.token]);
   // SKU generation effect
   useEffect(() => {
     if (formData.nom_produit.trim() && articleCount > 0) {
@@ -456,10 +459,11 @@ export default function AjouterArticle() {
         "http://localhost:5000/articles/ajouterArticle", 
         submissionData,
         {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${user?.token}`,
-          },
+             headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
         }
       );
   

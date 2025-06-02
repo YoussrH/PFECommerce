@@ -35,9 +35,10 @@ export default function ActionHistory() {
 
       const response = await axios.get(`http://localhost:5000/admin/history?${params}`, {
         headers: {
-          Authorization: `Bearer ${token}`
-        },
-        withCredentials: true
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
       });
 
       if (response.data.success) {

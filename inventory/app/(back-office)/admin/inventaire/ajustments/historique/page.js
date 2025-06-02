@@ -47,7 +47,11 @@ export default function AdjustmentHistory() {
       const response = await axios.get(
         `http://localhost:5000/ajustements/historique?${params}`,
         { 
-          headers: { Authorization: `Bearer ${token}` },
+         headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
           validateStatus: (status) => status < 500
         }
       );

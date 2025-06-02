@@ -51,7 +51,13 @@ module.exports = (sequelize, DataTypes) => {
         model: 'utilisateur',
         key: 'id'
       }
-    }
+    },
+    // In your Utilisateur model definition
+est_actif: {
+  type: DataTypes.BOOLEAN,
+  defaultValue: true,
+  allowNull: false
+}
   }, {
     tableName: 'utilisateur',
     timestamps: true,

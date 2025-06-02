@@ -698,7 +698,7 @@ const validerCoupon = async (req, res) => {
   }
 };
 
-const traiterPaiement = async (req, res) => {
+/* const traiterPaiement = async (req, res) => {
   const transaction = await sequelize.transaction({
     isolationLevel: Sequelize.Transaction.REPEATABLE_READ
   });
@@ -982,8 +982,314 @@ const traiterPaiement = async (req, res) => {
       } : undefined
     });
   }
-};
+}; */
 
+const traiterPaiement = async (req, res) => {
+  const transaction = await sequelize.transaction({
+    isolationLevel: Sequelize.Transaction.REPEATABLE_READ
+  });
+
+  try {
+    const { 
+      methodePaiement, 
+      adresse_id, 
+      shipping_method, 
+      shipping_cost = 0,
+      codeCoupon 
+    } = req.body;
+    
+    const idUtilisateur = req.utilisateur?.id;
+
+    if (!idUtilisateur) {
+      await transaction.rollback();
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentification requise" 
+      });
+    }
+
+    // 1. First get and lock just the cart (without items)
+    const panier = await Panier.findOne({
+      where: { utilisateur_id: idUtilisateur },
+      transaction,
+      lock: true,
+      skipLocked: true
+    });
+
+    if (!panier) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false, 
+        message: "Aucun panier actif trouvé" 
+      });
+    }
+
+    // 2. Then get the cart items separately
+    const panierArticles = await ArticlePanier.findAll({
+      where: { panier_id: panier.id },
+      include: [{
+        model: Article,
+        as: 'article',
+        required: true
+      }],
+      transaction
+    });
+
+    if (!panierArticles?.length) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false, 
+        message: "Le panier est vide" 
+      });
+    }
+
+    // 3. Verify shipping address
+    const adresseLivraison = await Adresse.findOne({
+      where: { id: adresse_id, client_id: idUtilisateur },
+      transaction
+    });
+
+    if (!adresseLivraison) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        success: false, 
+        message: "Adresse de livraison invalide" 
+      });
+    }
+
+    // 4. Verify stock for all items with locking
+    const stockVerifications = await Promise.all(
+      panierArticles.map(async (item) => {
+        const stock = await ArticleTaille.findOne({
+          where: {
+            article_id: item.article_id,
+            couleur_id: item.couleur_id,
+            taille_id: item.taille_id,
+            deleted_at: null
+          },
+          transaction,
+          lock: true
+        });
+        
+        return {
+          item,
+          stock: stock?.quantite || 0,
+          stockRow: stock
+        };
+      })
+    );
+
+    // Check for unavailable items
+    const articlesIndisponibles = stockVerifications
+      .filter(({ item, stock }) => item.quantite > stock);
+
+    if (articlesIndisponibles.length > 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "Certains articles ne sont plus disponibles",
+        data: {
+          unavailableItems: articlesIndisponibles.map(({ item, stock }) => ({
+            article_id: item.article_id,
+            article_nom: item.article?.nom_produit,
+            quantite_demandee: item.quantite,
+            quantite_disponible: stock
+          }))
+        }
+      });
+    }
+
+    // Calculate subtotal
+    const subtotal = panierArticles.reduce((sum, item) => {
+      return sum + (item.prix_au_moment_ajout * item.quantite);
+    }, 0);
+
+    // Handle coupon if provided
+    let remise = 0;
+    let couponUtilise = null;
+
+    if (codeCoupon) {
+      const coupon = await Coupon.findOne({
+        where: {
+          code: codeCoupon,
+          client_id: idUtilisateur,
+          is_used: false,
+          expires_at: { [Op.gt]: new Date() }
+        },
+        transaction,
+        lock: true
+      });
+
+      if (!coupon) {
+        await transaction.rollback();
+        return res.status(400).json({ 
+          success: false,
+          message: "Coupon invalide ou déjà utilisé" 
+        });
+      }
+
+      // Calculate discount
+      if (coupon.type === 'fixed') {
+        remise = parseFloat(coupon.value);
+      } else if (coupon.type === 'percentage') {
+        remise = (subtotal * parseFloat(coupon.value)) / 100;
+        
+        if (coupon.max_value && remise > coupon.max_value) {
+          remise = coupon.max_value;
+        }
+      }
+
+      // Mark coupon as used
+      await coupon.update({ 
+        is_used: true,
+        used_at: new Date()
+      }, { transaction });
+
+      couponUtilise = coupon.code;
+    }
+
+    // Calculate final total
+    const total = subtotal + parseFloat(shipping_cost) - remise;
+
+    // Create order
+    const commande = await Commande.create({
+      client_id: idUtilisateur,
+      adresse_id: adresseLivraison.id,
+      prix_total: total,
+      statut: "en_preparation",
+      methode_livraison: shipping_method,
+      methode_paiement: methodePaiement,
+      frais_livraison: shipping_cost,
+      coupon_utilise: couponUtilise,
+      remise
+    }, { transaction });
+
+    // Create order items (group identical items)
+    const orderItemsMap = new Map();
+    panierArticles.forEach(item => {
+      const key = `${item.article_id}_${item.couleur_id || 'null'}_${item.taille_id || 'null'}`;
+      if (orderItemsMap.has(key)) {
+        const existing = orderItemsMap.get(key);
+        existing.quantite += item.quantite;
+      } else {
+        orderItemsMap.set(key, {
+          commande_id: commande.id,
+          article_id: item.article_id,
+          couleur_id: item.couleur_id,
+          taille_id: item.taille_id,
+          quantite: item.quantite,
+          prix_unitaire: item.prix_au_moment_ajout
+        });
+      }
+    });
+
+    await CommandeArticle.bulkCreate(Array.from(orderItemsMap.values()), {
+      transaction,
+      updateOnDuplicate: ['quantite']
+    });
+
+    // Update stock levels
+    await Promise.all(
+      stockVerifications.map(({ item, stock }) => 
+        ArticleTaille.update(
+          { quantite: stock - item.quantite },
+          {
+            where: {
+              article_id: item.article_id,
+              couleur_id: item.couleur_id,
+              taille_id: item.taille_id
+            },
+            transaction
+          }
+        )
+      )
+    );
+
+    // Clear cart
+    await ArticlePanier.destroy({
+      where: { panier_id: panier.id },
+      transaction
+    });
+
+    // Update user status if needed
+    await Utilisateur.update(
+      { statut: "client_confirme" },
+      {
+        where: {
+          id: idUtilisateur,
+          statut: { [Op.ne]: "client_confirme" }
+        },
+        transaction
+      }
+    );
+
+    // Add loyalty points (1 point per dinar spent)
+    const pointsEarned = Math.floor(subtotal);
+    await LoyaltyService.addPoints(idUtilisateur, pointsEarned, transaction);
+
+    // Fetch client details for notification
+    const client = await Client.findOne({
+      where: { utilisateur_id: idUtilisateur },
+      include: [{ model: Utilisateur, as: 'utilisateur', attributes: ['prenom', 'nom', 'email'] }],
+      transaction
+    });
+
+    // Emit Socket.IO notification for new order
+    if (req.app.get('io')) {
+      req.app.get('io').to('admin-room').emit('new-order', {
+        id: commande.id,
+        reference: commande.reference,
+        prenom: client?.utilisateur?.prenom || 'N/A',
+        nom: client?.utilisateur?.nom || 'N/A',
+        email: client?.utilisateur?.email || 'N/A',
+        prix_total: total,
+        created_at: commande.created_at,
+        message: `Nouvelle commande de ${client?.utilisateur?.prenom || ''} ${client?.utilisateur?.nom || ''} (${commande.reference})`
+      });
+    }
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        commandeId: commande.id,
+        commandeReference: commande.reference,
+        prix_total: total,
+        statut: commande.statut,
+        remise,
+        pointsEarned
+      },
+      message: 'Commande créée avec succès',
+      etapeSuivante: `/caisse/confirmation/${commande.reference}`
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error("Payment processing error:", {
+      userId: req.utilisateur?.id,
+      error: error.message,
+      stack: error.stack
+    });
+    
+    let errorMessage = "Erreur lors du traitement du paiement";
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      errorMessage = "Un problème est survenu avec les articles de la commande";
+    } else if (error.name === 'SequelizeDatabaseError') {
+      errorMessage = "Erreur de base de données lors du traitement";
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: errorMessage,
+      error: process.env.NODE_ENV === 'development' ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      } : undefined
+    });
+  }
+};
 
 const sauvegarderMethodeLivraison = async (req, res) => {
   try {

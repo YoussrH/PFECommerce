@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
 import { useAuth } from "@/app/contexts/AuthContext";
 
 const CategoryForm = ({ initialValues, onSubmit, onCancel }) => {
-  const { token } = useAuth();
+  const { token ,user} = useAuth();
   const [libelle, setLibelle] = useState(initialValues?.libelle || "");
   const [isSubcategory, setIsSubcategory] = useState(!!initialValues?.parent_id);
   const [parentId, setParentId] = useState(initialValues?.parent_id || null);
@@ -43,7 +43,11 @@ const CategoryForm = ({ initialValues, onSubmit, onCancel }) => {
       try {
         setCategoriesLoading(true);
         const response = await axios.get("http://localhost:5000/categories", {
-          headers: { Authorization: `Bearer ${token}` }
+           headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
         });
         setCategories(response.data);
       } catch (error) {

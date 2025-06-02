@@ -16,6 +16,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { TreeView, TreeItem } from '@mui/x-tree-view';
 import { ChevronRight, ChevronDown } from 'lucide-react';
+import { useAuth } from '@/app/contexts/AuthContext';
 
 const renderCategories = (categories, level = 0) => {
   return categories.map(category => (
@@ -37,6 +38,8 @@ const renderCategories = (categories, level = 0) => {
 };
 
 export default function AjouterCategorie() {
+    const { user } = useAuth()
+  
   const [formData, setFormData] = useState({
     libelle: '',
     parent_id: null,
@@ -81,11 +84,12 @@ export default function AjouterCategorie() {
     
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       await axios.post('http://localhost:5000/categories/ajouterCategorie', formData, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+         headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
       });
       toast.success('Catégorie ajoutée avec succès!');
       setFormData({ libelle: '', parent_id: null });

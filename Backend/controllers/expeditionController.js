@@ -444,6 +444,23 @@ const traiterRetour = async (req, res) => {
       const { decision, motif_refus, notes } = req.body;
       const utilisateurId = req.utilisateur.id;
   
+      // Validate input
+      if (!['accepter', 'refuser'].includes(decision)) {
+        await transaction.rollback();
+        return res.status(400).json({ 
+          success: false,
+          message: 'Décision invalide. Doit être "accepter" ou "refuser"'
+        });
+      }
+  
+      if (decision === 'refuser' && !motif_refus) {
+        await transaction.rollback();
+        return res.status(400).json({ 
+          success: false,
+          message: 'Motif de refus requis'
+        });
+      }
+  
       const retour = await Retour.findByPk(id, { 
         transaction,
         include: [
@@ -455,13 +472,13 @@ const traiterRetour = async (req, res) => {
                 model: Client,
                 as: 'client',
                 include: [{ model: Utilisateur, as: 'utilisateur' }]
+              },
+              {
+                model: Colis,
+                as: 'colis',
+                attributes: ['id', 'numero_suivi', 'statut']
               }
             ]
-          },
-          {
-            model: Utilisateur,
-            as: 'traite_par_admin',  // Ensure this matches your association
-            attributes: ['id', 'nom', 'prenom', 'email']
           }
         ]
       });
@@ -474,30 +491,79 @@ const traiterRetour = async (req, res) => {
         });
       }
   
-      if (retour.statut !== 'En cours') {
+      // Only allow processing if status is "en_attente" (waiting)
+      if (retour.statut !== 'en_attente') {
         await transaction.rollback();
         return res.status(400).json({ 
           success: false,
-          message: 'Ce retour a déjà été traité'
+          message: 'Ce retour a déjà été traité',
+          current_status: retour.statut
         });
       }
   
       let nouveauStatut, action;
       if (decision === 'accepter') {
-        nouveauStatut = 'Accepté';
+        nouveauStatut = 'accepte';
         action = 'retour_accepte';
         
-        if (retour.type === 'Remplacement') {
-          await Commande.update(
-            { statut: 'remplacee' },
-            { where: { id: retour.commande_id }, transaction }
+        // Handle different return types
+        switch(retour.type) {
+          case 'remplacement':
+            // Create replacement order
+            const nouvelleCommande = await Commande.create({
+              client_id: retour.commande.client_id,
+              adresse_id: retour.commande.adresse_id,
+              prix_total: retour.commande.prix_total,
+              statut: 'en_preparation',
+              methode_livraison: retour.commande.methode_livraison,
+              methode_paiement: retour.commande.methode_paiement,
+              frais_livraison: retour.commande.frais_livraison,
+              remplace_commande_id: retour.commande_id
+            }, { transaction });
+            
+            // Mark original order as replaced
+            await retour.commande.update(
+              { statut: 'remplacee' },
+              { transaction }
+            );
+            break;
+            
+          case 'remboursement':
+            // Process refund logic here
+            // This would integrate with your payment system
+            await retour.commande.update(
+              { statut: 'rembourse' },
+              { transaction }
+            );
+            break;
+            
+          default:
+            // Simple return case
+            await retour.commande.update(
+              { statut: 'retourne' },
+              { transaction }
+            );
+        }
+        
+        // Update related package status if exists
+        if (retour.colis_id) {
+          await Colis.update(
+            { statut: 'retourne' },
+            { where: { id: retour.colis_id }, transaction }
           );
         }
       } else {
-        nouveauStatut = 'Refusé';
+        nouveauStatut = 'refuse';
         action = 'retour_refuse';
+        
+        // Revert order status if it was changed
+        await retour.commande.update(
+          { statut: retour.commande.statut === 'remplacee' ? 'livree' : retour.commande.statut },
+          { transaction }
+        );
       }
   
+      // Update return record
       await retour.update({
         statut: nouveauStatut,
         motif_refus: decision === 'refuser' ? motif_refus : null,
@@ -506,19 +572,31 @@ const traiterRetour = async (req, res) => {
         traite_par: utilisateurId
       }, { transaction });
   
+      // Log history
       await CommandeHistorique.create({
         commande_id: retour.commande_id,
         utilisateur_id: utilisateurId,
         action,
-        details: `Retour ${nouveauStatut.toLowerCase()}: ${notes || ''}`
+        ancienne_valeur: 'en_attente',
+        nouvelle_valeur: nouveauStatut,
+        details: notes || `Retour ${nouveauStatut === 'accepte' ? 'accepté' : 'refusé'}`
       }, { transaction });
   
       await transaction.commit();
   
       res.status(200).json({ 
         success: true,
-        message: `Retour ${nouveauStatut.toLowerCase()} avec succès`,
-        data: retour
+        message: `Retour ${nouveauStatut === 'accepte' ? 'accepté' : 'refusé'} avec succès`,
+        data: {
+          id: retour.id,
+          statut: nouveauStatut,
+          date_traitement: new Date(),
+          commande: {
+            id: retour.commande.id,
+            reference: retour.commande.reference,
+            statut: retour.commande.statut
+          }
+        }
       });
     } catch (error) {
       await transaction.rollback();
@@ -533,7 +611,6 @@ const traiterRetour = async (req, res) => {
       });
     }
   };
-
 
   
   const mettreAJourStatutColis = async (req, res) => {

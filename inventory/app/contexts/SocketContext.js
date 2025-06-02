@@ -21,28 +21,79 @@ export const SocketProvider = ({ children }) => {
 
     // Subscribe to admin notifications
     socketInstance.emit('subscribe-admin');
+    console.log('SocketProvider: Admin subscribed to notifications');
 
     // Listen for new reclamation notifications
     socketInstance.on('new-reclamation', (notification) => {
-      setNotifications(prev => [notification, ...prev]);
+      console.log('SocketProvider: Received new-reclamation', notification);
+      setNotifications(prev => {
+        const newNotifications = [notification, ...prev];
+        console.log('SocketProvider: Updated notifications (reclamation)', newNotifications);
+        return newNotifications;
+      });
       setUnreadCount(prev => prev + 1);
       
-      toast.info(`New reclamation from ${notification.prenom} ${notification.nom}`, {
+      toast.info(`Nouvelle réclamation de ${notification.prenom} ${notification.nom}`, {
         description: notification.sujet,
         action: {
-          label: 'View',
+          label: 'Voir',
           onClick: () => window.location.href = '/admin/reclamations/inbox'
         }
       });
     });
 
+    // Listen for new order notifications
+    socketInstance.on('new-order', (notification) => {
+      console.log('SocketProvider: Received new-order', notification);
+      setNotifications(prev => {
+        const newNotifications = [notification, ...prev];
+        console.log('SocketProvider: Updated notifications (order)', newNotifications);
+        return newNotifications;
+      });
+      setUnreadCount(prev => prev + 1);
+      
+      toast.info(`Nouvelle commande de ${notification.prenom} ${notification.nom}`, {
+        description: `Commande ${notification.reference} - ${notification.prix_total.toFixed(2)} TND`,
+        action: {
+          label: 'Voir',
+          onClick: () => window.location.href = '/admin/ventes/commandes'
+        }
+      });
+    });
+
+    // Listen for new review notifications
+    socketInstance.on('new-review', (notification) => {
+      console.log('SocketProvider: Received new-review', notification);
+      setNotifications(prev => {
+        const newNotifications = [notification, ...prev];
+        console.log('SocketProvider: Updated notifications (review)', newNotifications);
+        return newNotifications;
+      });
+      setUnreadCount(prev => prev + 1);
+      
+      toast.info(`Nouvel avis de ${notification.prenom} ${notification.nom}`, {
+        description: `Avis sur ${notification.article_nom} - Note: ${notification.note}/5`,
+        action: {
+          label: 'Voir',
+          onClick: () => window.location.href = `/admin/avis/${notification.article_id}`
+        }
+      });
+    });
+
+    // Log any socket errors
+    socketInstance.on('connect_error', (error) => {
+      console.error('SocketProvider: Connection error', error);
+    });
+
     // Cleanup on unmount
     return () => {
+      console.log('SocketProvider: Disconnecting socket');
       socketInstance.disconnect();
     };
   }, []);
 
   const markAsRead = () => {
+    console.log('SocketProvider: Marking notifications as read');
     setUnreadCount(0);
   };
 

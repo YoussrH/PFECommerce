@@ -33,7 +33,7 @@ import {
 import CategoryForm from "./CategoryForm"
 
 const CategoryTable = () => {
-  const { token } = useAuth()
+  const { token ,user} = useAuth()
   const router = useRouter()
   const [categories, setCategories] = useState([])
   const [expandedRows, setExpandedRows] = useState({})
@@ -60,8 +60,11 @@ const CategoryTable = () => {
       try {
         setLoading(true)
         const response = await axios.get("http://localhost:5000/categories", {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+ headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true        })
         
         const categoryMap = {}
         const rootCategories = []
@@ -126,7 +129,11 @@ const CategoryTable = () => {
                 toast.dismiss(t)
                 try {
                   await axios.delete(`http://localhost:5000/categories/supprimerCategorie/${id}`, {
-                    headers: { Authorization: `Bearer ${token}` }
+                     headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
                   })
                   setCategories(prev => prev.filter(category => category.id !== id))
                   toast.success('Catégorie supprimée avec succès')
@@ -154,13 +161,22 @@ const CategoryTable = () => {
       const response = await axios.post(
         "http://localhost:5000/categories/ajouterCategorie",
         formData,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {  headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
+      }
       )
   
       toast.success("Catégorie ajoutée avec succès")
       setIsAddModalOpen(false)
       const fetchResponse = await axios.get("http://localhost:5000/categories", {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
       })
       
       const categoryMap = {}
@@ -195,13 +211,21 @@ const CategoryTable = () => {
       await axios.put(
         `http://localhost:5000/categories/mettreAJourCategorie/${currentCategory.id}`,
         formData,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true }
       )
       toast.success("Catégorie modifiée avec succès")
       setIsEditModalOpen(false)
       
       const response = await axios.get("http://localhost:5000/categories", {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
       })
       
       const categoryMap = {}

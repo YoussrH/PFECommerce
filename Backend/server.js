@@ -35,6 +35,7 @@ const factureRoutes = require('./routes/factureRoutes');
 const path = require('path');
 const cronJobs = require('./utils/cronJobs'); 
 const avisRoutes = require('./routes/avisRoutes');
+const couponRoutes = require('./routes/couponRoutes');
 // Create HTTP server for Socket.IO
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -69,6 +70,7 @@ io.on('connection', (socket) => {
     socket.join('reclamations-room');
     console.log(`Client ${socket.id} subscribed to reclamation updates`);
   });
+  
 
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
@@ -150,6 +152,7 @@ app.use("/clients", clientRoutes);
 app.use("/paiements", paimentRoutes);
 app.use("/factures", factureRoutes); 
 app.use("/avis", avisRoutes); 
+app.use('/coupons', couponRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/health', (req, res) => {

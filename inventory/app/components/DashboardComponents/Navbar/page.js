@@ -8,7 +8,6 @@ import Link from "next/link";
 import React, { useState, useEffect, useRef } from "react";
 import AdminDropdown from "./AdminDropdown";
 import { useSocket } from "@/app/contexts/SocketContext";
-import { toast } from "sonner";
 
 const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -19,10 +18,15 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
   const notificationRef = useRef(null);
   const { notifications, unreadCount, markAsRead } = useSocket();
 
+  useEffect(() => {
+    console.log('Navbar: Notifications updated', notifications);
+  }, [notifications]);
+
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
   const toggleNotification = () => {
+    console.log('Navbar: Toggling notification dropdown', { isNotificationOpen });
     if (isNotificationOpen) {
       markAsRead();
     }
@@ -53,33 +57,70 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
   const [isScrolled, setIsScrolled] = useState(false);
 
-useEffect(() => {
-  const handleScroll = () => {
-    setIsScrolled(window.scrollY > 10);
-  };
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
 
-  window.addEventListener("scroll", handleScroll);
-  return () => {
-    window.removeEventListener("scroll", handleScroll);
-  };
-}, []);
-
+    window.addEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   // Format notification time
   const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        console.warn('Navbar: Invalid date format', dateString);
+        return 'Inconnu';
+      }
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (error) {
+      console.error('Navbar: Error formatting time', error);
+      return 'Inconnu';
+    }
+  };
+
+  // Determine notification title and link based on type
+  const getNotificationDetails = (notification) => {
+    console.log('Navbar: Processing notification details', notification);
+    if (notification.sujet) {
+      // Reclamation
+      return {
+        title: `Réclamation: ${notification.sujet}`,
+        link: '/admin/reclamations/inbox'
+      };
+    } else if (notification.reference) {
+      // Order
+      return {
+        title: `Commande: ${notification.reference}`,
+        link: '/admin/ventes/commandes'
+      };
+    } else if (notification.article_id) {
+      // Review
+      return {
+        title: `Avis: ${notification.article_nom || 'Produit inconnu'}`,
+        link: `/admin/avis/${notification.id}`
+      };
+    }
+    console.warn('Navbar: Unknown notification type', notification);
+    return {
+      title: 'Notification',
+      link: '/admin'
+    };
   };
 
   return (
     <div
-
-  className={`sticky top-0 z-50 flex justify-between rounded-3xl -pr-9 items-center w-full px-4 py-[11px] transition-all duration-300 ${
-    isScrolled ? "bg-white border-b border-gray-100 shadow-sm" : "bg-transparent border-b border-transparent"
-  }`}
->
+      className={`sticky top-0 z-50 flex justify-between rounded-3xl -pr-9 items-center w-full px-4 py-[11px] transition-all duration-300 ${
+        isScrolled ? "bg-white border-b border-gray-100 shadow-sm" : "bg-transparent border-b border-b"
+      }`}
+    >
       {/* Left side (search and sidebar toggle) */}
       <div className="flex items-center gap-3 sm:gap-5">
         <button
@@ -126,7 +167,6 @@ useEffect(() => {
           />
         </div>
       </div>
-
       {/* Right side (icons and dropdowns) */}
       <div className="hidden sm:flex items-center gap-3 sm:gap-5">
         <button
@@ -143,7 +183,7 @@ useEffect(() => {
         </button>
 
         <div className="relative" ref={notificationRef}>
-          <button 
+          <button
             onClick={toggleNotification}
             className="p-2 rounded-full hover:bg-gray-200 transition-all duration-300 relative"
           >
@@ -154,49 +194,52 @@ useEffect(() => {
               </span>
             )}
           </button>
-          
+
           {/* Notification dropdown */}
           {isNotificationOpen && (
             <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg overflow-hidden z-50 animate-fadeIn">
               <div className="p-3 border-b border-gray-200 bg-gray-50">
                 <h3 className="text-sm font-semibold text-gray-700">Notifications</h3>
               </div>
-              
+
               <div className="max-h-96 overflow-y-auto">
-                {notifications.length > 0 ? (
-                  notifications.map((notification, index) => (
-                    <div 
-                      key={index} 
-                      className="p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-800">{notification.sujet}</h4>
-                          <p className="text-xs text-gray-500 mt-1">{notification.message.substring(0, 50)}...</p>
+                {notifications?.length > 0 ? (
+                  notifications.map((notification, index) => {
+                    const { title, link } = getNotificationDetails(notification);
+                    return (
+                      <Link href={link} key={index}>
+                        <div
+                          className="p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-800">{title}</h4>
+                              <p className="text-xs text-gray-500 mt-1">{notification?.message?.substring(0, 50)}...</p>
+                            </div>
+                            <span className="text-xs text-gray-400">{formatTime(notification?.created_at)}</span>
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500">
+                            De: {notification?.prenom || 'N/A'} {notification?.nom || 'N/A'}
+                          </div>
                         </div>
-                        <span className="text-xs text-gray-400">{formatTime(notification.createdAt)}</span>
-                      </div>
-                      <div className="mt-1 text-xs text-gray-500">
-                        From: {notification.prenom} {notification.nom}
-                      </div>
-                    </div>
-                  ))
+                      </Link>
+                    );
+                  })
                 ) : (
-                  <div className="p-4 text-center text-sm text-gray-500">
-                    No new notifications
-                  </div>
+                    <div className="p-4 text-center text-sm text-gray-500">
+                      Aucune nouvelle notification
+                    </div>
                 )}
               </div>
-              
+
               <div className="p-2 border-t border-gray-200 bg-gray-50 text-center">
-                <button 
+                <button
                   className="text-xs text-blue-500 hover:text-blue-700"
                   onClick={() => {
-                    // Navigate to reclamations page
                     window.location.href = '/admin/reclamations/inbox';
                   }}
                 >
-                  View all
+                  Voir tout
                 </button>
               </div>
             </div>
@@ -211,7 +254,7 @@ useEffect(() => {
         </Link>
 
         <div ref={dropdownRef}>
-          <AdminDropdown 
+          <AdminDropdown
             isOpen={activeDropdown === 'admin'}
             onMouseEnter={() => handleMouseEnter('admin')}
             onMouseLeave={handleMouseLeave}
@@ -270,7 +313,7 @@ useEffect(() => {
               </span>
             </button>
 
-            <div 
+            <div
               className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 transition-all duration-300"
               onClick={toggleNotification}
             >

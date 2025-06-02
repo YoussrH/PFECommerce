@@ -29,22 +29,19 @@ export default function DraftReclamations() {
   const [loading, setLoading] = useState(true)
   const [draftToDelete, setDraftToDelete] = useState(null)
   const router = useRouter()
-  const { token } = useAuth()
+  const { token ,user} = useAuth()
 
   useEffect(() => {
     const fetchDrafts = async () => {
       try {
         setLoading(true)
-        const headers = {
-          "Content-Type": "application/json",
-        }
-
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`
-        }
 
         const response = await fetch("http://localhost:5000/reclamations/lister?statut=brouillon", {
-          headers,
+           headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
           credentials: "include",
         })
 

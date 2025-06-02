@@ -49,7 +49,10 @@ export default function LivreursPage() {
   const [livreurLivraisons, setLivreurLivraisons] = useState([])
   const [isDeliveryLoading, setIsDeliveryLoading] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState({})
-  const [refreshTrigger, setRefreshTrigger] = useState(0) // Add refresh trigger state
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [showDeactivatePrompt, setShowDeactivatePrompt] = useState(false)
+  const [livreurToDeactivate, setLivreurToDeactivate] = useState(null)
+  const [deactivationReason, setDeactivationReason] = useState('')
   const router = useRouter()
 
   const { 
@@ -57,6 +60,8 @@ export default function LivreursPage() {
     mettreAJourLivreur,
     supprimerLivreur,
     obtenirTousLivreurs,
+    activerLivreur,
+    desactiverLivreur,
     loading: apiLoading,
     error: apiError,
     clearError
@@ -105,19 +110,18 @@ export default function LivreursPage() {
     }
   }
 
-  // Auto-refresh when dependencies change
   useEffect(() => {
     if (isAdmin) {
       fetchLivreurs()
     }
-  }, [isAdmin, token, currentPage, searchTerm, refreshTrigger]) // Add refreshTrigger to dependencies
+  }, [isAdmin, token, currentPage, searchTerm, refreshTrigger])
 
   const handleAddLivreur = async (livreurData) => {
     try {
       const newLivreur = await creeLivreur(livreurData, token)
       toast.success('Livreur créé avec succès')
       setIsAddModalOpen(false)
-      setRefreshTrigger(prev => prev + 1) // Trigger refresh
+      setRefreshTrigger(prev => prev + 1)
     } catch (error) {
       toast.error(error.message || 'Erreur lors de la création du livreur')
     }
@@ -125,20 +129,18 @@ export default function LivreursPage() {
 
   const handleUpdateLivreur = async (id, updates) => {
     try {
-      // Optimistic update
       setLivreurs(prev => prev.map(l => 
         l.utilisateur_id === id ? { ...l, ...updates } : l
       ))
       
       await mettreAJourLivreur(id, updates, token)
       toast.success('Livreur mis à jour avec succès')
-      setRefreshTrigger(prev => prev + 1) // Trigger refresh
+      setRefreshTrigger(prev => prev + 1)
       
       if (selectedLivreur?.utilisateur_id === id) {
         fetchLivraisonsByLivreur(id)
       }
     } catch (error) {
-      // Revert on error
       setLivreurs(prev => prev.map(l => 
         l.utilisateur_id === id ? { ...l, ...updates } : l
       ))
@@ -148,44 +150,49 @@ export default function LivreursPage() {
 
   const handleDeleteLivreur = async (id) => {
     try {
-      // Optimistic update
       setLivreurs(prev => prev.filter(l => l.utilisateur_id !== id))
       
       await supprimerLivreur(id, token)
       toast.success('Livreur supprimé avec succès')
-      setRefreshTrigger(prev => prev + 1) // Trigger refresh
+      setRefreshTrigger(prev => prev + 1)
     } catch (error) {
-      // Revert on error
       setRefreshTrigger(prev => prev + 1)
       toast.error(error.message || 'Erreur lors de la suppression du livreur')
     }
   }
 
-  const handleToggleStatus = async (livreur) => {
-    const newStatus = livreur.statut === 'actif' ? 'inactif' : 'actif'
+  const handleActivateLivreur = async (livreur) => {
     try {
       setUpdatingStatus(prev => ({ ...prev, [livreur.utilisateur_id]: true }))
-      
-      // Optimistic update
-      setLivreurs(prev => prev.map(l => 
-        l.utilisateur_id === livreur.utilisateur_id 
-          ? { ...l, statut: newStatus } 
-          : l
-      ))
-      
-      await handleUpdateLivreur(livreur.utilisateur_id, { statut: newStatus })
-      toast.success(`Statut changé à ${newStatus}`)
+      await activerLivreur(livreur.utilisateur_id, token)
+      toast.success('Livreur activé avec succès')
     } catch (error) {
-      // Revert on error
-      setLivreurs(prev => prev.map(l => 
-        l.utilisateur_id === livreur.utilisateur_id 
-          ? { ...l, statut: livreur.statut } 
-          : l
-      ))
-      toast.error('Erreur lors du changement de statut')
+      toast.error(error.message || "Erreur lors de l'activation du livreur")
     } finally {
       setUpdatingStatus(prev => ({ ...prev, [livreur.utilisateur_id]: false }))
     }
+  }
+
+  const handleDeactivateLivreur = async () => {
+    if (!livreurToDeactivate) return
+    
+    try {
+      setUpdatingStatus(prev => ({ ...prev, [livreurToDeactivate.utilisateur_id]: true }))
+      await desactiverLivreur(livreurToDeactivate.utilisateur_id, deactivationReason, token)
+      toast.success('Livreur désactivé avec succès')
+      setShowDeactivatePrompt(false)
+      setLivreurToDeactivate(null)
+      setDeactivationReason('')
+    } catch (error) {
+      toast.error(error.message || 'Erreur lors de la désactivation du livreur')
+    } finally {
+      setUpdatingStatus(prev => ({ ...prev, [livreurToDeactivate.utilisateur_id]: false }))
+    }
+  }
+
+  const promptDeactivateLivreur = (livreur) => {
+    setLivreurToDeactivate(livreur)
+    setShowDeactivatePrompt(true)
   }
 
   const handleViewDetails = async (livreur) => {
@@ -202,7 +209,7 @@ export default function LivreursPage() {
   const handleDeliveryAssigned = () => {
     if (selectedLivreur) {
       fetchLivraisonsByLivreur(selectedLivreur.utilisateur_id)
-      setRefreshTrigger(prev => prev + 1) // Trigger refresh after assignment
+      setRefreshTrigger(prev => prev + 1)
     }
   }
 
@@ -221,11 +228,55 @@ export default function LivreursPage() {
 
   return (
     <div className="container mx-auto px-6 py-6">
+      {/* Deactivation Prompt */}
+      {showDeactivatePrompt && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full border border-black">
+            <h3 className="text-lg font-bold mb-4">Désactiver Livreur</h3>
+            <p className="mb-4">Voulez-vous vraiment désactiver ce livreur?</p>
+            <div className="mb-4">
+              <label htmlFor="reason" className="block text-sm font-medium mb-2">
+                Raison (optionnelle)
+              </label>
+              <Input
+                id="reason"
+                value={deactivationReason}
+                onChange={(e) => setDeactivationReason(e.target.value)}
+                placeholder="Entrez la raison de la désactivation"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowDeactivatePrompt(false)
+                  setLivreurToDeactivate(null)
+                  setDeactivationReason('')
+                }}
+              >
+                Annuler
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={handleDeactivateLivreur}
+                disabled={updatingStatus[livreurToDeactivate?.utilisateur_id]}
+              >
+                {updatingStatus[livreurToDeactivate?.utilisateur_id] ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Désactiver'
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AjouterLivreurModal 
         isOpen={isAddModalOpen}
         onClose={() => {
           setIsAddModalOpen(false)
-          setRefreshTrigger(prev => prev + 1) // Refresh when closing modal
+          setRefreshTrigger(prev => prev + 1)
         }}
         onLivreurAdded={handleAddLivreur}
       />
@@ -238,7 +289,7 @@ export default function LivreursPage() {
             onClose={() => {
               setIsDetailsModalOpen(false)
               setSelectedLivreur(null)
-              setRefreshTrigger(prev => prev + 1) // Refresh when closing modal
+              setRefreshTrigger(prev => prev + 1)
             }}
             onUpdate={handleUpdateLivreur}
             deliveries={livreurLivraisons}
@@ -252,14 +303,13 @@ export default function LivreursPage() {
             onClose={() => {
               setIsAssignModalOpen(false)
               setSelectedLivreur(null)
-              setRefreshTrigger(prev => prev + 1) // Refresh when closing modal
+              setRefreshTrigger(prev => prev + 1)
             }}
             onAssign={handleDeliveryAssigned}
           />
         </>
       )}
 
-      {/* Rest of your component remains the same */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold mb-6">Gestion des Livreurs</h1>
@@ -317,7 +367,7 @@ export default function LivreursPage() {
                     <TableCell>
                       <Badge
                         variant={
-                          livreur.statut === 'actif'
+                          livreur.utilisateur?.est_actif
                             ? 'default'
                             : 'secondary'
                         }
@@ -325,7 +375,7 @@ export default function LivreursPage() {
                         {updatingStatus[livreur.utilisateur_id] ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
                         ) : (
-                          livreur.statut
+                          livreur.utilisateur?.est_actif ? 'actif' : 'inactif'
                         )}
                       </Badge>
                     </TableCell>
@@ -354,24 +404,35 @@ export default function LivreursPage() {
                             <Truck className="mr-2 h-4 w-4" />
                             Assigner livraison
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleToggleStatus(livreur)}
-                            disabled={updatingStatus[livreur.utilisateur_id]}
-                          >
-                            {updatingStatus[livreur.utilisateur_id] ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : livreur.statut === 'actif' ? (
-                              <>
-                                <span className="text-yellow-500 mr-2">🚫</span>
-                                Désactiver
-                              </>
-                            ) : (
-                              <>
-                                <span className="text-green-500 mr-2">✅</span>
-                                Activer
-                              </>
-                            )}
-                          </DropdownMenuItem>
+                          {livreur.utilisateur?.est_actif ? (
+                            <DropdownMenuItem
+                              onClick={() => promptDeactivateLivreur(livreur)}
+                              disabled={updatingStatus[livreur.utilisateur_id]}
+                            >
+                              {updatingStatus[livreur.utilisateur_id] ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <span className="text-yellow-500 mr-2">🚫</span>
+                                  Désactiver
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              onClick={() => handleActivateLivreur(livreur)}
+                              disabled={updatingStatus[livreur.utilisateur_id]}
+                            >
+                              {updatingStatus[livreur.utilisateur_id] ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <span className="text-green-500 mr-2">✅</span>
+                                  Activer
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             className="text-red-600"
                             onClick={() => handleDeleteLivreur(livreur.utilisateur_id)}

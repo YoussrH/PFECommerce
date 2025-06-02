@@ -2,10 +2,12 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { DownloadIcon, FileIcon, ImageIcon } from 'lucide-react';
+import { useAuth } from '@/app/contexts/AuthContext';
 
 export default function FileDownloader({ file, token }) {
   const [downloading, setDownloading] = useState(false);
-  
+    const { user } = useAuth()
+
   const handleDownload = async () => {
     setDownloading(true);
     try {
@@ -13,10 +15,11 @@ export default function FileDownloader({ file, token }) {
       if (file.type === 'application/pdf' || file.url.match(/\.pdf(\?|$)/i)) {
         const response = await fetch('http://localhost:5000/reclamations/signed-url', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
+           headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
           body: JSON.stringify({ fileUrl: file.url })
         });
         

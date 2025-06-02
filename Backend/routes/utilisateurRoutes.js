@@ -25,6 +25,8 @@ router.put('/mettreAJourClient/:id', authentifier, verifierAdmin, utilisateurCon
 // In routes/livreur.js or similar
 
 router.get("/livreurs-disponibles", authentifier, verifierAdmin, utilisateurController.obtenirLivreursDisponibles);
-
+// In your routes file
+router.put('/desactiverUtilisateur/:id', authentifier, verifierAdmin, utilisateurController.desactiverUtilisateur);
+router.put('/reactiverUtilisateur/:id', authentifier, verifierAdmin, utilisateurController.reactiverUtilisateur);
 
 module.exports = router;

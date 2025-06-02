@@ -27,7 +27,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { Label } from '@/components/ui/label';
 
 export default function MarqueTable() {
-  const { token } = useAuth();
+  const { token,user } = useAuth();
   const router = useRouter();
   const [marques, setMarques] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,8 +41,11 @@ export default function MarqueTable() {
     try {
       setLoading(true);
       const response = await axios.get('http://localhost:5000/marques', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+ headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true      });
       setMarques(response.data);
     } catch (error) {
       toast.error('Erreur lors du chargement des marques');
@@ -77,8 +80,11 @@ export default function MarqueTable() {
                 toast.dismiss(t);
                 try {
                   await axios.delete(`http://localhost:5000/marques/supprimerMarque/${id}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                  });
+ headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true                  });
                   setMarques(prev => prev.filter(marque => marque.id !== id));
                   toast.success('Marque supprimée avec succès');
                 } catch (error) {
@@ -105,7 +111,11 @@ export default function MarqueTable() {
       await axios.post(
         'http://localhost:5000/marques/ajouterMarque',
         { libelle },
-        { headers: { Authorization: `Bearer ${token}` } }
+        {  headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true }
       );
       toast.success('Marque ajoutée avec succès');
       setIsAddModalOpen(false);
@@ -121,7 +131,11 @@ export default function MarqueTable() {
       await axios.put(
         `http://localhost:5000/marques/mettreAJourMarque/${id}`,
         { libelle },
-        { headers: { Authorization: `Bearer ${token}` } }
+        {  headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true}
       );
       toast.success('Marque modifiée avec succès');
       setIsEditModalOpen(false);

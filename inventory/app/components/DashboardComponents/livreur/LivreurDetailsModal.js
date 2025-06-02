@@ -156,19 +156,15 @@ export default function LivreurDetailsModal({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="statut">Statut</Label>
-              <Select
-                value={formData.statut}
-                onValueChange={(value) => handleSelectChange('statut', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionnez un statut" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="actif">Actif</SelectItem>
-                  <SelectItem value="inactif">Inactif</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Statut</Label>
+              <div className="p-2">
+                <Badge 
+                  variant={formData.statut === 'actif' ? 'default' : 'secondary'}
+                  className="text-sm"
+                >
+                  {formData.statut === 'actif' ? 'Actif' : 'Inactif'}
+                </Badge>
+              </div>
             </div>
             
             <div className="space-y-4 pt-4">

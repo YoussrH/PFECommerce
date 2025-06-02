@@ -27,6 +27,11 @@ export const AuthProvider = ({ children }) => {
       if (response.data.utilisateur) {
         console.log('[Auth] Server session valid');
         setUser(response.data.utilisateur);
+
+           // For admin users, ensure they have proper privileges
+      if (["admin", "super_admin"].includes(response.data.utilisateur.role)) {
+        console.log('[Auth] Admin privileges confirmed');
+      }
       } else {
         setUser(null);
       }
@@ -36,9 +41,12 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); 
 
-  useEffect(() => {
+
+
+
+useEffect(() => {
     checkAuth();
     
     // Check auth when page becomes visible
@@ -97,7 +105,7 @@ export const AuthProvider = ({ children }) => {
       if (error.response?.status === 401) {
         toast.error("Email ou mot de passe incorrect");
       } else if (error.response?.status === 403) {
-        toast.error("Veuillez vérifier votre compte avant de vous connecter");
+        toast.error("Ce compte a été désactivé. Contactez l'administrateur.");
       } else {
         toast.error(errorMessage);
       }
@@ -193,52 +201,89 @@ export const AuthProvider = ({ children }) => {
       setAuthLoading(false);
     }
   };
+// AuthContext.js
 
-  const loginAdmin = async (email, mot_de_passe) => {
-    try {
-      setAuthLoading(true);
-      const response = await axios.post(
-        'http://localhost:5000/auth/connexion-admin',
-        { email, mot_de_passe },
-        { withCredentials: true }
-      );
-      
-      if (response.data.success) {
-        const userData = {
-          ...response.data.utilisateur,
-          token: response.data.token
-        };
-        
-        setUser(userData);
-        localStorage.setItem('adminToken', response.data.token);
-        
-        toast.success("Connexion admin réussie ! Bienvenue !");
-        return { success: true, user: userData };
-      }
-      throw new Error(response.data.message || 'Échec de la connexion admin');
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message || 'Échec de la connexion admin';
-      
-      if (error.response?.status === 401) {
-        if (error.response?.data?.message === "Invalid credentials") {
-          toast.error("Mot de passe admin incorrect");
-        } else if (error.response?.data?.message === "Admin not found") {
-          toast.error("Adresse email admin non trouvée");
-        } else {
-          toast.error("Identifiants admin invalides");
+const loginAdmin = async (email, mot_de_passe) => {
+  try {
+    setAuthLoading(true);
+    
+    // Debug: Log the login attempt
+    console.log('[Auth] Attempting admin login for:', email);
+    
+    const response = await axios.post(
+      'http://localhost:5000/auth/connexion-admin',
+      { email, mot_de_passe },
+      { 
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json'
         }
-      } else if (error.response?.status === 403) {
-        toast.error("Accès réservé aux administrateurs");
-      } else {
-        toast.error(errorMessage);
       }
-      
-      return { success: false, error: errorMessage };
-    } finally {
-      setAuthLoading(false);
-    }
-  };
+    );
 
+    // Debug: Inspect the full response
+    console.log('[Auth] Login response:', {
+      status: response.status,
+      data: response.data,
+      headers: response.headers
+    });
+
+    if (response.data.success) {
+      if (!response.data.token) {
+        console.error('[Auth] No token received in response');
+        throw new Error('Authentication token missing');
+      }
+
+      // Debug: Verify token structure before storing
+      const tokenParts = response.data.token.split('.');
+      if (tokenParts.length !== 3) {
+        console.error('[Auth] Malformed token received:', response.data.token);
+        throw new Error('Invalid token format');
+      }
+
+      const userData = {
+        ...response.data.utilisateur,
+        token: response.data.token
+      };
+
+      // Debug before state update
+      console.log('[Auth] Updating user state with:', {
+        user: userData,
+        tokenLength: userData.token.length
+      });
+
+      setUser(userData);
+
+      // Verify token is stored correctly
+      await new Promise(resolve => setTimeout(resolve, 0)); // Allow state to update
+      console.log('[Auth] Current user token after set:', user?.token);
+
+      // Perform auth check with the new token
+      await checkAuth();
+
+      toast.success("Connexion admin réussie ! Bienvenue !");
+      return { 
+        success: true, 
+        user: userData 
+      };
+    }
+    
+    throw new Error(response.data.message || 'Échec de la connexion admin');
+  } catch (error) {
+    console.error('[Auth] Admin login error:', {
+      error: error.message,
+      response: error.response?.data
+    });
+    
+    toast.error(error.response?.data?.message || 'Échec de la connexion admin');
+    return { 
+      success: false, 
+      error: error.message 
+    };
+  } finally {
+    setAuthLoading(false);
+  }
+};
   const forgotPassword = async (email) => {
     try {
       setAuthLoading(true);

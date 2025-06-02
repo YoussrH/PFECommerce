@@ -295,7 +295,7 @@ const obtenirTousLivreurs = async (req, res) => {
       offset: parseInt(offset),
       include: [{
         association: 'utilisateur',
-        attributes: ['id', 'nom', 'prenom', 'email', 'role']
+        attributes: ['id', 'nom', 'prenom', 'email', 'role','est_actif', ]
       }]
     });
 
@@ -452,7 +452,7 @@ const obtenirTousClients = async (req, res) => {
       offset: parseInt(offset),
       include: [{
         association: 'utilisateur',
-        attributes: ['id', 'nom', 'prenom', 'email', 'role', 'est_verifie']
+        attributes: ['id', 'nom', 'prenom', 'email', 'role', 'est_verifie', 'est_actif'] // Include est_actif
       }]
     });
 
@@ -592,7 +592,135 @@ const obtenirLivreursDisponibles = async (req, res) => {
     });
   }
 };
+/**
+ * @desc Deactivate a user account
+ * @access Admin/SuperAdmin
+ */
+const desactiverUtilisateur = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { raison } = req.body;
 
+    // Check if user exists
+    const utilisateur = await Utilisateur.findByPk(id);
+    if (!utilisateur) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Utilisateur non trouvé" 
+      });
+    }
+
+    // Can't deactivate yourself
+    if (req.utilisateur.id === id) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Vous ne pouvez pas désactiver votre propre compte" 
+      });
+    }
+
+    // Update user status
+    await utilisateur.update({ 
+      est_actif: false,
+      raison_desactivation: raison || null
+    });
+
+    // If it's a delivery person, also update their status
+    if (utilisateur.role === 'livreur') {
+      await Livreur.update(
+        { statut: 'inactif' },
+        { where: { utilisateur_id: id } }
+      );
+    }
+
+    // Send notification email (optional)
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to: utilisateur.email,
+        subject: 'Votre compte a été désactivé',
+        html: `
+          <p>Bonjour ${utilisateur.prenom},</p>
+          <p>Votre compte a été désactivé par un administrateur.</p>
+          ${raison ? `<p>Raison: ${raison}</p>` : ''}
+          <p>Si vous pensez qu'il s'agit d'une erreur, veuillez contacter le support.</p>
+        `
+      });
+    } catch (emailError) {
+      console.error('Failed to send deactivation email:', emailError);
+    }
+
+    return res.json({ 
+      success: true,
+      message: "Compte désactivé avec succès"
+    });
+
+  } catch (error) {
+    console.error('Error deactivating user:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: "Erreur lors de la désactivation du compte" 
+    });
+  }
+};
+
+/**
+ * @desc Reactivate a user account
+ * @access Admin/SuperAdmin
+ */
+const reactiverUtilisateur = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const utilisateur = await Utilisateur.findByPk(id);
+    if (!utilisateur) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Utilisateur non trouvé" 
+      });
+    }
+
+    await utilisateur.update({ 
+      est_actif: true,
+      raison_desactivation: null
+    });
+
+    // If it's a delivery person, set them to active
+    if (utilisateur.role === 'livreur') {
+      await Livreur.update(
+        { statut: 'actif' },
+        { where: { utilisateur_id: id } }
+      );
+    }
+
+    // Send reactivation email (optional)
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to: utilisateur.email,
+        subject: 'Votre compte a été réactivé',
+        html: `
+          <p>Bonjour ${utilisateur.prenom},</p>
+          <p>Votre compte a été réactivé par un administrateur.</p>
+          <p>Vous pouvez maintenant vous connecter normalement.</p>
+        `
+      });
+    } catch (emailError) {
+      console.error('Failed to send reactivation email:', emailError);
+    }
+
+    return res.json({ 
+      success: true,
+      message: "Compte réactivé avec succès"
+    });
+
+  } catch (error) {
+    console.error('Error reactivating user:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: "Erreur lors de la réactivation du compte" 
+    });
+  }
+};
 
 module.exports = {
   obtenirTousUtilisateurs,
@@ -606,5 +734,7 @@ module.exports = {
   mettreAJourClient,
   obtenirLivreurParId,
   supprimerLivreur,
-  obtenirLivreursDisponibles
+  obtenirLivreursDisponibles,
+  desactiverUtilisateur,
+  reactiverUtilisateur
 };
