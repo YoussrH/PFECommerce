@@ -91,243 +91,6 @@ const calculateTotalStock = (tailles) => {
 };
 
 
-/* const ajouterArticle = async (req, res) => {
-  const transaction = await sequelize.transaction();
-  
-  try {
-    const {
-      nom_produit,
-      description,
-      conseils,
-      prix,
-      remise,
-      sku,
-      seo_titre,
-      mots_cles_seo,
-      categorie_id,
-      marque_id,
-      genre_id,
-      variations,
-      images_par_couleur
-    } = req.body;
-
-    // Validate required fields
-    if (!nom_produit || !prix || !categorie_id || !marque_id || !genre_id) {
-      await transaction.rollback();
-      return res.status(400).json({ 
-        success: false,
-        message: "Les champs obligatoires sont manquants (nom_produit, prix, categorie_id, marque_id, genre_id)" 
-      });
-    }
-
-    // Validate variations
-    if (!variations || !Array.isArray(variations) ){
-      await transaction.rollback();
-      return res.status(400).json({ 
-        success: false,
-        message: "Le champ variations est requis et doit être un tableau" 
-      });
-    }
-
-    // Validate each variation
-    const invalidVariations = variations.filter(v => 
-      !v.taille_id || !v.couleur_id || v.quantite === undefined || v.quantite < 0
-    );
-
-    if (invalidVariations.length > 0) {
-      await transaction.rollback();
-      return res.status(400).json({ 
-        success: false,
-        message: "Certaines variations sont invalides",
-        invalidVariations
-      });
-    }
-
-    // Create article
-    const article = await Article.create({
-      nom_produit,
-      description,
-      conseils,
-      prix,
-      prix_final: prix * (1 - (remise / 100)),
-      sku,
-      seo_titre,
-      mots_cles_seo,
-      categorie_id,
-      marque_id,
-      genre_id
-    }, { transaction });
-
-    if (!article || !article.id) {
-      await transaction.rollback();
-      return res.status(500).json({ 
-        success: false,
-        message: "Échec de la création de l'article" 
-      });
-    }
-
-    // Process variations
-    const variationPromises = variations.map(async (variation) => {
-      try {
-        // Additional validation
-        if (!variation.taille_id || !variation.couleur_id) {
-          throw new Error(`Variation invalide: taille_id=${variation.taille_id}, couleur_id=${variation.couleur_id}`);
-        }
-
-        // Check if the combination already exists
-        const existing = await ArticleTaille.findOne({
-          where: {
-            article_id: article.id,
-            taille_id: variation.taille_id,
-            couleur_id: variation.couleur_id
-          },
-          transaction
-        });
-
-        if (existing) {
-          await existing.update({
-            quantite: variation.quantite
-          }, { transaction });
-        } else {
-          await ArticleTaille.create({
-            article_id: article.id,
-            taille_id: variation.taille_id,
-            couleur_id: variation.couleur_id,
-            quantite: variation.quantite
-          }, { transaction });
-        }
-
-        // Create article_couleur record if not exists
-        const [articleCouleur, created] = await ArticleCouleur.findOrCreate({
-          where: {
-            article_id: article.id,
-            couleur_id: variation.couleur_id
-          },
-          defaults: {
-            article_id: article.id,
-            couleur_id: variation.couleur_id
-          },
-          transaction
-        });
-
-        if (!articleCouleur) {
-          throw new Error(`Failed to create ArticleCouleur record for article_id=${article.id}, couleur_id=${variation.couleur_id}`);
-        }
-
-      } catch (error) {
-        console.error('Error processing variation:', {
-          article_id: article.id,
-          variation,
-          error: error.message
-        });
-        throw error;
-      }
-    });
-
-    await Promise.all(variationPromises);
-
-    // Process images
-    if (images_par_couleur && typeof images_par_couleur === 'object') {
-      try {
-        // First delete existing images for this article
-        await ImageArticleCouleur.destroy({
-          where: { article_id: article.id },
-          transaction
-        });
-
-        const imagePromises = Object.entries(images_par_couleur).map(async ([couleur_id, images]) => {
-          if (!Array.isArray(images)) return;
-
-          // Validate that the color exists in variations
-          const colorExistsInVariations = variations.some(v => v.couleur_id == couleur_id);
-          if (!colorExistsInVariations) {
-            throw new Error(`Couleur ${couleur_id} a des images mais n'existe pas dans les variations`);
-          }
-
-          const imageCreates = images.map(imageUrl => {
-            if (typeof imageUrl !== 'string') {
-              throw new Error(`URL d'image invalide pour couleur ${couleur_id}: ${imageUrl}`);
-            }
-            return ImageArticleCouleur.create({
-              article_id: article.id,
-              couleur_id,
-              image_url: imageUrl
-            }, { transaction });
-          });
-          
-          await Promise.all(imageCreates);
-        });
-        
-        await Promise.all(imagePromises);
-      } catch (imageError) {
-        console.error('Error processing images:', imageError);
-        throw imageError;
-      }
-    }
-
-    await transaction.commit();
-
-    // Fetch the complete article with associations
-    const completeArticle = await Article.findByPk(article.id, {
-      include: [
-        { 
-          model: Taille, 
-          as: 'tailles',
-          through: { attributes: ['quantite', 'couleur_id'] }
-        },
-        { 
-          model: Couleur, 
-          as: 'couleurs',
-          through: { attributes: [] }
-        },
-        {
-          model: ImageArticleCouleur,
-          as: 'images_couleurs'
-        }
-      ]
-    });
-
-    return res.status(201).json({
-      success: true,
-      message: "Article ajouté avec succès",
-      data: completeArticle
-    });
-
-  } catch (error) {
-    await transaction.rollback();
-    console.error('Complete error in ajouterArticle:', {
-      error: error.message,
-      stack: error.stack,
-      requestBody: req.body
-    });
-    
-    if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(400).json({ 
-        success: false,
-        message: "Une combinaison article/taille/couleur existe déjà",
-        error: error.errors 
-      });
-    }
-    
-    if (error.name === 'SequelizeForeignKeyConstraintError') {
-      return res.status(400).json({ 
-        success: false,
-        message: "Référence invalide (couleur, taille, ou autre clé étrangère non trouvée)",
-        error: error.parent ? error.parent.detail : error.message
-      });
-    }
-    
-    return res.status(500).json({ 
-      success: false,
-      message: error.message || "Erreur lors de l'ajout de l'article",
-      error: process.env.NODE_ENV === 'development' ? {
-        stack: error.stack,
-        details: error.errors
-      } : undefined
-    });
-  }
-}; */
-
 const ajouterArticle = async (req, res) => {
   const transaction = await sequelize.transaction();
   
@@ -1026,59 +789,78 @@ const supprimerArticle = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // First check if the article exists
-    const article = await Article.findByPk(id, { transaction });
+    // Debug logging
+    console.log('Attempting HARD DELETE of article:', id);
+
+    // Find the article with transaction
+    const article = await Article.findOne({
+      where: { id },
+      transaction,
+      paranoid: false // Include soft-deleted records
+    });
+
     if (!article) {
       await transaction.rollback();
       return res.status(404).json({ 
         success: false,
-        message: "Article non trouvé" 
+        message: "Article non trouvé",
+        details: { articleId: id }
       });
     }
 
-    // Delete all related records first to maintain referential integrity
+    // HARD DELETE all related records first
     await Promise.all([
-      ImageArticleCouleur.destroy({ 
+      ImageArticleCouleur.destroy({
         where: { article_id: id },
-        transaction 
+        force: true, // Hard delete
+        transaction
       }),
-      ArticleTaille.destroy({ 
+      ArticleTaille.destroy({
         where: { article_id: id },
-        transaction 
+        force: true, // Hard delete
+        transaction
       }),
-      ArticleCouleur.destroy({ 
+      ArticleCouleur.destroy({
         where: { article_id: id },
-        transaction 
+        force: true, // Hard delete
+        transaction
       })
     ]);
 
-    // Finally delete the article itself
-    await article.destroy({ transaction });
+    // Perform HARD DELETE on main article
+    await article.destroy({ 
+      force: true, // This ensures hard delete
+      transaction 
+    });
 
+    // Commit the transaction
     await transaction.commit();
 
-    res.json({
+    // Success response
+    return res.json({
       success: true,
-      message: "Article supprimé avec succès",
-      donnees: { id }
+      message: "Article supprimé définitivement avec succès",
+      donnees: { 
+        id: article.id,
+        nom_produit: article.nom_produit
+      }
     });
 
   } catch (error) {
     await transaction.rollback();
-    console.error("Erreur lors de la suppression de l'article:", error);
+    console.error("Erreur lors de la suppression définitive:", {
+      error: error.message,
+      stack: error.stack,
+      articleId: req.params.id
+    });
     
-    if (error.name === 'SequelizeForeignKeyConstraintError') {
-      return res.status(400).json({ 
-        success: false,
-        message: "Impossible de supprimer l'article car il est référencé dans d'autres tables",
-        error: error.parent ? error.parent.detail : error.message
-      });
-    }
-    
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Erreur lors de la suppression de l'article",
-      error: error.message
+      message: "Erreur lors de la suppression définitive",
+      error: process.env.NODE_ENV === 'development' ? {
+        message: error.message,
+        stack: error.stack
+      } : undefined
     });
   }
 };

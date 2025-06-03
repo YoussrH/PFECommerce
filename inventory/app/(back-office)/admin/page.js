@@ -6,10 +6,6 @@ import { usePathname } from "next/navigation";
 import HomeLayout from "./accueil/HomeLayout";
 import Dashboard from "./accueil/dashboard/page";
 
-import Sales from "./ventes/page";
-import Users from "./utilisateurs/page";
-import Reports from "./rapport/page";
-import Settings from "./parametres/page";
 
 
 export default function DashboardPage() {
@@ -28,7 +24,7 @@ export default function DashboardPage() {
       }
     } else {
       switch (pathname) {
-        case "/admin/sales":
+/*         case "/admin/sales":
           return <Sales />;
 
         case "/admin/users":
@@ -37,7 +33,7 @@ export default function DashboardPage() {
         case "/admin/reports":
           return <Reports />;
         case "/admin/settings":
-          return <Settings />;
+          return <Settings />; */
         default:
           return (
             <HomeLayout>

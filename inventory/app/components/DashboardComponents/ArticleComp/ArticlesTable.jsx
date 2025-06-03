@@ -34,6 +34,7 @@ import {
 import EditModal from "./EditModal"
 import { toast } from "sonner"
 import { useArticle } from "@/hooks/useArticle"
+import { useAuth } from "@/app/contexts/AuthContext"
 
 export default function ProductTable() {
   const {
@@ -45,6 +46,8 @@ export default function ProductTable() {
     deleteArticle,
     fetchArticlesCount
   } = useArticle()
+  
+  const { isAdmin } = useAuth()
 
   const [sorting, setSorting] = useState([])
   const [columnFilters, setColumnFilters] = useState([])
@@ -54,6 +57,8 @@ export default function ProductTable() {
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [globalFilter, setGlobalFilter] = useState("")
   const [articleCount, setArticleCount] = useState(0)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [articleToDelete, setArticleToDelete] = useState(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -70,7 +75,7 @@ export default function ProductTable() {
       setSelectedProduct(fullProduct)
       setIsEditModalOpen(true)
     } catch (error) {
-      toast.error("Failed to load product details")
+      toast.error("Échec du chargement des détails du produit")
     }
   }
 
@@ -78,25 +83,42 @@ export default function ProductTable() {
     try {
       const result = await updateArticle(updatedProduct.id, updatedProduct)
       if (result) {
-        toast.success("Product updated successfully")
+        toast.success("Produit mis à jour avec succès")
         fetchAllArticles()
       }
     } catch (error) {
-      toast.error("Failed to update product")
+      toast.error("Échec de la mise à jour du produit")
     }
     setIsEditModalOpen(false)
   }
 
-  const handleDelete = async (id) => {
+  const handleDeleteClick = (article) => {
+    if (!isAdmin) {
+      toast.error("Non autorisé : droits administrateur requis")
+      return
+    }
+    setArticleToDelete(article)
+    setShowDeleteDialog(true)
+  }
+
+  const confirmDelete = async () => {
     try {
-      const success = await deleteArticle(id)
+      const success = await deleteArticle(articleToDelete.id)
       if (success) {
-        toast.success("Product deleted successfully")
+        toast.success("Produit supprimé avec succès")
         fetchAllArticles()
       }
     } catch (error) {
-      toast.error("Failed to delete product")
+      toast.error(error.message || "Échec de la suppression du produit")
+    } finally {
+      setShowDeleteDialog(false)
+      setArticleToDelete(null)
     }
+  }
+
+  const cancelDelete = () => {
+    setShowDeleteDialog(false)
+    setArticleToDelete(null)
   }
 
   const columns = [
@@ -261,7 +283,11 @@ export default function ProductTable() {
                 <Edit className="mr-2 h-4 w-4" /> Modifier
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleDelete(product.id)} className="text-red-600 focus:text-red-600">
+              <DropdownMenuItem 
+                onClick={() => handleDeleteClick(product)} 
+                className="text-red-600 focus:text-red-600"
+                disabled={!isAdmin}
+              >
                 <Trash className="mr-2 h-4 w-4" /> Supprimer
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -294,7 +320,36 @@ export default function ProductTable() {
   })
 
   return (
-    <div className="space-y-4 bg-white p-6 rounded-lg shadow-lg">
+    <div className="space-y-4 bg-white p-6 rounded-lg shadow-lg relative">
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg border border-black shadow-xl max-w-md w-full">
+            <h3 className="text-lg font-bold mb-4">Confirmer la suppression</h3>
+            <p className="mb-6">
+              Êtes-vous sûr de vouloir supprimer définitivement "{articleToDelete?.nom_produit}" (SKU: {articleToDelete?.sku}) ?
+              Cette action est irréversible.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <Button 
+                variant="outline" 
+                onClick={cancelDelete}
+                className="border-black hover:bg-gray-100"
+              >
+                Annuler
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={confirmDelete}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Confirmer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -376,7 +431,7 @@ export default function ProductTable() {
       </div>
 
       <div className="flex items-center justify-end space-x-2 py-4">
-        <div className=" text-sm text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           {table.getFilteredRowModel().rows.length}/{articleCount} au total
         </div>
         <Pagination>

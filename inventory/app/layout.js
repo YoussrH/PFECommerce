@@ -1,3 +1,4 @@
+// app/layout.js
 import { Geist, Geist_Mono } from "next/font/google";
 import "../Styles/globals.css";
 import ClientLayout from "./components/ClientLayout";
@@ -30,17 +31,15 @@ export default function RootLayout({ children, notFound }) {
       <meta charSet="UTF-8"/>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
-                    <SocketProvider>
-
-          {notFound ? (
-            <ErrorLayout>{children}</ErrorLayout>
-          ) : (
+          <SocketProvider>
             <CartProvider>
-            <ClientLayout>{children}</ClientLayout>
+              {notFound ? (
+                <ErrorLayout>{children}</ErrorLayout>
+              ) : (
+                <ClientLayout>{children}</ClientLayout>
+              )}
             </CartProvider>
-          )}
-                  </SocketProvider>
-
+          </SocketProvider>
         </AuthProvider>
       </body>
     </html>

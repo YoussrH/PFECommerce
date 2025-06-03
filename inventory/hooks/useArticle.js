@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/app/contexts/AuthContext'
 
 export const useArticle = () => {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user,isAdmin } = useAuth()
   const [articles, setArticles] = useState([])
   const [article, setArticle] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -161,32 +161,42 @@ const fetchArticleById = useCallback(async (id) => {
     }
   }, [isAuthenticated, user?.isAdmin])
 
-  // Delete article (admin only)
-  const deleteArticle = useCallback(async (id) => {
-    if (!isAuthenticated || !user?.isAdmin) {
-      toast.error("Unauthorized access")
-      return false
-    }
+const deleteArticle = useCallback(async (id) => {
+  if (!isAuthenticated || !isAdmin) {
+    toast.error("Accès non autorisé");
+    return false;
+  }
 
-    setLoading(true)
-    try {
-      const response = await axios.delete(`${API_URL}/supprimerArticle/${id}`, {
+  setLoading(true);
+  try {
+    const confirmed = window.confirm("Êtes-vous sûr de vouloir supprimer définitivement cet article ? Cette action est irréversible.");
+    if (!confirmed) return false;
+
+    const response = await axios.delete(
+      `${API_URL}/supprimerArticle/${id}`,
+      {  
+        headers: {
+          Authorization: `Bearer ${user?.token}`,
+          'Content-Type': 'application/json'
+        },
         withCredentials: true
-      })
-      if (response.data.success) {
-        toast.success("Article deleted successfully")
-        return true
       }
-      return false
-    } catch (error) {
-      handleError(error, "Failed to delete article")
-      return false
-    } finally {
-      setLoading(false)
+    );
+    
+    if (response.data.success) {
+      toast.success("Article supprimé définitivement avec succès");
+      fetchAllArticles(); // Refresh the list
+      return true;
     }
-  }, [isAuthenticated, user?.isAdmin])
-
-  // Get latest articles
+    return false;
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Échec de la suppression définitive");
+    return false;
+  } finally {
+    setLoading(false);
+  }
+}, [isAuthenticated, isAdmin, user?.token, fetchAllArticles]);
+// Get latest articles
   const fetchLatestArticles = useCallback(async (limit = 20) => {
     setLoading(true)
     try {

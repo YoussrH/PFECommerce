@@ -153,50 +153,58 @@ const createAvis = async (req, res) => {
       });
     }
 
-    // Create the review
-    const newReview = await Avis.create({
-      note,
-      commentaire,
-      client_id: clientId,
-      article_id: articleId
-    });
-    console.log('Server: Review created', { reviewId: newReview.id });
+// Create the review
+const newReview = await Avis.create({
+  note,
+  commentaire,
+  client_id: clientId,
+  article_id: articleId
+});
+console.log('Server: Review created', { reviewId: newReview.id });
 
-    // Fetch client and article details for notification
-    const client = await Client.findOne({
-      where: { utilisateur_id: clientId },
-      include: [{ 
-        model: Utilisateur, 
-        as: 'utilisateur', 
-        attributes: ['prenom', 'nom', 'email'],
-        required: false // Allow null utilisateur
-      }]
-    });
-    const article = await Article.findByPk(articleId, {
-      attributes: ['nom_produit']
-    });
-    console.log('Server: Fetched client and article', { 
-      client: client ? { id: client.id, utilisateur: client.utilisateur } : null, 
-      article: article ? article.nom_produit : null 
-    });
+// Fetch client and article details for notification
+const client = await Client.findOne({
+  where: { utilisateur_id: clientId },
+  include: [{ 
+    model: Utilisateur, 
+    as: 'utilisateur', 
+    attributes: ['prenom', 'nom', 'email'],
+    required: false
+  }]
+});
 
-    // Emit Socket.IO notification for new review
-    if (req.app.get('io')) {
-      const notification = {
-        id: newReview.id,
-        article_id: articleId,
-        article_nom: article?.nom_produit || 'Produit inconnu',
-        note: newReview.note,
-        commentaire: commentaire || 'Aucun commentaire',
-        prenom: client?.utilisateur?.prenom || 'Utilisateur',
-        nom: client?.utilisateur?.nom || 'Inconnu',
-        email: client?.utilisateur?.email || 'N/A',
-        created_at: newReview.created_at,
-        message: `Nouvel avis sur ${article?.nom_produit || 'un produit'} par ${client?.utilisateur?.prenom || 'Utilisateur'} ${client?.utilisateur?.nom || 'Inconnu'}`
-      };
-      console.log('Server: Emitting new-review notification', notification);
-      req.app.get('io').to('admin-room').emit('new-review', notification);
-    } else {
+// Safely fetch article details
+let articleName = 'Produit inconnu';
+try {
+  const article = await Article.findByPk(articleId, {
+    attributes: ['nom_produit']
+  });
+  if (article) {
+    articleName = article.nom_produit;
+  }
+} catch (error) {
+  console.error('Error fetching article details:', error);
+}
+
+// Emit Socket.IO notification for new review
+if (req.app.get('io')) {
+  const notification = {
+    id: newReview.id,
+    article_id: articleId,
+    article_nom: articleName,
+    note: newReview.note,
+    commentaire: commentaire || 'Aucun commentaire',
+    prenom: client?.utilisateur?.prenom || 'Utilisateur',
+    nom: client?.utilisateur?.nom || 'Inconnu',
+    email: client?.utilisateur?.email || 'N/A',
+    created_at: newReview.created_at,
+    message: `Nouvel avis sur ${articleName} par ${client?.utilisateur?.prenom || 'Utilisateur'} ${client?.utilisateur?.nom || 'Inconnu'}`
+  };
+  console.log('Server: Emitting new-review notification', notification);
+  req.app.get('io').to('admin-room').emit('new-review', notification);
+}
+
+     else {
       console.warn('Server: Socket.IO instance not available');
     }
 

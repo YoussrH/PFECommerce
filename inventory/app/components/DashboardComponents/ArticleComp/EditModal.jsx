@@ -7,13 +7,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Trash2, ImageIcon, X } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { useArticle } from "@/hooks/useArticle"
-import useCatalog from "@/hooks/useCatalog"
+import Image from "next/image"
 import axios from "axios"
+import useCatalog from "@/hooks/useCatalog"
+
+const API_URL = "http://localhost:5000"
 
 export default function EditModal({ article, isOpen, onClose, onUpdate }) {
   const { updateArticle } = useArticle()
@@ -48,7 +51,65 @@ export default function EditModal({ article, isOpen, onClose, onUpdate }) {
   const [previewImages, setPreviewImages] = useState([])
   const [availableSizes, setAvailableSizes] = useState([])
 
-  // Fetch available sizes based on category and genre
+  useEffect(() => {
+    if (article && isOpen) {
+      const formattedArticle = {
+        id: article.id || "",
+        nom_produit: article.nom_produit || "",
+        description: article.description || "",
+        conseils: article.conseils || "",
+        prix: article.prix || 0,
+        prix_final: article.prix_final || article.prix || 0,
+        sku: article.sku || "",
+        stock: article.stock || 0,
+        seo_titre: article.seo_titre || "",
+        mots_cles_seo: article.mots_cles_seo || "",
+        // CORRECTED LINES BELOW:
+        genre: article.genre ? { id: article.genre.id, libelle: article.genre.libelle } : { id: "", libelle: "" },
+        categorie: article.categorie ? { id: article.categorie.id, libelle: article.categorie.libelle } : { id: "", libelle: "" },
+        marque: article.marque ? { id: article.marque.id, libelle: article.marque.libelle } : { id: "", libelle: "" },
+        // END CORRECTED LINES
+        couleurs: article.couleurs || [],
+        tailles_par_couleur: article.tailles_par_couleur || {},
+        images_couleurs: article.images_couleurs || [],
+        variations: article.variations || []
+      }
+      
+      setEditedArticle(formattedArticle)
+      setPreviewImages(article.images_couleurs?.map(img => img.image_url) || [])
+      setNouvellesImages([])
+      setImagesSupprimees([])
+      
+      if (article.couleurs?.length > 0) {
+        setSelectedColorId(article.couleurs[0].id)
+      }
+    } else {
+      // Reset state when modal is closed or no article is provided
+      setEditedArticle({
+        nom_produit: "",
+        description: "",
+        conseils: "",
+        prix: 0,
+        prix_final: 0,
+        sku: "",
+        stock: 0,
+        seo_titre: "",
+        mots_cles_seo: "",
+        genre: { id: "", libelle: "" },
+        categorie: { id: "", libelle: "" },
+        marque: { id: "", libelle: "" },
+        couleurs: [],
+        tailles_par_couleur: {},
+        images_couleurs: [],
+        variations: []
+      })
+      setPreviewImages([])
+      setNouvellesImages([])
+      setImagesSupprimees([])
+      setSelectedColorId(null)
+    }
+  }, [article, isOpen]) // Added 'article' to dependency array
+
   useEffect(() => {
     const fetchAvailableSizes = async () => {
       if (editedArticle.categorie?.id && editedArticle.genre?.id) {
@@ -60,49 +121,13 @@ export default function EditModal({ article, isOpen, onClose, onUpdate }) {
         } catch (error) {
           console.error("Error fetching sizes:", error)
         }
+      } else {
+        setAvailableSizes([])
       }
     }
     
     fetchAvailableSizes()
   }, [editedArticle.categorie, editedArticle.genre])
-
-  useEffect(() => {
-    if (article) {
-      // Format the article data to include all necessary fields with defaults
-      const formattedArticle = {
-        id: article.id,
-        nom_produit: article.nom_produit || "",
-        description: article.description || "",
-        conseils: article.conseils || "",
-        prix: article.prix || 0,
-        prix_final: article.prix_final || article.prix || 0,
-        sku: article.sku || "",
-        stock: article.stock || 0,
-        seo_titre: article.seo_titre || "",
-        mots_cles_seo: article.mots_cles_seo || "",
-        genre: article.genre || { id: "", libelle: "" },
-        categorie: article.categorie || { id: "", libelle: "" },
-        marque: article.marque || { id: "", libelle: "" },
-        couleurs: article.couleurs || [],
-        tailles_par_couleur: article.tailles_par_couleur || {},
-        images_couleurs: article.images_couleurs || [],
-        variations: article.variations || []
-      }
-      
-      setEditedArticle(formattedArticle)
-      
-      // Combine existing and new images for preview
-      const existingImageUrls = article.images_couleurs?.map(img => img.image_url) || []
-      setPreviewImages([...existingImageUrls])
-      setNouvellesImages([])
-      setImagesSupprimees([])
-      
-      // Set the first color as selected if available
-      if (article.couleurs?.length > 0) {
-        setSelectedColorId(article.couleurs[0].id)
-      }
-    }
-  }, [article])
 
   const calculerStockTotal = () => {
     let total = 0
@@ -122,7 +147,7 @@ export default function EditModal({ article, isOpen, onClose, onUpdate }) {
   }
 
   const handleSelectChange = (field, value, options) => {
-    const selectedOption = options.find(opt => opt.id === value)
+    const selectedOption = options.find(opt => opt.id.toString() === value.toString())
     setEditedArticle(prev => ({
       ...prev,
       [field]: selectedOption || { id: value, libelle: "" }
@@ -172,7 +197,6 @@ export default function EditModal({ article, isOpen, onClose, onUpdate }) {
       stock: calculerStockTotal()
     }))
 
-    // Update selected color if needed
     if (selectedColorId === colorId) {
       setSelectedColorId(updatedColors[0]?.id || null)
     }
@@ -234,16 +258,13 @@ export default function EditModal({ article, isOpen, onClose, onUpdate }) {
   const supprimerImage = (index) => {
     const imageToRemove = previewImages[index]
     
-    // Check if it's an existing image (has an ID) or a new one
     const existingImageIndex = editedArticle.images_couleurs.findIndex(img => img.image_url === imageToRemove)
     
     if (existingImageIndex >= 0) {
       setImagesSupprimees(prev => [...prev, editedArticle.images_couleurs[existingImageIndex].id])
     } else {
-      // For new images, find the corresponding file in nouvellesImages
       const newImageIndex = nouvellesImages.findIndex((_, i) => 
-        previewImages[index] === URL.createObjectURL(nouvellesImages[i])
-      )
+        previewImages[index] === URL.createObjectURL(nouvellesImages[i]))
       if (newImageIndex >= 0) {
         setNouvellesImages(prev => prev.filter((_, i) => i !== newImageIndex))
       }
@@ -256,10 +277,8 @@ export default function EditModal({ article, isOpen, onClose, onUpdate }) {
 
   const handleSubmit = async () => {
     try {
-      // Prepare form data
       const formData = new FormData()
       
-      // Append basic fields
       formData.append('id', editedArticle.id)
       formData.append('nom_produit', editedArticle.nom_produit)
       formData.append('description', editedArticle.description)
@@ -274,20 +293,16 @@ export default function EditModal({ article, isOpen, onClose, onUpdate }) {
       formData.append('categorie_id', editedArticle.categorie?.id || '')
       formData.append('marque_id', editedArticle.marque?.id || '')
       
-      // Append colors and sizes
       formData.append('couleurs', JSON.stringify(editedArticle.couleurs))
       formData.append('tailles_par_couleur', JSON.stringify(editedArticle.tailles_par_couleur))
       formData.append('variations', JSON.stringify(editedArticle.variations || []))
       
-      // Append deleted images
       formData.append('images_supprimees', JSON.stringify(imagesSupprimees))
       
-      // Append new images
       nouvellesImages.forEach(file => {
         formData.append('images', file)
       })
 
-      // Call update function
       const result = await updateArticle(article.id, formData)
 
       if (result) {
@@ -355,70 +370,68 @@ export default function EditModal({ article, isOpen, onClose, onUpdate }) {
                 />
               </div>
 
-                          <div className="space-y-2">
-              <Label htmlFor="marque">Marque</Label>
-              <Select
-                value={editedArticle.marque?.id?.toString() || ""}
-                onValueChange={(value) => handleSelectChange("marque", value, marques)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner une marque">
-                    {editedArticle.marque?.libelle || "Sélectionner une marque"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {marques.map((marque) => (
-                    <SelectItem key={marque.id} value={marque.id.toString()}>
-                      {marque.libelle}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="marque">Marque</Label>
+                <Select
+                  value={editedArticle.marque?.id?.toString() || ""}
+                  onValueChange={(value) => handleSelectChange("marque", value, marques)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner une marque">
+                      {editedArticle.marque?.libelle || "Sélectionner une marque"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {marques.map((marque) => (
+                      <SelectItem key={marque.id} value={marque.id.toString()}>
+                        {marque.libelle}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="genre">Genre</Label>
-              <Select
-                value={editedArticle.genre?.id?.toString() || ""}
-                onValueChange={(value) => handleSelectChange("genre", value, genres)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un genre">
-                    {editedArticle.genre?.libelle || "Sélectionner un genre"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {genres.map((genre) => (
-                    <SelectItem key={genre.id} value={genre.id.toString()}>
-                      {genre.libelle}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="genre">Genre</Label>
+                <Select
+                  value={editedArticle.genre?.id?.toString() || ""}
+                  onValueChange={(value) => handleSelectChange("genre", value, genres)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un genre">
+                      {editedArticle.genre?.libelle || "Sélectionner un genre"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {genres.map((genre) => (
+                      <SelectItem key={genre.id} value={genre.id.toString()}>
+                        {genre.libelle}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="categorie">Catégorie</Label>
-              <Select
-                value={editedArticle.categorie?.id?.toString() || ""}
-                onValueChange={(value) => handleSelectChange("categorie", value, categories)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner une catégorie">
-                    {editedArticle.categorie?.libelle || "Sélectionner une catégorie"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((categorie) => (
-                    <SelectItem key={categorie.id} value={categorie.id.toString()}>
-                      {categorie.libelle}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-     
+              <div className="space-y-2">
+                <Label htmlFor="categorie">Catégorie</Label>
+                <Select
+                  value={editedArticle.categorie?.id?.toString() || ""}
+                  onValueChange={(value) => handleSelectChange("categorie", value, categories)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner une catégorie">
+                      {editedArticle.categorie?.libelle || "Sélectionner une catégorie"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((categorie) => (
+                      <SelectItem key={categorie.id} value={categorie.id.toString()}>
+                        {categorie.libelle}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="space-y-2 col-span-2">
                 <Label htmlFor="description">Description</Label>
@@ -547,7 +560,13 @@ export default function EditModal({ article, isOpen, onClose, onUpdate }) {
                         <SelectContent>
                           {editedArticle.couleurs.map((couleur) => (
                             <SelectItem key={couleur.id} value={couleur.id.toString()}>
-                              {couleur.libelle || "Sans nom"}
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: couleur.hexcode || "#ccc" }}
+                                />
+                                {couleur.libelle || "Sans nom"}
+                              </div>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -657,70 +676,76 @@ export default function EditModal({ article, isOpen, onClose, onUpdate }) {
             </Card>
           </TabsContent>
 
-        <TabsContent value="media" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Images du produit</CardTitle>
-              <CardDescription>
-                Images existantes et nouvelles images pour cet article
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {previewImages.map((image, index) => (
-                  <div key={index} className="relative group border rounded-lg p-1 hover:shadow-md transition-shadow">
-                    <div className="aspect-square overflow-hidden rounded-lg">
-                      <Image
-                        src={image}
-                        alt={`Image produit ${index + 1}`}
-                        width={200}
-                        height={200}
-                        className="object-cover w-full h-full"
-                      />
-                    </div>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full h-6 w-6"
-                      onClick={() => supprimerImage(index)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                    {!nouvellesImages.some((_, i) => 
-                      previewImages[index] === URL.createObjectURL(nouvellesImages[i])) && (
-                      <span className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                        Existante
-                      </span>
-                    )}
+          <TabsContent value="media" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Images du produit</CardTitle>
+                <CardDescription>
+                  {previewImages.length > 0 ? "Images existantes" : "Aucune image disponible"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {previewImages.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {previewImages.map((image, index) => (
+                      <div key={index} className="relative group border rounded-lg p-1 hover:shadow-md transition-shadow">
+                        <div className="aspect-square overflow-hidden rounded-lg">
+                          <Image
+                            src={image}
+                            alt={`Image produit ${index + 1}`}
+                            width={200}
+                            height={200}
+                            className="object-cover w-full h-full"
+                          />
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full h-6 w-6"
+                          onClick={() => supprimerImage(index)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                        {!nouvellesImages.some((_, i) => 
+                          previewImages[index] === URL.createObjectURL(nouvellesImages[i])) && (
+                          <span className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                            Existante
+                          </span>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                ) : (
+                  <div className="text-center py-8 border rounded-lg bg-muted/20">
+                    <p className="text-muted-foreground">Aucune image disponible pour ce produit</p>
+                  </div>
+                )}
 
-              <div className="mt-6">
-                <Label htmlFor="productImages" className="mb-2 block">
-                  Ajouter des images
-                </Label>
-                <div className="border-2 border-dashed rounded-lg p-6 text-center hover:bg-muted/50 transition-colors cursor-pointer">
-                  <ImageIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Glissez-déposez des images ou cliquez pour parcourir
-                  </p>
-                  <Input
-                    id="productImages"
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-                  <Button variant="outline" onClick={() => document.getElementById("productImages")?.click()}>
-                    Sélectionner des fichiers
-                  </Button>
+                <div className="mt-6">
+                  <Label htmlFor="productImages" className="mb-2 block">
+                    Ajouter des images
+                  </Label>
+                  <div className="border-2 border-dashed rounded-lg p-6 text-center hover:bg-muted/50 transition-colors cursor-pointer">
+                    <ImageIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Glissez-déposez des images ou cliquez pour parcourir
+                    </p>
+                    <Input
+                      id="productImages"
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <Button variant="outline" onClick={() => document.getElementById("productImages")?.click()}>
+                      Sélectionner des fichiers
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="seo" className="space-y-4">
             <Card>
