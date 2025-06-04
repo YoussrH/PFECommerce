@@ -86,7 +86,7 @@ useEffect(() => {
   fetchInitialData();
 }, [user]); // Only depend on user
 
-  useEffect(() => {
+/*   useEffect(() => {
   let timer;
   const shouldPredict = formData.categorie_id && formData.marque_id && formData.genre_id && formData.variations.length > 0;
 
@@ -134,7 +134,61 @@ useEffect(() => {
     return () => clearTimeout(timer);
   }
 }, [formData.categorie_id, formData.marque_id, formData.genre_id, formData.variations, user?.token]);
-  // SKU generation effect
+  */
+// ... (inside the useEffect for prediction)
+
+useEffect(() => {
+  let timer;
+  const shouldPredict = formData.categorie_id && formData.marque_id && formData.genre_id && formData.variations.length > 0;
+
+  if (shouldPredict) {
+    setIsPredicting(true);
+    setPredictionError(null);
+
+    timer = setTimeout(async () => {
+      let toastId;
+      try {
+        toastId = toast.loading("Calcul du prix estimé...");
+        const response = await axios.post("http://127.0.0.1:5000/predict", {
+          categorie_id: formData.categorie_id,
+          marque_id: formData.marque_id,
+          genre_id: formData.genre_id,
+          // --- START CHANGES HERE ---
+          variations: formData.variations // Send the variations array directly
+          // --- END CHANGES HERE ---
+        }, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user?.token}`,
+          },
+          timeout: 10000,
+        });
+
+        if (!response.data.predicted_price) throw new Error("Invalid response format");
+
+        setFormData(prev => ({
+          ...prev,
+          predictedPrice: response.data.predicted_price,
+          prix: prev.prix || response.data.predicted_price,
+        }));
+
+        toast.success(`Prix estimé: ${response.data.predicted_price} DT`, { id: toastId });
+      } catch (error) {
+        console.error("Prediction error:", error);
+        setPredictionError(error.message);
+        toast.error("Échec de l'estimation du prix", { id: toastId });
+      } finally {
+        setIsPredicting(false);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }
+}, [formData.categorie_id, formData.marque_id, formData.genre_id, formData.variations, user?.token]);
+
+// ... rest of your component
+
+// SKU generation effect
   useEffect(() => {
     if (formData.nom_produit.trim() && articleCount > 0) {
       const formattedName = formData.nom_produit.trim().replace(/\s+/g, "-").toUpperCase()

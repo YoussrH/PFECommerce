@@ -44,6 +44,14 @@ module.exports = (sequelize, DataTypes) => {
     apply_to: {
       type: DataTypes.ENUM('all', 'categories', 'articles', 'marques', 'genres'),
       defaultValue: 'all'
+    },
+        evenement_id: { // Add this foreign key field
+      type: DataTypes.INTEGER,
+      allowNull: true, // Allow discounts without a specific event
+      references: {
+        model: 'evenements', // plural table name
+        key: 'id'
+      }
     }
   }, {
     tableName: 'remise',
@@ -73,6 +81,11 @@ module.exports = (sequelize, DataTypes) => {
       through: models.RemiseGenre,
       foreignKey: 'remise_id',
       as: 'discounted_genres'
+    });
+        Remise.belongsTo(models.Evenement, { // New association
+      foreignKey: 'evenement_id',
+      as: 'evenement',
+      onDelete: 'SET NULL' // If an event is deleted, set evenement_id to NULL on remises
     });
 
   };

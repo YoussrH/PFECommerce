@@ -31,30 +31,27 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import EditModal from "./EditModal"
 import { toast } from "sonner"
 import { useArticle } from "@/hooks/useArticle"
 import { useAuth } from "@/app/contexts/AuthContext"
+import { useRouter } from "next/navigation"
 
 export default function ProductTable() {
   const {
     articles,
     loading,
     fetchAllArticles,
-    fetchArticleById,
-    updateArticle,
     deleteArticle,
     fetchArticlesCount
   } = useArticle()
   
   const { isAdmin } = useAuth()
+  const router = useRouter()
 
   const [sorting, setSorting] = useState([])
   const [columnFilters, setColumnFilters] = useState([])
   const [columnVisibility, setColumnVisibility] = useState({})
   const [rowSelection, setRowSelection] = useState({})
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState(null)
   const [globalFilter, setGlobalFilter] = useState("")
   const [articleCount, setArticleCount] = useState(0)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -69,27 +66,8 @@ export default function ProductTable() {
     loadData()
   }, [fetchAllArticles, fetchArticlesCount])
 
-  const handleEdit = async (product) => {
-    try {
-      const fullProduct = await fetchArticleById(product.id)
-      setSelectedProduct(fullProduct)
-      setIsEditModalOpen(true)
-    } catch (error) {
-      toast.error("Échec du chargement des détails du produit")
-    }
-  }
-
-  const handleSave = async (updatedProduct) => {
-    try {
-      const result = await updateArticle(updatedProduct.id, updatedProduct)
-      if (result) {
-        toast.success("Produit mis à jour avec succès")
-        fetchAllArticles()
-      }
-    } catch (error) {
-      toast.error("Échec de la mise à jour du produit")
-    }
-    setIsEditModalOpen(false)
+  const handleEdit = (product) => {
+    router.push(`/admin/inventaire/produits/${product.id}`)
   }
 
   const handleDeleteClick = (article) => {
@@ -455,15 +433,6 @@ export default function ProductTable() {
           </PaginationContent>
         </Pagination>
       </div>
-
-      {isEditModalOpen && selectedProduct && (
-        <EditModal
-          article={selectedProduct}
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          onUpdate={handleSave}
-        />
-      )}
     </div>
   )
 }

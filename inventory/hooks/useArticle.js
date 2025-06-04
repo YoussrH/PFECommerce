@@ -57,7 +57,7 @@ const fetchAllArticles = useCallback(async () => {
   }
 }, []);
   
-const fetchArticleById = useCallback(async (id) => {
+/* const fetchArticleById = useCallback(async (id) => {
   setLoading(true);
   try {
     const response = await axios.get(`${API_URL}/obtenirArticleParId/${id}`);
@@ -95,8 +95,24 @@ const fetchArticleById = useCallback(async (id) => {
   } finally {
     setLoading(false);
   }
-}, []);
+}, []); */
 
+const fetchArticleById = useCallback(async (id) => {
+  setLoading(true);
+  try {
+    const response = await axios.get(`${API_URL}/obtenirArticleParId/${id}`);
+    if (response.data.success) {
+      setArticle(response.data.donnees);
+      return response.data; // Return the full response with success and donnees
+    }
+    return { success: false, donnees: null };
+  } catch (error) {
+    handleError(error, "Échec de la récupération de l'article");
+    return { success: false, donnees: null };
+  } finally {
+    setLoading(false);
+  }
+}, []);
   // Add article (admin only)
   const addArticle = useCallback(async (articleData) => {
     if (!isAuthenticated || !user?.isAdmin) {
