@@ -4,6 +4,8 @@ const { Op } = require('sequelize');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
+const sequelize = require('../config/db'); // Adjust the path as necessary
+
 /**
  * @desc Get all users with optional filtering and pagination
  * @access Admin/SuperAdmin
@@ -280,7 +282,7 @@ const creeLivreur = async (req, res) => {
  * @desc Get all delivery persons (Livreurs)
  * @access Admin/SuperAdmin
  */
-const obtenirTousLivreurs = async (req, res) => {
+/* const obtenirTousLivreurs = async (req, res) => {
   try {
     const { statut, type_vehicule, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
@@ -302,6 +304,61 @@ const obtenirTousLivreurs = async (req, res) => {
     return res.json({
       success: true,
       data: rows,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        totalPages: Math.ceil(count / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching delivery persons:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: "Erreur lors de la récupération des livreurs" 
+    });
+  }
+}; */
+
+const obtenirTousLivreurs = async (req, res) => {
+  try {
+    const { statut, type_vehicule, page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const whereClause = {};
+    if (statut) whereClause.statut = statut;
+    if (type_vehicule) whereClause.type_vehicule = type_vehicule;
+
+    // First get the livreurs
+    const { count, rows: livreurs } = await Livreur.findAndCountAll({
+      where: whereClause,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      include: [{
+        association: 'utilisateur',
+        attributes: ['id', 'nom', 'prenom', 'email', 'role', 'est_actif']
+      }]
+    });
+
+    // Then get delivery counts for each livreur
+    const livreursWithCounts = await Promise.all(
+      livreurs.map(async (livreur) => {
+        const deliveryCount = await sequelize.models.Commande.count({
+          where: {
+            livreur_id: livreur.utilisateur_id,
+            statut: 'livree' // Only count delivered orders
+          }
+        });
+        
+        return {
+          ...livreur.toJSON(),
+          nombre_livraisons: deliveryCount
+        };
+      })
+    );
+
+    return res.json({
+      success: true,
+      data: livreursWithCounts,
       pagination: {
         total: count,
         page: parseInt(page),

@@ -86,26 +86,17 @@ const FormConnexion = ({ formData, setFormData, handleLogin, onForgotPassword })
       <div className="w-64 mx-auto flex justify-end space-x-3 pt-2">
         <div
           onClick={() => router.push("/admin/authentification")}
-          className="cursor-pointer hover:scale-110 transition-transform"
+          className="cursor-pointer hover:scale-110  transition-transform"
         >
           <Image
             src="/administrator.png"
             alt="Admin"
             width={28}
             height={28}
+            className="invisible "
           />
         </div>
-        <div
-          onClick={() => router.push("/livreur/authentification")}
-          className="cursor-pointer hover:scale-110 transition-transform"
-        >
-          <Image
-            src="/delivery-agent.png"
-            alt="Livreur"
-            width={28}
-            height={28}
-          />
-        </div>
+
       </div>
     </form>
   );

@@ -29,7 +29,6 @@ import {
 } from '@/components/ui/table'
 import { Truck } from 'lucide-react'
 import { useUtilisateur } from '@/hooks/useUtilisateur'
-import { useLivraison } from '@/hooks/useLivraison'
 
 export default function LivreurDetailsModal({
   livreur,
@@ -87,9 +86,12 @@ export default function LivreurDetailsModal({
     }
   }
 
+  // Filter to show only delivered commands
+  const deliveredCommands = deliveries.filter(d => d.statut === 'livree')
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[800px]">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Détails du livreur</DialogTitle>
           <DialogDescription>
@@ -159,8 +161,13 @@ export default function LivreurDetailsModal({
               <Label>Statut</Label>
               <div className="p-2">
                 <Badge 
+                className={
+                            livreur.utilisateur?.est_actif
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-red-100 text-red-800'
+                          }
                   variant={formData.statut === 'actif' ? 'default' : 'secondary'}
-                  className="text-sm"
+                 
                 >
                   {formData.statut === 'actif' ? 'Actif' : 'Inactif'}
                 </Badge>
@@ -169,7 +176,7 @@ export default function LivreurDetailsModal({
             
             <div className="space-y-4 pt-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-medium">Livraisons assignées</h3>
+                <h3 className="font-medium">Livraisons effectuées</h3>
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -183,36 +190,40 @@ export default function LivreurDetailsModal({
               
               {isLoading ? (
                 <div className="p-4 text-center">Chargement des livraisons...</div>
-              ) : deliveries.length === 0 ? (
-                <div className="p-4 text-center">Aucune livraison assignée</div>
+              ) : deliveredCommands.length === 0 ? (
+                <div className="p-4 text-center">Aucune livraison effectuée</div>
               ) : (
-                <div className="border rounded">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Référence</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Adresse</TableHead>
-                        <TableHead>Statut</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {deliveries.map((delivery) => (
-                        <TableRow key={delivery.livraison_id}>
-                          <TableCell>#{delivery.reference}</TableCell>
-                          <TableCell>
-                            {new Date(delivery.date_creation).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>{delivery.adresse_livraison}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {delivery.statut}
-                            </Badge>
-                          </TableCell>
+                <div className="border rounded overflow-hidden">
+                  <div className="max-h-[300px] overflow-y-auto">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-background">
+                        <TableRow>
+                          <TableHead>Référence</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Adresse</TableHead>
+                          <TableHead>Statut</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {deliveredCommands.map((delivery) => (
+                          <TableRow key={delivery.livraison_id}>
+                            <TableCell>#{delivery.reference}</TableCell>
+                            <TableCell>
+                              {new Date(delivery.date_creation).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="truncate max-w-[200px]">
+                              {delivery.adresse_livraison}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {delivery.statut}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
             </div>

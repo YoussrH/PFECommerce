@@ -214,7 +214,7 @@ const CheckoutAuthForm = () => {
 
   return (
     <div className="flex flex-col lg:flex-row w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 gap-6 py-6 sm:py-8">
-      <div className="w-full lg:flex-1 lg:max-w-2xl">
+      <div className="w-full lg:flex-1 lg:max-w-2xl mx-auto">
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
           <h2 className="text-base sm:text-lg font-bold mb-4 sm:mb-6">Identification</h2>
 
@@ -272,7 +272,7 @@ const CheckoutAuthForm = () => {
             </form>
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsList className="grid w-full grid-cols-2 mb-6 pb-10">
                 <TabsTrigger value="login" className="text-xs sm:text-sm py-2 px-4">
                   DÉJÀ CLIENT ?
                 </TabsTrigger>

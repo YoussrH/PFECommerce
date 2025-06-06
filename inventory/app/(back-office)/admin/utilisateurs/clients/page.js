@@ -238,7 +238,7 @@ const ClientsPage = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={client.utilisateur?.est_actif ? "default" : "destructive"}>
+                          <Badge className={"bg-blue-100 text-blue-800"} variant={client.utilisateur?.est_actif ? "default" : "destructive"}>
                             {processingStatus[client.utilisateur_id] ? (
                               <Loader2 className="h-3 w-3 animate-spin mr-1" />
                             ) : null}
@@ -252,6 +252,7 @@ const ClientsPage = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
+                          className={"bg-yellow-100 text-yellow-800"}
                             size="sm"
                             variant={client.utilisateur?.est_actif ? "destructive" : "default"}
                             onClick={() => handleToggleClick(client.utilisateur_id, client.utilisateur?.est_actif)}

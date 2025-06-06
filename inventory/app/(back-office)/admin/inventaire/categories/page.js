@@ -22,10 +22,10 @@ export default function Categories() {
     <div className="container mx-auto px-10 py-8">
       <Tabs defaultValue="categories">
         
-        <TabsList className="grid w-full grid-cols-2 h-12 bg-white gap-3 shadow-sm ">
-        <TabsTrigger  value="categories" className="h-10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-200 data-[state=active]:to-white">Catégories</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 h-12 bg-gray-100 gap-3 shadow-sm ">
+        <TabsTrigger  value="categories" className="h-10 bg-black text-white">Catégories</TabsTrigger>
 
-        <TabsTrigger value="sizes" className="h-10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-200 data-[state=active]:to-white">Tailles</TabsTrigger>
+        <TabsTrigger value="sizes" className="h-10 bg-black text-white">Tailles</TabsTrigger>
         </TabsList>
 
 

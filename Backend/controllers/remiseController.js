@@ -1,4 +1,4 @@
-const { Op } = require('sequelize');
+/* const { Op } = require('sequelize');
 const { Remise, Article, Categorie, Marque, Genre, Evenement } = require('../models'); // Import Evenement
 const { sequelize } = require("../models"); // Import sequelize instance for transactions and raw queries
 
@@ -607,9 +607,9 @@ const createRemise = async (req, res) => {
       error: error.message,
     });
   }
-};
+}; */
 
-/*const { Op } = require('sequelize');
+const { Op } = require('sequelize');
 const { Remise, Article, Categorie, Marque, Genre } = require('../models');
 const { sequelize } = require("../models");
 
@@ -908,9 +908,9 @@ const applyDiscountToGenres = async (remise, genreIds, articleIds = [], transact
     const newPrice = calculateFinalPrice(article.prix, remise);
     await article.update({ prix_final: newPrice }, { transaction });
   }));
-}; */
+}; 
 
-/* const createRemise = async (req, res) => {
+ const createRemise = async (req, res) => {
   const transaction = await sequelize.transaction();
   
   try {
@@ -1101,7 +1101,7 @@ const applyDiscountToGenres = async (remise, genreIds, articleIds = [], transact
     });
   }
 };
- */
+ 
 
 
 

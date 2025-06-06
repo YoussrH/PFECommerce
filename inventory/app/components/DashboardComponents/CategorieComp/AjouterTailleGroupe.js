@@ -169,7 +169,7 @@ export default function AjouterTailleGroupe() {
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Gestion des tailles</CardTitle>
+              <CardTitle className="text-xs sm:text-lg md:text-xl">Gestion des tailles</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={submitSizes} className="space-y-4">

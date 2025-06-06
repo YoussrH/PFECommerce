@@ -1272,6 +1272,51 @@ const verifierAchatArticle = async (req, res) => {
     });
   }
 };
+/**
+ * @desc Get all addresses for the current user with principal address marked
+ * @access Client
+ */
+const obtenirAdressesLivraison = async (req, res) => {
+  try {
+    const userId = req.utilisateur.id;
+
+    // First get the client record
+    const client = await Client.findOne({
+      where: { utilisateur_id: userId }
+    });
+
+    if (!client) {
+      return res.status(404).json({
+        success: false,
+        message: "Client non trouvé"
+      });
+    }
+
+    // Find all addresses for this client
+    const adresses = await Adresse.findAll({
+      where: { client_id: client.utilisateur_id },
+      order: [['est_principale', 'DESC'], ['created_at', 'DESC']]
+    });
+
+    // Find the principal address if exists
+    const principalAddress = adresses.find(addr => addr.est_principale);
+
+    return res.json({
+      success: true,
+      data: {
+        adresses: adresses,
+        principalAddress: principalAddress || null
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching client delivery addresses:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Erreur lors de la récupération des adresses de livraison"
+    });
+  }
+};
 module.exports = {
   mettreAJourProfil,
   obtenirCommandesClient,
@@ -1287,5 +1332,6 @@ module.exports = {
   obtenirCouponsClient,
   obtenirReclamationsClient,
   mettreAJourNewsletter,
-  verifierAchatArticle
+  verifierAchatArticle,
+  obtenirAdressesLivraison
 };

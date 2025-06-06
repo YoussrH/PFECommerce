@@ -1,0 +1,64 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL") // Make sure to set DATABASE_URL in .env
+}
+
+// Define your Article model based on your `article` table schema
+model Article {
+  id                 Int      @id @default(autoincrement())
+  nom_produit        String   @map("nom_produit") @db.VarChar(255)
+  description        String?  @db.Text
+  conseils           String?  @db.Text
+  prix               Float
+  prix_final         Float    @map("prix_final") @default(0)
+  sku                String?  @db.VarChar(255) @unique // Assuming SKU is unique
+  categorie_id       Int
+  marque_id          Int
+  genre_id           Int
+  createdAt          DateTime @map("created_at") @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime @map("updated_at") @default(now()) @db.Timestamptz(6)
+  est_actif          Boolean? @map("est_actif") @default(true)
+  est_nouveau        Boolean? @map("est_nouveau") @default(false)
+  est_meilleur_vente Boolean? @map("est_meilleur_vente") @default(false)
+  deletedAt          DateTime? @map("deleted_at") @db.Timestamptz(6)
+  seo_titre          String?  @map("seo_titre") @db.VarChar(255)
+  mots_cles_seo      String?  @map("mots_cles_seo") @db.VarChar(255)
+
+  // You might need to define models for Categories, Brands, Genres, Sizes, Colors if they are separate tables
+  // For now, we'll assume product variations and image URLs are handled as JSONB or fetched separately
+  // from a related table if they exist. Based on your JSON, variations and images_par_couleur
+  // seem to be nested. Prisma doesn't directly support nested JSON arrays as relations like this
+  // without defining separate models and linking them.
+
+  // For simplicity based on your provided JSON, let's assume `variations` and `images_par_couleur`
+  // are stored as JSONB columns in your `article` table if your schema allows it.
+  // If not, you'd need to fetch these from separate tables.
+  // For this example, we'll stick to the provided `article` table schema.
+  // If your actual DB has `variations` and `images_par_couleur` as separate tables,
+  // you'd add more `model` definitions and `@relation` fields.
+
+  // Example if you have a `Variation` table:
+  // variations         Variation[]
+
+  @@map("article") // Maps this Prisma model to your existing 'article' table
+}
+
+// You would define other models here if they exist as separate tables in your DB, e.g.:
+// model Categorie {
+//   id   Int    @id @default(autoincrement())
+//   name String @unique
+//   articles Article[]
+// }
+
+// model Couleur {
+//   id   Int    @id @default(autoincrement())
+//   name String @unique
+//   variation_colors VariationColor[] // Assuming a join table
+// }

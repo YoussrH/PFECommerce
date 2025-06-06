@@ -165,7 +165,7 @@ export default function ProductTable() {
     },
     {
       accessorKey: "genre.libelle",
-      header: "Genre",
+      header: "Public cible ",
       cell: ({ row }) => <div>{row.original.genre?.libelle || "N/A"}</div>,
     },
     {

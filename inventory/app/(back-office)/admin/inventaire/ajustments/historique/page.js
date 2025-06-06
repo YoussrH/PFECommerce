@@ -179,7 +179,7 @@ export default function AdjustmentHistory() {
                       history.map((record) => (
                         <TableRow key={record.id}>
                           <TableCell className="whitespace-nowrap">
-                            {new Date(record.createdAt).toLocaleString('fr-FR', {
+                            {new Date(record.created_at).toLocaleString('fr-FR', {
                               day: '2-digit',
                               month: '2-digit',
                               year: 'numeric',

@@ -100,7 +100,7 @@ export default function LivraisonPage() {
 
   return (
     <div className="flex flex-col lg:flex-row w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 gap-6 py-6 sm:py-8">
-      <div className="w-full lg:flex-1 lg:max-w-2xl">
+      <div className="w-full lg:flex-1 lg:max-w-2xl mx-auto">
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
           <h2 className="text-base sm:text-lg font-bold mb-4 sm:mb-6">Mode de Livraison</h2>
 

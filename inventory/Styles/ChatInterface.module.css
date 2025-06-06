@@ -1,0 +1,70 @@
+.chatContainer {
+  max-width: 600px;
+  margin: 20px auto;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  background: #fff;
+}
+
+.messages {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+}
+
+.message {
+  margin: 10px;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.user {
+  background: #e6f3ff;
+  text-align: right;
+}
+
+.assistant {
+  background: #f0f0f0;
+  text-align: left;
+}
+
+.uploadedImage {
+  max-width: 100px;
+  margin-bottom: 10px;
+}
+
+.inputForm {
+  display: flex;
+  gap: 10px;
+}
+
+.input {
+  flex-grow: 1;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.fileInput {
+  padding: 10px;
+}
+
+.sendButton {
+  padding: 10px 20px;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.sendButton:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.loading {
+  text-align: center;
+  color: #666;
+}

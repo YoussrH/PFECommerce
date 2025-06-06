@@ -340,8 +340,10 @@ export default function LivreursPage() {
         </div>
       ) : (
         <>
-          <div className="rounded-md border">
-            <Table>
+          <div className="rounded-md border p-4 bg-white ">
+            <CardTitle className="text-lg p-2">Liste des livreurs</CardTitle>
+
+            <Table className="border p-6 ">
               <TableHeader>
                 <TableRow>
                   <TableHead>Nom</TableHead>
@@ -366,12 +368,14 @@ export default function LivreursPage() {
                     <TableCell>{livreur.plaque_immatriculation}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={
-                          livreur.utilisateur?.est_actif
-                            ? 'default'
-                            : 'secondary'
-                        }
-                      >
+                        className={
+                            livreur.utilisateur?.est_actif
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-red-100 text-red-800'
+                          }
+                          variant={livreur.utilisateur?.est_actif ? 'default' : 'secondary'}
+                        >
+                      
                         {updatingStatus[livreur.utilisateur_id] ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
                         ) : (

@@ -1,227 +1,330 @@
-'use client';
-import { useState, useEffect, useCallback } from 'react';
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { toast } from 'sonner';
-import zipData from '@/app/data/zip-postcodes.json'; 
-import CartSummary from '@/app/components/caisse/CartSummary';
-import { useRouter } from 'next/navigation';
-import useCartStore from '@/app/components/caisse/cartStore';
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import { usePanier } from "@/hooks/use-panier"
+import { toast } from "sonner"
+import zipData from "@/app/data/zip-postcodes.json"
+import ResumeCommande from "@/app/components/caisse/CartSummary"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Loader2 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function AdresseLivraison() {
-  const [suggestions, setSuggestions] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const router = useRouter();
-  const { saveShippingAddress, checkoutData } = useCartStore();
+  const router = useRouter()
+  const { sauvegarderAdresseLivraison, getTotal, chargement } = usePanier()
 
-  // Initialize form with any previously saved data
-  const [shipping, setShipping] = useState({
-    country: 'Tunisia',
-    address: checkoutData.address?.address || '',
-    complement: checkoutData.address?.complement || '',
-    postalCode: checkoutData.address?.postalCode || '',
-    city: checkoutData.address?.city || '',
-    governorate: checkoutData.address?.governorate || '',
-    phone: checkoutData.address?.phone || ''
-  });
+  const [formData, setFormData] = useState({
+    adresse: "",
+    complement: "",
+    code_postal: "",
+    ville: "",
+    gouvernorat: "",
+    telephone: "",
+  })
 
   const [formErrors, setFormErrors] = useState({
-    address: '',
-    postalCode: '',
-    governorate: '',
-    phone: ''
-  });
+    adresse: "",
+    code_postal: "",
+    gouvernorat: "",
+    telephone: "",
+  })
 
-  const validateForm = () => {
-    const errors = {};
-    let isValid = true;
-
-    if (!shipping.address.trim()) {
-      errors.address = 'Address is required';
-      isValid = false;
-    }
-
-    if (!shipping.postalCode.trim()) {
-      errors.postalCode = 'Postal code is required';
-      isValid = false;
-    } else if (!/^\d+$/.test(shipping.postalCode)) {
-      errors.postalCode = 'Postal code must be numeric';
-      isValid = false;
-    }
-
-    if (!shipping.governorate.trim()) {
-      errors.governorate = 'Governorate is required';
-      isValid = false;
-    }
-
-    if (!shipping.phone.trim()) {
-      errors.phone = 'Phone number is required';
-      isValid = false;
-    } else if (!/^\d{8}$/.test(shipping.phone)) {
-      errors.phone = 'Phone must be 8 digits';
-      isValid = false;
-    }
-
-    setFormErrors(errors);
-    return isValid;
-  };
-
-  const debounce = useCallback((func, delay) => {
-    let timeoutId;
-    return (...args) => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => func(...args), delay);
-    };
-  }, []);
-
-  const fetchSuggestions = useCallback((query) => {
-    if (query.length < 3) {
-      setSuggestions([]);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const filteredResults = zipData.filter(entry =>
-        entry.Cite.toLowerCase().includes(query.toLowerCase()) ||
-        entry.Gov.toLowerCase().includes(query.toLowerCase()) ||
-        entry.Deleg.toLowerCase().includes(query.toLowerCase())
-      );
-      
-      setSuggestions(filteredResults);
-    } catch (err) {
-      console.error('Error fetching suggestions:', err);
-      setError('Failed to load address suggestions');
-      toast.error('Could not load address suggestions');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const debouncedFetch = useCallback(
-    debounce(fetchSuggestions, 300),
-    [debounce, fetchSuggestions]
-  );
-
-  const handleSelectSuggestion = useCallback((suggestion) => {
-    setShipping(prev => ({
-      ...prev,
-      address: suggestion.Cite || '',
-      postalCode: suggestion.zip || '',
-      city: suggestion.Deleg || '',
-      governorate: suggestion.Gov || ''
-    }));
-    setSuggestions([]);
-    // Clear errors for these fields
-    setFormErrors(prev => ({
-      ...prev,
-      address: '',
-      postalCode: '',
-      governorate: ''
-    }));
-  }, []);
-
-  const handleShippingChange = useCallback((e) => {
-    const { name, value } = e.target;
-    setShipping(prev => ({ ...prev, [name]: value }));
-    
-    // Clear error when field is edited
-    if (formErrors[name]) {
-      setFormErrors(prev => ({ ...prev, [name]: '' }));
-    }
-
-    if (name === 'address') {
-      debouncedFetch(value);
-    }
-  }, [debouncedFetch, formErrors]);
+  const [suggestions, setSuggestions] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [clientAddresses, setClientAddresses] = useState([])
+  const [selectedAddressId, setSelectedAddressId] = useState("")
 
   useEffect(() => {
-    const handleClickOutside = () => setSuggestions([]);
-    window.addEventListener('click', handleClickOutside);
-    return () => window.removeEventListener('click', handleClickOutside);
-  }, []);
+    const fetchClientAddresses = async () => {
+      try {
+        const response = await fetch('/http://localhost:5000/clients/obtenirAdresses')
+        if (response.ok) {
+          const data = await response.json()
+          setClientAddresses(data.data?.adresses || [])
+          
+          // Find and set the principal address if exists
+          const principalAddress = data.data?.adresses?.find(addr => addr.est_principale)
+          if (principalAddress) {
+            setFormData({
+              adresse: principalAddress.adresse || "",
+              complement: principalAddress.complement || "",
+              code_postal: principalAddress.code_postal || "",
+              ville: principalAddress.ville || "",
+              gouvernorat: principalAddress.gouvernorat || "",
+              telephone: principalAddress.telephone || "",
+            })
+            setSelectedAddressId(principalAddress.id)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching client addresses:', error)
+      } finally {
+        setInitialLoading(false)
+      }
+    }
+
+    // Check if we have an address in session storage
+    const savedAddress = sessionStorage.getItem("saved_address")
+    if (savedAddress) {
+      setFormData(JSON.parse(savedAddress))
+    } else {
+      fetchClientAddresses()
+    }
+  }, [])
+
+  const validateForm = () => {
+    const errors = {}
+    let isValid = true
+
+    if (!formData.adresse.trim()) {
+      errors.adresse = "L'adresse est requise"
+      isValid = false
+    }
+
+    if (!formData.code_postal.trim()) {
+      errors.code_postal = "Le code postal est requis"
+      isValid = false
+    } else if (!/^\d{4}$/.test(formData.code_postal)) {
+      errors.code_postal = "Le code postal doit contenir 4 chiffres"
+      isValid = false
+    }
+
+    if (!formData.gouvernorat.trim()) {
+      errors.gouvernorat = "Le gouvernorat est requis"
+      isValid = false
+    }
+
+    if (!formData.telephone.trim()) {
+      errors.telephone = "Le téléphone est requis"
+      isValid = false
+    } else if (!/^\d{8}$/.test(formData.telephone)) {
+      errors.telephone = "Le téléphone doit contenir 8 chiffres"
+      isValid = false
+    }
+
+    setFormErrors(errors)
+    return isValid
+  }
+
+  const debounce = useCallback((func, delay) => {
+    let timeoutId
+    return (...args) => {
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => func(...args), delay)
+    }
+  }, [])
+
+  const fetchSuggestions = useCallback(
+    (query) => {
+      if (query.length < 3) {
+        setSuggestions([])
+        return
+      }
+
+      setIsLoading(true)
+      try {
+        const filteredResults = zipData.filter(
+          (entry) =>
+            entry.Cite.toLowerCase().includes(query.toLowerCase()) ||
+            entry.Gov.toLowerCase().includes(query.toLowerCase()) ||
+            entry.Deleg.toLowerCase().includes(query.toLowerCase()),
+        )
+        setSuggestions(filteredResults.slice(0, 10))
+      } catch (err) {
+        console.error("Error fetching suggestions:", err)
+        toast.error("Could not load address suggestions")
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [zipData],
+  )
+
+  const debouncedFetch = useCallback(debounce(fetchSuggestions, 300), [debounce, fetchSuggestions])
+
+  const handleSelectSuggestion = (suggestion) => {
+    const newFormData = {
+      ...formData,
+      adresse: suggestion.Cite || "",
+      code_postal: suggestion.zip || "",
+      ville: suggestion.Deleg || "",
+      gouvernorat: suggestion.Gov || "",
+    }
+    setFormData(newFormData)
+    setShowSuggestions(false)
+    setFormErrors({
+      ...formErrors,
+      adresse: "",
+      code_postal: "",
+      gouvernorat: "",
+    })
+    setSelectedAddressId("") // Reset selected address when manually entering
+  }
+
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    const newFormData = {
+      ...formData,
+      [name]: value,
+    }
+    setFormData(newFormData)
+
+    if (formErrors[name]) {
+      setFormErrors({
+        ...formErrors,
+        [name]: "",
+      })
+    }
+
+    if (name === "adresse") {
+      debouncedFetch(value)
+      if (value.length > 2) {
+        setShowSuggestions(true)
+      } else {
+        setShowSuggestions(false)
+      }
+    }
+    
+    // Reset selected address when manually editing
+    if (selectedAddressId && name !== "complement") {
+      setSelectedAddressId("")
+    }
+  }
+
+  const handleAddressSelect = (addressId) => {
+    setSelectedAddressId(addressId)
+    if (addressId) {
+      const selectedAddress = clientAddresses.find(addr => addr.id === addressId)
+      if (selectedAddress) {
+        setFormData({
+          adresse: selectedAddress.adresse || "",
+          complement: selectedAddress.complement || "",
+          code_postal: selectedAddress.code_postal || "",
+          ville: selectedAddress.ville || "",
+          gouvernorat: selectedAddress.gouvernorat || "",
+          telephone: selectedAddress.telephone || "",
+        })
+        setFormErrors({
+          adresse: "",
+          code_postal: "",
+          gouvernorat: "",
+          telephone: "",
+        })
+      }
+    }
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    
+    e.preventDefault()
+
     if (!validateForm()) {
-      toast.error('Please fix the form errors');
-      return;
+      return
     }
-    
-    setIsLoading(true);
-    
+
     try {
-      const nextStep = await saveShippingAddress({
-        address: shipping.address,
-        complement: shipping.complement,
-        postalCode: shipping.postalCode,
-        city: shipping.city,
-        governorate: shipping.governorate,
-        phone: shipping.phone
-      });
+      sessionStorage.setItem("saved_address", JSON.stringify(formData))
+
+      const result = await sauvegarderAdresseLivraison({
+        ...formData,
+        est_principale: selectedAddressId ? 
+          clientAddresses.find(addr => addr.id === selectedAddressId)?.est_principale || false : 
+          false,
+        nom_adresse: selectedAddressId ? 
+          clientAddresses.find(addr => addr.id === selectedAddressId)?.nom_adresse || "Adresse" : 
+          "Adresse",
+      })
       
-      router.push(nextStep);
-    } catch (error) {
-      console.error('Shipping address error:', error);
-      toast.error(error.message || 'Error saving shipping address');
-      
-      // Handle specific error cases
-      if (error.message.includes('404')) {
-        toast.error('Server endpoint not found. Please contact support.');
-      } else if (error.message.includes('401')) {
-        toast.error('Session expired. Please log in again.');
-        router.push('/login');
+      if (result) {
+        sessionStorage.setItem("current_address_id", result.adresse_id)
+        sessionStorage.removeItem("saved_address")
+        router.push(result.etapeSuivante || "/caisse/livraison")
       }
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error("Address save error:", error)
+      toast.error(error.message || "Erreur lors de la sauvegarde de l'adresse")
     }
-  };
+  }
 
   const handlePrevious = () => {
-    router.replace('/caisse/panier');
-  };
+    router.back()
+  }
+
+  useEffect(() => {
+    const handleClickOutside = () => setShowSuggestions(false)
+    window.addEventListener("click", handleClickOutside)
+    return () => window.removeEventListener("click", handleClickOutside)
+  }, [])
+
+  if (initialLoading) {
+    return (
+      <div className="max-w-2xl mx-auto p-4 flex items-center justify-center min-h-[200px]">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-500 mb-2" />
+          <p className="text-sm text-gray-500">Chargement...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="flex w-full max-w-4xl mx-80 pl-16 gap-5">
-      <div className="flex-1  max-w-lg">
-        <div className="max-w-md mx-auto p-4 relative">
-          <h2 className="text-lg font-bold mb-6">Adresse de Livraison</h2>
+    <div className="flex flex-col lg:flex-row w-full max-w-7xl mx-auto px-4  sm:px-6 lg:px-8 gap-6 py-6 sm:py-8">
+      <div className="w-full lg:flex-1 lg:max-w-2xl mx-auto">
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
+          <h2 className="text-base sm:text-lg font-bold mb-4 sm:mb-6">Adresse de Livraison</h2>
+
+          {clientAddresses.length > 0 && (
+            <div className="mb-6">
+              <label className="block text-xs sm:text-sm font-medium mb-1">Sélectionner une adresse existante</label>
+              <Select 
+                value={selectedAddressId} 
+                onValueChange={handleAddressSelect}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choisir une adresse enregistrée" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientAddresses.map((address) => (
+                    <SelectItem key={address.id} value={address.id}>
+                      {address.est_principale ? "⭐ " : ""}
+                      {address.nom_adresse || "Adresse"} - {address.adresse.substring(0, 30)}...
+                      {address.est_principale ? " (Principale)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <form className="space-y-4" onSubmit={handleSubmit}>
-            <div>
-              <label className="block text-sm font-medium mb-1">Pays *</label>
-              <Input 
-                name="country" 
-                value="Tunisia" 
-                disabled 
-                className="w-full" 
-              />
-            </div>
-
             <div className="relative">
-              <label className="block text-sm font-medium mb-1">Adresse *</label>
-              <Input
-                name="address"
-                value={shipping.address}
-                onChange={handleShippingChange}
-                required
-                className={`w-full ${formErrors.address ? 'border-red-500' : ''}`}
-                placeholder="Commencez à taper votre adresse..."
-              />
-              {formErrors.address && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>
-              )}
-              {isLoading && <div className="absolute right-3 top-3 animate-spin rounded-none h-4 w-4 border-b-2 border-gray-900"></div>}
-              {suggestions.length > 0 && (
-                <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-none shadow-lg max-h-60 overflow-auto" onClick={(e) => e.stopPropagation()}>
+              <label className="block text-xs sm:text-sm font-medium mb-1">Adresse *</label>
+              <div className="relative">
+                <Input
+                  name="adresse"
+                  value={formData.adresse}
+                  onChange={handleChange}
+                  className={`w-full ${formErrors.adresse ? "border-red-500" : ""}`}
+                  placeholder="Commencez à taper votre adresse..."
+                  onClick={(e) => e.stopPropagation()}
+                />
+                {isLoading && (
+                  <div className="absolute right-3 top-3 animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                )}
+              </div>
+              {formErrors.adresse && <p className="text-red-500 text-xs mt-1">{formErrors.adresse}</p>}
+              {showSuggestions && suggestions.length > 0 && (
+                <ul
+                  className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {suggestions.map((suggestion, index) => (
-                    <li 
-                      key={index} 
-                      className="p-2 hover:bg-gray-100 cursor-pointer text-sm border-b border-gray-100 last:border-b-0"
+                    <li
+                      key={index}
+                      className="p-2 hover:bg-gray-100 cursor-pointer text-xs sm:text-sm border-b border-gray-100 last:border-b-0"
                       onClick={() => handleSelectSuggestion(suggestion)}
                     >
                       {suggestion.Cite}, {suggestion.Deleg} ({suggestion.zip})
@@ -232,89 +335,83 @@ export default function AdresseLivraison() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Complément d&apos;adresse</label>
-              <Input 
-                name="complement" 
-                value={shipping.complement} 
-                onChange={handleShippingChange} 
-                className="w-full rounded-none" 
-                placeholder="Appartement, étage, etc." 
+              <label className="block text-xs sm:text-sm font-medium mb-1">Complément d&apos;adresse</label>
+              <Input
+                name="complement"
+                value={formData.complement}
+                onChange={handleChange}
+                className="w-full"
+                placeholder="Appartement, étage, etc."
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Gouvernorat *</label>
+                <label className="block text-xs sm:text-sm font-medium mb-1">Gouvernorat *</label>
                 <Input
-                  name="governorate"
-                  value={shipping.governorate}
-                  onChange={handleShippingChange}
-                  required
-                  className={`w-full rounded-none ${formErrors.governorate ? 'border-red-500' : ''}`}
+                  name="gouvernorat"
+                  value={formData.gouvernorat}
+                  onChange={handleChange}
+                  className={`w-full ${formErrors.gouvernorat ? "border-red-500" : ""}`}
                 />
-                {formErrors.governorate && (
-                  <p className="text-red-500 text-xs mt-1">{formErrors.governorate}</p>
-                )}
+                {formErrors.gouvernorat && <p className="text-red-500 text-xs mt-1">{formErrors.gouvernorat}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Code Postal *</label>
+                <label className="block text-xs sm:text-sm font-medium mb-1">Code Postal *</label>
                 <Input
-                  name="postalCode"
-                  value={shipping.postalCode}
-                  onChange={handleShippingChange}
-                  required
-                  className={`w-full rounded-none ${formErrors.postalCode ? 'border-red-500' : ''}`}
-                  pattern="[0-9]*"
+                  name="code_postal"
+                  value={formData.code_postal}
+                  onChange={handleChange}
+                  className={`w-full ${formErrors.code_postal ? "border-red-500" : ""}`}
                 />
-                {formErrors.postalCode && (
-                  <p className="text-red-500 text-xs mt-1">{formErrors.postalCode}</p>
-                )}
+                {formErrors.code_postal && <p className="text-red-500 text-xs mt-1">{formErrors.code_postal}</p>}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Téléphone *</label>
+              <label className="block text-xs sm:text-sm font-medium mb-1">Téléphone *</label>
               <Input
-                name="phone"
-                value={shipping.phone}
-                onChange={handleShippingChange}
-                required
-                className={`w-full rounded-none ${formErrors.phone ? 'border-red-500' : ''}`}
-                type="tel"
-                pattern="[0-9]{8}"
-                placeholder="+216 __ ___ ___"
+                name="telephone"
+                value={formData.telephone}
+                onChange={handleChange}
+                className={`w-full ${formErrors.telephone ? "border-red-500" : ""}`}
+                placeholder="12345678"
               />
-              {formErrors.phone && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>
-              )}
+              {formErrors.telephone && <p className="text-red-500 text-xs mt-1">{formErrors.telephone}</p>}
             </div>
 
-            <div className="flex justify-between items-center mt-6">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6">
               <Button
                 variant="outline"
                 onClick={handlePrevious}
-                className="text-xs rounded-none border border-black"
+                className="w-full sm:w-auto text-xs sm:text-sm rounded-none border border-black"
                 type="button"
+                disabled={chargement}
               >
                 Étape précédente
               </Button>
               <Button
                 type="submit"
-                className="text-xs rounded-none bg-black text-white border border-black hover:bg-white hover:text-black"
-                disabled={isLoading}
+                className="w-full sm:w-auto text-xs sm:text-sm rounded-none bg-black text-white border border-black hover:bg-white hover:text-black"
+                disabled={chargement}
               >
-                {isLoading ? 'Chargement...' : "Suivant"}
+                {chargement ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Enregistrement...
+                  </span>
+                ) : (
+                  "Continuer"
+                )}
               </Button>
             </div>
           </form>
         </div>
       </div>
-      <div className="hidden md:block">
-        <CartSummary 
-          showPromoCode={false}
-          showCheckoutButton={false}
-        />
+
+      <div className="w-full lg:w-80">
+        <ResumeCommande showPromoCode={false} showCheckoutButton={false} />
       </div>
     </div>
-  );
+  )
 }

@@ -11,7 +11,7 @@ router.get("/filtrerCommandesParDate", authentifier, clientController.filtrerCom
 router.get("/obtenirRetoursClient", authentifier, clientController.obtenirRetoursClient);
 router.get("/obtenirRemplacementsClient", authentifier, clientController.obtenirRemplacementsClient);
 router.get("/obtenirDetailsCommandeClient/:id", authentifier, clientController.obtenirDetailsCommandeClient);
-
+router.get("/obtenirAdressesLivraison", authentifier, clientController.obtenirAdressesLivraison);
 router.get("/obtenirAdresses", authentifier, clientController.obtenirAdresses);
 router.put("/marquerAdressePrincipale/:adresseId", authentifier, clientController.marquerAdressePrincipale);
 router.put("/mettreAJourAdresse/:adresseId", authentifier, clientController.mettreAJourAdresse);

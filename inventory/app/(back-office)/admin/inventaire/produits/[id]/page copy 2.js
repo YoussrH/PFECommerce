@@ -26,7 +26,22 @@ export default function EditArticlePage() {
   } = useCatalog()
   const router = useRouter()
 
-  const [formData, setFormData] = useState(null)
+  const [formData, setFormData] = useState({
+    nom_produit: "",
+    description: "",
+    conseils: "",
+    prix: "",
+    predictedPrice: "",
+    remise: "0",
+    sku: "",
+    seo_titre: "",
+    mots_cles_seo: "",
+    categorie_id: "",
+    marque_id: "",
+    genre_id: "",
+    variations: [],
+    images_par_couleur: {}
+  })
   const [taillesDisponibles, setTaillesDisponibles] = useState([])
   const [couleurs, setCouleurs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -38,7 +53,7 @@ export default function EditArticlePage() {
   const [tailleDropdownOpen, setTailleDropdownOpen] = useState({})
   const [existingImages, setExistingImages] = useState({})
 
-  // Effect to load all catalog data (categories, marques, genres)
+  // Effect to load all catalog data
   useEffect(() => {
     const loadCatalogData = async () => {
       await Promise.all([
@@ -50,10 +65,9 @@ export default function EditArticlePage() {
     loadCatalogData()
   }, [fetchAllCategories, fetchAllMarques, fetchAllGenres])
 
-  // Effect to fetch article data when component mounts or id changes
+  // Effect to fetch article data
   useEffect(() => {
     const fetchData = async () => {
-      // Only proceed if catalog data is loaded and ID exists
       if (!id || categories.length === 0 || marques.length === 0 || genres.length === 0) {
         return
       }
@@ -67,16 +81,10 @@ export default function EditArticlePage() {
 
         setCouleurs(couleursRes.data)
 
-        // Check if articleResponse is successful and has donnees
         if (articleResponse?.success && articleResponse.donnees) {
           const article = articleResponse.donnees
 
-          // Find main category using the categories state from useCatalog
-          const mainCategory = categories.find(cat =>
-            cat.sous_categories?.some(sub => sub.id === article.categorie_id)
-          )
-
-          // Prepare images
+          // Prepare images by color
           const imagesByColor = {}
           if (article.images_couleurs) {
             article.images_couleurs.forEach(img => {
@@ -88,14 +96,15 @@ export default function EditArticlePage() {
           }
           setExistingImages(imagesByColor)
 
-          // Prepare initial variations for formData
+          // Prepare initial variations
           const initialVariations = article.variations?.map(v => ({
             couleur_id: v.couleur_id,
             taille_id: v.taille_id,
             quantite: v.quantite
           })) || []
 
-          setFormData({
+          setFormData(prev => ({
+            ...prev,
             nom_produit: article.nom_produit || "",
             description: article.description || "",
             conseils: article.conseils || "",
@@ -108,30 +117,23 @@ export default function EditArticlePage() {
             categorie_id: article.categorie_id || "",
             marque_id: article.marque_id || "",
             genre_id: article.genre_id || "",
-            variations: initialVariations,
-            images_par_couleur: {}
-          })
+            variations: initialVariations
+          }))
 
           // Set selected main category and subcategories
+          const mainCategory = categories.find(cat =>
+            cat.sous_categories?.some(sub => sub.id === article.categorie_id)
+          ) || categories.find(cat => cat.id === article.categorie_id)
+
           if (mainCategory) {
             setSelectedMainCategory(mainCategory.id)
             setSubcategories(
-              mainCategory.sous_categories.map(sub => ({
+              (mainCategory.sous_categories || []).map(sub => ({
                 value: sub.id,
                 label: sub.libelle,
               }))
             )
-          } else {
-            const directCategory = categories.find(cat => cat.id === article.categorie_id)
-            if (directCategory && !directCategory.parent_id) {
-              setSelectedMainCategory(directCategory.id)
-              setSubcategories([])
-            }
           }
-        } else {
-          console.error("No article data found or 'donnees' property is missing in the response.")
-          toast.error("Failed to load article details. Data not found.")
-          router.push("/admin/inventaire/produits")
         }
       } catch (error) {
         console.error("Error fetching data:", error)
@@ -144,28 +146,9 @@ export default function EditArticlePage() {
     fetchData()
   }, [id, categories, marques, genres, fetchArticleById, router])
 
-  // Effect to update subcategories when selectedMainCategory changes
+  // Effect to fetch available sizes when category or genre changes
   useEffect(() => {
-    if (!selectedMainCategory || categories.length === 0) {
-      setSubcategories([])
-      return
-    }
-    const selectedCat = categories.find(cat => cat.id === selectedMainCategory)
-    if (selectedCat?.sous_categories) {
-      setSubcategories(
-        selectedCat.sous_categories.map(sub => ({
-          value: sub.id,
-          label: sub.libelle,
-        }))
-      )
-    } else {
-      setSubcategories([])
-    }
-  }, [selectedMainCategory, categories])
-
-  // Effect to fetch available sizes based on selected category and genre
-  useEffect(() => {
-    if (!formData?.categorie_id || !formData?.genre_id || !user?.token) {
+    if (!formData.categorie_id || !formData.genre_id || !user?.token) {
       setTaillesDisponibles([])
       return
     }
@@ -177,6 +160,7 @@ export default function EditArticlePage() {
             categorie_id: formData.categorie_id,
             genre_id: formData.genre_id,
           },
+          withCredentials: true,
           headers: {
             Authorization: `Bearer ${user.token}`,
           },
@@ -189,7 +173,7 @@ export default function EditArticlePage() {
     }
 
     fetchTailles()
-  }, [formData?.categorie_id, formData?.genre_id, user?.token])
+  }, [formData.categorie_id, formData.genre_id, user?.token])
 
   const uploadToCloudinary = async (file) => {
     return new Promise((resolve, reject) => {
@@ -271,9 +255,7 @@ export default function EditArticlePage() {
           className="w-full flex justify-between items-center px-4 py-2 text-dm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black"
         >
           <span className="text-dm">
-            {taillesDisponibles.length === 0 ? (
-              "Sélectionnez d'abord une catégorie et un genre"
-            ) : selectedSizesForColor.length > 0 ? (
+            {selectedSizesForColor.length > 0 ? (
               `${selectedSizesForColor.length} taille(s) sélectionnée(s)`
             ) : (
               "Sélectionner les tailles"
@@ -294,75 +276,62 @@ export default function EditArticlePage() {
           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-52 overflow-y-auto">
             <div className="sticky top-0 bg-white px-4 py-2 border-b">
               <h3 className="text-dm font-medium text-gray-700">
-                {taillesDisponibles.length > 0 ? "Tailles disponibles" : "Tailles non disponibles"}
+                Tailles disponibles
               </h3>
             </div>
 
-            {taillesDisponibles.length === 0 ? (
-              <div className="px-4 py-3 text-dm text-gray-500">
-                Veuillez d&apos;abord sélectionner une catégorie et un genre valides
-              </div>
-            ) : (
-              <div className="p-2 space-y-1">
-                {taillesDisponibles.map(taille => {
-                  const variation = formData.variations.find(
-                    v => v.couleur_id === couleurId && v.taille_id === taille.id
-                  )
-                  const quantite = variation ? variation.quantite : 0
-                  const isSelected = quantite > 0
+            <div className="p-2 space-y-1">
+              {taillesDisponibles.map(taille => {
+                const variation = formData.variations.find(
+                  v => v.couleur_id === couleurId && v.taille_id === taille.id
+                )
+                const quantite = variation ? variation.quantite : 0
+                const isSelected = quantite > 0
 
-                  return (
-                    <div
-                      key={taille.id}
-                      className="flex items-center justify-between gap-2 px-2 py-1 hover:bg-gray-50 rounded"
-                    >
-                      <div className="flex items-center space-x-2 flex-1">
-                        <input
-                          type="checkbox"
-                          id={`taille-${couleurId}-${taille.id}`}
-                          checked={isSelected}
-                          onChange={e => handleTailleQuantiteChange(
-                            couleurId,
-                            taille.id,
-                            e.target.checked ? 1 : 0
-                          )}
-                          className="h-4 w-4 rounded-none border-gray-300 text-black focus:ring-black"
-                        />
-                        <label
-                          htmlFor={`taille-${couleurId}-${taille.id}`}
-                          className="text-dm cursor-pointer"
-                        >
-                          {taille.libelle}
-                        </label>
-                      </div>
-
-                      {isSelected && (
-                        <div className="flex items-center">
-                          <input
-                            type="number"
-                            min="1"
-                            value={quantite}
-                            onChange={e => {
-                              const value = Math.max(1, parseInt(e.target.value) || 1)
-                              handleTailleQuantiteChange(couleurId, taille.id, value)
-                            }}
-                            onBlur={e => {
-                              if (!e.target.value || parseInt(e.target.value) < 1) {
-                                handleTailleQuantiteChange(couleurId, taille.id, 1)
-                              }
-                            }}
-                            className="w-16 h-8 text-center text-dm border-t border-b border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                            onClick={e => e.stopPropagation()}
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                          />
-                        </div>
-                      )}
+                return (
+                  <div
+                    key={taille.id}
+                    className="flex items-center justify-between gap-2 px-2 py-1 hover:bg-gray-50 rounded"
+                  >
+                    <div className="flex items-center space-x-2 flex-1">
+                      <input
+                        type="checkbox"
+                        id={`taille-${couleurId}-${taille.id}`}
+                        checked={isSelected}
+                        onChange={e => handleTailleQuantiteChange(
+                          couleurId,
+                          taille.id,
+                          e.target.checked ? (variation?.quantite || 1) : 0
+                        )}
+                        className="h-4 w-4 rounded-none border-gray-300 text-black focus:ring-black"
+                      />
+                      <label
+                        htmlFor={`taille-${couleurId}-${taille.id}`}
+                        className="text-dm cursor-pointer"
+                      >
+                        {taille.libelle}
+                      </label>
                     </div>
-                  )
-                })}
-              </div>
-            )}
+
+                    {isSelected && (
+                      <div className="flex items-center">
+                        <input
+                          type="number"
+                          min="1"
+                          value={quantite}
+                          onChange={e => {
+                            const value = Math.max(1, parseInt(e.target.value) || 1)
+                            handleTailleQuantiteChange(couleurId, taille.id, value)
+                          }}
+                          className="w-16 h-8 text-center text-dm border-t border-b border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -490,7 +459,6 @@ export default function EditArticlePage() {
     }
   }
 
-  // Show loading indicator until all initial data is loaded
   if (loading || !formData || categories.length === 0 || marques.length === 0 || genres.length === 0) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -532,7 +500,6 @@ export default function EditArticlePage() {
       )}
 
       <form onSubmit={handleSubmit} className="grid gap-6 bg-white p-9 rounded-3xl shadow-lg dark:bg-gray-800">
-        {/* First row - Product name and SKU */}
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
             <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Nom du produit *</label>
@@ -557,7 +524,6 @@ export default function EditArticlePage() {
           </div>
         </div>
 
-        {/* Second row - Description and Conseils */}
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
             <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Description</label>
@@ -582,7 +548,6 @@ export default function EditArticlePage() {
 
         <hr className="border-gray-300 dark:border-gray-600" />
 
-        {/* Third row - Main category and subcategory */}
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
             <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Catégorie principale *</label>
@@ -610,7 +575,6 @@ export default function EditArticlePage() {
           </div>
         </div>
 
-        {/* Fourth row - Brand and Gender */}
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
             <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Marque *</label>
@@ -635,7 +599,6 @@ export default function EditArticlePage() {
           </div>
         </div>
 
-        {/* Fifth row - Colors and sizes */}
         <div>
           <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Couleurs et Images *</label>
           <CouleurDropdown
@@ -668,7 +631,6 @@ export default function EditArticlePage() {
           )}
         </div>
 
-        {/* Sixth row - Price and Discount */}
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
             <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Prix (DT) *</label>
@@ -714,7 +676,6 @@ export default function EditArticlePage() {
 
         <hr className="border-gray-300 dark:border-gray-600" />
 
-        {/* Seventh row - SEO Title and Keywords */}
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
             <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Titre SEO</label>

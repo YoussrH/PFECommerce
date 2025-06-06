@@ -36,6 +36,8 @@ const path = require('path');
 const cronJobs = require('./utils/cronJobs'); 
 const avisRoutes = require('./routes/avisRoutes');
 const couponRoutes = require('./routes/couponRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const catalogRoutes = require('./routes/catalogue');
 // Create HTTP server for Socket.IO
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -91,7 +93,7 @@ const pool = new Pool({
 const corsOptions = {
   origin: ['http://localhost:3000', 'http://localhost:5000'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Set-Cookie', 'Cache-Control'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-guest-token','Set-Cookie', 'Cache-Control'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   exposedHeaders: ['set-cookie']
 };
@@ -153,6 +155,10 @@ app.use("/paiements", paimentRoutes);
 app.use("/factures", factureRoutes); 
 app.use("/avis", avisRoutes); 
 app.use('/coupons', couponRoutes);
+app.use('/chat', chatRoutes);
+
+app.use('/catalog',catalogRoutes)
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/health', (req, res) => {

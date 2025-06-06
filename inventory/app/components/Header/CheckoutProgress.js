@@ -32,7 +32,7 @@ const CheckoutProgress = () => {
         </Link>
       </div>
 
-      <div className="bg-gray-200 p-2 md:p-4 rounded-none flex flex-wrap justify-center gap-2 md:gap-4 w-full max-w-4xl">
+      <div className="bg-gray-100 p-2 md:p-4 rounded-none flex flex-wrap justify-center gap-2 md:gap-4 w-full max-w-4xl">
         {steps.map((step, index) => (
           <div key={index} className="flex items-center gap-1 md:gap-2">
             <span

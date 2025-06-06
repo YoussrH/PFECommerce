@@ -205,9 +205,12 @@ export default function Personnel() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <div>
+          <h1 className="text-2xl font-bold mb-6">Gestion des Personnels</h1>
+        </div>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Gestion du personnel</CardTitle>
+          <CardTitle>Liste du personnel</CardTitle>
           <div className="flex gap-2">
             <Link href="/admin/users/historique" passHref>
               <Button variant="outline">

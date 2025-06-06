@@ -9,6 +9,7 @@ import ResumeCommande from "@/app/components/caisse/CartSummary"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function AdresseLivraison() {
   const router = useRouter()
@@ -34,14 +35,55 @@ export default function AdresseLivraison() {
   const [isLoading, setIsLoading] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
+  const [clientAddresses, setClientAddresses] = useState([])
+  const [selectedAddressId, setSelectedAddressId] = useState("")
 
   useEffect(() => {
+    const fetchClientAddresses = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/clients/obtenirAdressesLivraison', {
+          credentials: 'include' // Include cookies for authentication
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          
+          if (data.success) {
+            setClientAddresses(data.data.adresses || [])
+            
+            // Pre-fill with principal address if exists
+            if (data.data.principalAddress) {
+              const principalAddress = data.data.principalAddress
+              setFormData({
+                adresse: principalAddress.adresse || "",
+                complement: principalAddress.complement || "",
+                code_postal: principalAddress.code_postal || "",
+                ville: principalAddress.ville || "",
+                gouvernorat: principalAddress.gouvernorat || "",
+                telephone: principalAddress.telephone || "",
+              })
+              setSelectedAddressId(principalAddress.id)
+            }
+          }
+        } else {
+          throw new Error('Failed to fetch addresses')
+        }
+      } catch (error) {
+        console.error('Error fetching client addresses:', error)
+        toast.error("Erreur lors du chargement des adresses")
+      } finally {
+        setInitialLoading(false)
+      }
+    }
+
     // Check if we have an address in session storage
     const savedAddress = sessionStorage.getItem("saved_address")
     if (savedAddress) {
       setFormData(JSON.parse(savedAddress))
+      setInitialLoading(false)
+    } else {
+      fetchClientAddresses()
     }
-    setInitialLoading(false)
   }, [])
 
   const validateForm = () => {
@@ -101,7 +143,7 @@ export default function AdresseLivraison() {
             entry.Gov.toLowerCase().includes(query.toLowerCase()) ||
             entry.Deleg.toLowerCase().includes(query.toLowerCase()),
         )
-        setSuggestions(filteredResults.slice(0, 10)) // Limit to 10 results for better performance
+        setSuggestions(filteredResults.slice(0, 10))
       } catch (err) {
         console.error("Error fetching suggestions:", err)
         toast.error("Could not load address suggestions")
@@ -130,6 +172,7 @@ export default function AdresseLivraison() {
       code_postal: "",
       gouvernorat: "",
     })
+    setSelectedAddressId("") // Reset selected address when manually entering
   }
 
   const handleChange = (e) => {
@@ -155,6 +198,34 @@ export default function AdresseLivraison() {
         setShowSuggestions(false)
       }
     }
+    
+    // Reset selected address when manually editing
+    if (selectedAddressId && name !== "complement") {
+      setSelectedAddressId("")
+    }
+  }
+
+  const handleAddressSelect = (addressId) => {
+    setSelectedAddressId(addressId)
+    if (addressId) {
+      const selectedAddress = clientAddresses.find(addr => addr.id === addressId)
+      if (selectedAddress) {
+        setFormData({
+          adresse: selectedAddress.adresse || "",
+          complement: selectedAddress.complement || "",
+          code_postal: selectedAddress.code_postal || "",
+          ville: selectedAddress.ville || "",
+          gouvernorat: selectedAddress.gouvernorat || "",
+          telephone: selectedAddress.telephone || "",
+        })
+        setFormErrors({
+          adresse: "",
+          code_postal: "",
+          gouvernorat: "",
+          telephone: "",
+        })
+      }
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -167,11 +238,19 @@ export default function AdresseLivraison() {
     try {
       sessionStorage.setItem("saved_address", JSON.stringify(formData))
 
-      const result = await sauvegarderAdresseLivraison(formData)
+      const result = await sauvegarderAdresseLivraison({
+        ...formData,
+        est_principale: selectedAddressId ? 
+          clientAddresses.find(addr => addr.id === selectedAddressId)?.est_principale || false : 
+          false,
+        nom_adresse: selectedAddressId ? 
+          clientAddresses.find(addr => addr.id === selectedAddressId)?.nom_adresse || "Adresse" : 
+          "Adresse",
+      })
+      
       if (result) {
         sessionStorage.setItem("current_address_id", result.adresse_id)
         sessionStorage.removeItem("saved_address")
-        // Explicitly navigate to the next step
         router.push(result.etapeSuivante || "/caisse/livraison")
       }
     } catch (error) {
@@ -202,10 +281,33 @@ export default function AdresseLivraison() {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 gap-6 py-6 sm:py-8">
-      <div className="w-full lg:flex-1 lg:max-w-2xl">
+    <div className="flex flex-col lg:flex-row w-full max-w-7xl mx-auto px-4  sm:px-6 lg:px-8 gap-6 py-6 sm:py-8">
+      <div className="w-full lg:flex-1 lg:max-w-2xl mx-auto">
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
           <h2 className="text-base sm:text-lg font-bold mb-4 sm:mb-6">Adresse de Livraison</h2>
+
+       {clientAddresses.length > 0 && (
+            <div className="mb-6">
+              <label className="block text-xs sm:text-sm font-medium mb-1">Sélectionner une adresse existante</label>
+              <Select 
+                value={selectedAddressId} 
+                onValueChange={handleAddressSelect}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choisir une adresse enregistrée" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientAddresses.map((address) => (
+                    <SelectItem key={address.id} value={address.id}>
+                      {address.est_principale ? "⭐ " : ""}
+                      {address.nom_adresse || "Adresse"} - {address.adresse.substring(0, 30)}...
+                      {address.est_principale ? " (Principale)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="relative">
