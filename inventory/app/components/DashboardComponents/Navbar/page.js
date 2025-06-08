@@ -1,13 +1,11 @@
 "use client";
-
 import { Bell, Search, Sun } from "lucide-react";
-import { TbUserDown } from "react-icons/tb";
-import { TbSun, TbMoonStars, TbHome } from "react-icons/tb";
+import { TbUserDown, TbSun, TbMoonStars, TbHome } from "react-icons/tb";
 import { RiMenu2Fill } from "react-icons/ri";
 import Link from "next/link";
 import React, { useState, useEffect, useRef } from "react";
 import AdminDropdown from "./AdminDropdown";
-import { useSocket } from "@/app/contexts/SocketContext";
+import { useAdminSocket } from "@/app/contexts/SocketContext";
 
 const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -16,17 +14,21 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const dropdownRef = useRef(null);
   const notificationRef = useRef(null);
-  const { notifications, unreadCount, markAsRead } = useSocket();
+  const { notifications, unreadCount, markAsRead, isConnected } = useAdminSocket();
+  const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
-    console.log('Navbar: Notifications updated', notifications);
-  }, [notifications]);
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
   const toggleNotification = () => {
-    console.log('Navbar: Toggling notification dropdown', { isNotificationOpen });
     if (isNotificationOpen) {
       markAsRead();
     }
@@ -41,7 +43,6 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
     setActiveDropdown(null);
   };
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -53,75 +54,36 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
-
-  // Format notification time
   const formatTime = (dateString) => {
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        console.warn('Navbar: Invalid date format', dateString);
-        return 'Inconnu';
-      }
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch (error) {
-      console.error('Navbar: Error formatting time', error);
+    } catch {
       return 'Inconnu';
     }
   };
 
-  // Determine notification title and link based on type
-  const getNotificationDetails = (notification) => {
-    console.log('Navbar: Processing notification details', notification);
-    if (notification.sujet) {
-      // Reclamation
-      return {
-        title: `Réclamation: ${notification.sujet}`,
-        link: '/admin/reclamations/inbox'
-      };
-    } else if (notification.reference) {
-      // Order
-      return {
-        title: `Commande: ${notification.reference}`,
-        link: '/admin/ventes/commandes'
-      };
-    } else if (notification.article_id) {
-      // Review
-      return {
-        title: `Avis: ${notification.article_nom || 'Produit inconnu'}`,
-        link: `/admin/avis/${notification.id}`
-      };
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'reclamation':
+        return <span className="text-red-500">⚠️</span>;
+      case 'review':
+        return <span className="text-yellow-500">⭐</span>;
+      case 'livraison-status':
+        return <span className="text-blue-500">🚚</span>;
+      default:
+        return <span className="text-gray-500">ℹ️</span>;
     }
-    console.warn('Navbar: Unknown notification type', notification);
-    return {
-      title: 'Notification',
-      link: '/admin'
-    };
   };
 
   return (
-    <div
-      className={`sticky top-0 z-50 flex justify-between rounded-3xl -pr-9 items-center w-full px-4 py-[11px] transition-all duration-300 ${
-        isScrolled ? "bg-white border-b border-gray-100 shadow-sm" : "bg-transparent border-b border-b"
-      }`}
-    >
-      {/* Left side (search and sidebar toggle) */}
+    <div className={`sticky top-0 z-50 flex justify-between rounded-3xl -pr-9 items-center w-full px-4 py-[11px] transition-all duration-300 ${
+      isScrolled ? "bg-white border-b border-gray-100 shadow-sm" : "bg-transparent border-b border-b"
+    }`}>
+      {/* Left side */}
       <div className="flex items-center gap-3 sm:gap-5">
         <button
           className="p-3 w-10 h-10 border border-gray-100 bg-white rounded-md transition-all duration-300"
@@ -142,12 +104,7 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         )}
@@ -167,8 +124,13 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
           />
         </div>
       </div>
-      {/* Right side (icons and dropdowns) */}
+
+      {/* Right side */}
       <div className="hidden sm:flex items-center gap-3 sm:gap-5">
+        {/* Connection status indicator */}
+        <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} 
+             title={isConnected ? 'Connecté' : 'Déconnecté'} />
+
         <button
           onClick={toggleDarkMode}
           className="p-2 rounded-full hover:bg-gray-200 transition-all duration-300"
@@ -195,52 +157,73 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
             )}
           </button>
 
-          {/* Notification dropdown */}
           {isNotificationOpen && (
             <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg overflow-hidden z-50 animate-fadeIn">
-              <div className="p-3 border-b border-gray-200 bg-gray-50">
+              <div className="p-3 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
                 <h3 className="text-sm font-semibold text-gray-700">Notifications</h3>
+                <button 
+                  onClick={() => markAsRead()}
+                  className="text-xs text-blue-500 hover:text-blue-700"
+                >
+                  Tout marquer comme lu
+                </button>
               </div>
 
               <div className="max-h-96 overflow-y-auto">
-                {notifications?.length > 0 ? (
-                  notifications.map((notification, index) => {
-                    const { title, link } = getNotificationDetails(notification);
-                    return (
-                      <Link href={link} key={index}>
-                        <div
-                          className="p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-800">{title}</h4>
-                              <p className="text-xs text-gray-500 mt-1">{notification?.message?.substring(0, 50)}...</p>
-                            </div>
-                            <span className="text-xs text-gray-400">{formatTime(notification?.created_at)}</span>
+                {notifications.length > 0 ? (
+                  notifications.map((notification, index) => (
+                    <Link 
+                      href={
+                        notification.type === 'reclamation' ? '/admin/reclamations/inbox' :
+                        notification.type === 'review' ? `/admin/avis/${notification.article_id}` :
+                        '/admin/ventes/commandes'
+                      } 
+                      key={index}
+                      onClick={() => markAsRead(notification.id)}
+                    >
+                      <div className={`p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 cursor-pointer ${
+                        notification.read ? 'opacity-75' : 'bg-blue-50'
+                      }`}>
+                        <div className="flex items-start gap-2">
+                          <div className="mt-1">
+                            {getNotificationIcon(notification.type)}
                           </div>
-                          <div className="mt-1 text-xs text-gray-500">
-                            De: {notification?.prenom || 'N/A'} {notification?.nom || 'N/A'}
+                          <div className="flex-1">
+                            <div className="flex justify-between items-start">
+                              <h4 className="text-sm font-medium text-gray-800">
+                                {notification.type === 'reclamation' ? 'Réclamation' : 
+                                 notification.type === 'review' ? 'Nouvel avis' : 
+                                 'Statut de livraison'}
+                              </h4>
+                              <span className="text-xs text-gray-400">
+                                {formatTime(notification.date)}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {notification.message || notification.sujet || 'Nouvelle notification'}
+                            </p>
+                            <div className="mt-1 text-xs text-gray-500">
+                              {notification.prenom || 'System'} {notification.nom || ''}
+                            </div>
                           </div>
                         </div>
-                      </Link>
-                    );
-                  })
+                      </div>
+                    </Link>
+                  ))
                 ) : (
-                    <div className="p-4 text-center text-sm text-gray-500">
-                      Aucune nouvelle notification
-                    </div>
+                  <div className="p-4 text-center text-sm text-gray-500">
+                    Aucune nouvelle notification
+                  </div>
                 )}
               </div>
 
               <div className="p-2 border-t border-gray-200 bg-gray-50 text-center">
-                <button
+                <Link
+                  href="/admin/notifications"
                   className="text-xs text-blue-500 hover:text-blue-700"
-                  onClick={() => {
-                    window.location.href = '/admin/reclamations/inbox';
-                  }}
                 >
-                  Voir tout
-                </button>
+                  Voir toutes les notifications
+                </Link>
               </div>
             </div>
           )}
@@ -275,12 +258,7 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
           viewBox="0 0 24 24"
           stroke="currentColor"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 6h16M4 12h16m-7 6h7"
-          />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
         </svg>
       </button>
 
@@ -297,11 +275,9 @@ const Navbar = ({ isSidebarCollapsed, toggleSidebar }) => {
               onClick={toggleDarkMode}
               className="relative flex items-center gap-2 p-2 rounded-full hover:bg-gray-200 transition-all duration-300"
             >
-              <div
-                className={`transform transition-transform duration-700 ease-in-out ${
-                  isDarkMode ? "rotate-[360deg]" : "rotate-0"
-                }`}
-              >
+              <div className={`transform transition-transform duration-700 ease-in-out ${
+                isDarkMode ? "rotate-[360deg]" : "rotate-0"
+              }`}>
                 {isDarkMode ? (
                   <Sun className="cursor-pointer text-gray-600" size={24} />
                 ) : (

@@ -47,7 +47,7 @@ const obtenirLivraisonsDisponibles = async (req, res) => {
   }
 };
 
-const assignerLivraison = async (req, res) => {
+/* const assignerLivraison = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
@@ -221,7 +221,255 @@ const assignerLivraison = async (req, res) => {
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
+}; */
+
+
+const assignerLivraison = async (req, res) => {
+  let transaction; // Declare transaction at the top for proper scope
+  try {
+    const { id } = req.params; // This is the Commande ID
+    const { livreur_id } = req.body; // This should be the Utilisateur ID of the Livreur
+
+    // Input validation
+    if (!livreur_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Livreur ID est requis'
+      });
+    }
+
+    transaction = await sequelize.transaction({
+      isolationLevel: Sequelize.Transaction.ISOLATION_LEVELS.READ_COMMITTED // Ensure data consistency
+    });
+
+    // Fetch the Command, Client, Address, and Livreur to ensure they exist and get necessary details
+    const commande = await Commande.findByPk(id, {
+      transaction,
+      include: [
+        { model: Client, as: 'client', include: [{ model: Utilisateur, as: 'utilisateur' }] },
+        { model: Adresse, as: 'adresse' },
+        // Important: Include Livreur here to check its user ID if it exists
+        { model: Livreur, as: 'livreur', include: [{ model: Utilisateur, as: 'utilisateur' }] }
+      ]
+    });
+
+    if (!commande) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Commande non trouvée'
+      });
+    }
+
+    // Ensure the assigned livreur exists and is valid
+    const livreur = await Livreur.findByPk(livreur_id, {
+      include: [{ model: Utilisateur, as: 'utilisateur' }],
+      transaction
+    });
+
+    if (!livreur) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Livreur non trouvé'
+      });
+    }
+
+    // Prevent re-assigning to the same livreur if already assigned and expedited
+    // If the command is already assigned to this livreur and expedited, it's an idempotent operation
+    if (commande.livreur_id === livreur_id && commande.statut === 'expediee') {
+      await transaction.rollback();
+      return res.status(200).json({
+        success: true,
+        message: 'Commande déjà assignée et expédiée à ce livreur. Aucune action requise.',
+        data: {
+          livreur: {
+            id: livreur.id,
+            nom: `${livreur.utilisateur.prenom} ${livreur.utilisateur.nom}`,
+            email: livreur.utilisateur.email
+          },
+          commande: {
+            id: commande.id,
+            reference: commande.reference,
+            statut: commande.statut,
+            date_expedition: commande.date_expedition // Assuming this field exists on Commande for convenience
+          },
+          colis: await Colis.findOne({ where: { commande_id: id }, transaction }) // Return existing colis info
+        }
+      });
+    }
+
+    // Update command status and assign livreur
+    await commande.update({
+      livreur_id: livreur.utilisateur_id, // Ensure we store the utilisateur_id as the livreur_id
+      statut: 'expediee'
+    }, { transaction });
+
+    const currentTimestamp = new Date();
+
+    // Find existing colis or create a new one
+    let colis = await Colis.findOne({
+      where: { commande_id: id },
+      transaction
+    });
+
+    // Determine tracking number and URL (keep existing if available)
+    const numeroSuivi = colis?.numero_suivi || `TRK${Date.now().toString(36).toUpperCase()}`;
+    const urlSuivi = colis?.url_suivi || `${process.env.TRACKING_BASE_URL}/track/${commande.reference}`;
+
+    const colisUpdateData = {
+      livreur_id: livreur.utilisateur_id,
+      statut: 'expediee',
+      transporteur: commande.methode_livraison === 'express' ? 'Express' : 'Standard',
+      numero_suivi: numeroSuivi,
+      url_suivi: urlSuivi,
+      date_expedition: colis?.date_expedition || currentTimestamp // Only set if not already set
+    };
+
+    if (colis) {
+      // If colis exists, update it
+      await colis.update(colisUpdateData, { transaction });
+    } else {
+      // If colis doesn't exist, create it
+      colis = await Colis.create({
+        commande_id: id,
+        ...colisUpdateData
+      }, { transaction });
+    }
+
+    // Generate QR code and update colis with it
+    const qrToken = uuidv4();
+    const qrData = JSON.stringify({
+      colisId: colis.id,
+      commandeId: commande.id,
+      token: qrToken
+    });
+    const qrCodeData = await QRCode.toDataURL(qrData);
+
+    await colis.update({
+      qr_token: qrToken,
+      qr_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
+      qr_code_data: qrCodeData
+    }, { transaction });
+
+    // Update livreur's delivery count
+    await livreur.update({
+      nombre_livraisons: (livreur.nombre_livraisons || 0) + 1
+    }, { transaction });
+
+    // Send email to delivery person
+    try {
+      await envoyerEmail({
+        to: livreur.utilisateur.email,
+        template: 'livraisonAssignee',
+        subject: 'Nouvelle livraison assignée - ' + commande.reference,
+        context: {
+          livreurPrenom: livreur.utilisateur.prenom,
+          reference: commande.reference,
+          clientNom: `${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`,
+          adresseLivraison: commande.adresse?.adresse || 'Adresse non spécifiée',
+          dateCreation: new Date(commande.created_at).toLocaleDateString('fr-FR'),
+          statut: 'Expédiée', // Use a human-readable status for email
+          numeroSuivi: colis.numero_suivi,
+          transporteur: colis.transporteur,
+          appLink: `${process.env.APP_URL}/livreur/livraisons/${commande.id}`,
+          qrCodeData: colis.qr_code_data // Include QR code in email
+        }
+      });
+    } catch (emailError) {
+      console.error('Failed to send delivery person email notification:', emailError);
+      // Log and continue, don't block the main process for email failures
+    }
+
+    // Send shipping confirmation to customer
+    try {
+      await envoyerEmail({
+        to: commande.client.utilisateur.email,
+        template: 'commandeExpediee',
+        subject: `Votre commande #${commande.reference} a été expédiée`,
+        context: {
+          PRENOM: commande.client.utilisateur.prenom,
+          NOM: commande.client.utilisateur.nom,
+          ORDER_REF: commande.reference,
+          TRACKING_NUMBER: colis.numero_suivi,
+          CARRIER_NAME: colis.transporteur,
+          SHIPPING_DATE: colis.date_expedition.toLocaleDateString('fr-FR'), // Use actual expedition date
+          DELIVERY_ESTIMATE: commande.methode_livraison === 'express' ? '1-2 jours ouvrables' : '2-3 jours ouvrables',
+          TRACKING_LINK: colis.url_suivi,
+          QR_CODE_URL: colis.qr_code_data // Include QR code in email
+        }
+      });
+    } catch (emailError) {
+      console.error('Failed to send customer email notification:', emailError);
+      // Log and continue
+    }
+
+    // Socket.IO notification to livreur
+    const ioInstance = req.app.get('io');
+    if (ioInstance) {
+      const notificationPayload = {
+        id: `livraison-${commande.id}-${Date.now()}`,
+        type: 'nouvelle_commande',
+        titre: 'Nouvelle livraison assignée',
+        message: `Vous avez une nouvelle livraison: ${commande.reference}`,
+        date: new Date().toISOString(),
+        livraison_id: commande.id,
+        reference: commande.reference,
+        client_nom: `${commande.client.utilisateur.prenom} ${commande.client.utilisateur.nom}`,
+        adresse_livraison: commande.adresse?.adresse || 'Adresse non spécifiée',
+        numero_suivi: colis.numero_suivi,
+        statut: 'expediee', // Notification payload status
+        qr_code_data: colis.qr_code_data,
+        actions: [
+          { text: 'Voir détails', route: `/livreur/livraisons/${commande.id}` },
+          { text: 'Scanner QR Code', route: `/livreur/scanner/${commande.id}` }
+        ]
+      };
+
+      // Emit to the specific livreur's room
+      ioInstance.to(`livreur-${livreur.utilisateur_id}`).emit('livraison-assigned', notificationPayload);
+      console.log(`Socket notification sent to livreur ${livreur.utilisateur_id} for command ${commande.reference}`);
+    }
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Livreur assigné et commande expédiée avec succès',
+      data: {
+        livreur: {
+          id: livreur.id,
+          nom: `${livreur.utilisateur.prenom} ${livreur.utilisateur.nom}`,
+          email: livreur.utilisateur.email
+        },
+        commande: {
+          id: commande.id,
+          reference: commande.reference,
+          statut: commande.statut,
+          date_expedition: colis.date_expedition // Return actual date from colis
+        },
+        colis: {
+          id: colis.id,
+          numero_suivi: colis.numero_suivi,
+          transporteur: colis.transporteur,
+          url_suivi: colis.url_suivi,
+          qr_code_data: colis.qr_code_data
+        }
+      }
+    });
+  } catch (error) {
+    if (transaction) await transaction.rollback(); // Ensure rollback if transaction was started
+    console.error('Error assigning delivery:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'assignation du livreur',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 };
+
+
+
 const modifierLivreurLivraison = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
@@ -494,7 +742,7 @@ const updateStatus = async (req, res) => {
   }
 };
 
-const obtenirMesLivraisons = async (req, res) => {
+/* const obtenirMesLivraisons = async (req, res) => {
   try {
     // Use req.livreur instead of req.utilisateur.livreur
     if (!req.livreur || !req.livreur.utilisateur_id) {
@@ -561,9 +809,9 @@ const obtenirMesLivraisons = async (req, res) => {
       debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
     });
   }
-};
+}; */
 
-const obtenirMesLivraisonsAujourdhui = async (req, res) => {
+/* const obtenirMesLivraisonsAujourdhui = async (req, res) => {
   try {
     if (!req.livreur || !req.livreur.utilisateur_id) {
       return res.status(401).json({
@@ -666,6 +914,9 @@ const obtenirMesLivraisonsAujourdhui = async (req, res) => {
     });
   }
 };
+ */
+
+
 
 const mettreAJourStatutLivraison = async (req, res) => {
   let transaction;
@@ -1218,7 +1469,7 @@ const obtenirLivraisonParId = async (req, res) => {
 
 
 
-const signalerProblemeLivraison = async (req, res) => {
+/* const signalerProblemeLivraison = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
@@ -1344,44 +1595,327 @@ const signalerProblemeLivraison = async (req, res) => {
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
+}; */
+
+const signalerProblemeLivraison = async (req, res) => {
+    let transaction;
+    try {
+        const { id } = req.params;
+        const { type, notes } = req.body;
+        const livreurId = req.livreur?.utilisateur_id;
+
+        if (!type) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: 'Le type de problème est requis'
+            });
+        }
+
+        const validProblemTypes = ['livraison_echouee', 'produit_endommage', 'adresse_incorrecte', 'demande_de_remplacement'];
+        if (!validProblemTypes.includes(type)) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: 'Type de problème invalide'
+            });
+        }
+
+        transaction = await sequelize.transaction();
+
+        const commande = await Commande.findByPk(id, {
+            transaction,
+            include: [{
+                model: Colis,
+                as: 'colis'
+            }]
+        });
+
+        if (!commande) {
+            await transaction.rollback();
+            return res.status(404).json({
+                success: false,
+                message: 'Commande non trouvée'
+            });
+        }
+
+        if (commande.livreur_id !== livreurId) {
+            await transaction.rollback();
+            return res.status(403).json({
+                success: false,
+                message: 'Vous n\'êtes pas assigné à cette commande'
+            });
+        }
+
+        let newOrderStatus = 'retourne'; // Default for failed deliveries/damaged goods
+        let retourStatus = 'en_preparation';
+        let replacementRequested = false;
+
+        if (type === 'demande_de_remplacement') {
+            newOrderStatus = 'remplacee'; // Mark original order as replaced
+            retourStatus = 'en_preparation'; // Retour status remains 'en_preparation' until admin acts
+            replacementRequested = true; // Flag for frontend
+        }
+
+        const retour = await Retour.create({
+            commande_id: commande.id,
+            colis_id: commande.colis?.[0]?.id || null, // Assuming one colis per order for simplicity
+            motif: type,
+            type: 'livreur',
+            statut: retourStatus,
+            notes_livreur: notes,
+            date_demande: new Date()
+        }, { transaction });
+
+        await commande.update({
+            statut: newOrderStatus,
+            // badge_statut is not a column, remove if it's not mapped in model
+            notes_admin: `Problème signalé par livreur: ${type} - ${notes || 'Aucun détail fourni'}`
+        }, { transaction });
+
+        if (commande.colis?.length > 0) {
+            await Colis.update(
+                {
+                    statut: newOrderStatus, // Colis status matches new order status
+                    date_retour: newOrderStatus === 'retourne' ? new Date() : null // Set return date if status is 'retourne'
+                },
+                {
+                    where: { commande_id: id },
+                    transaction
+                }
+            );
+        }
+
+        // No call to createReplacementOrder here. It will be triggered from the admin UI.
+
+        await CommandeHistorique.create({
+            commande_id: commande.id,
+            utilisateur_id: livreurId,
+            action: 'signalement_probleme',
+            details: notes || `Problème signalé: ${type}`,
+            ancienne_valeur: commande.statut,
+            nouvelle_valeur: newOrderStatus
+        }, { transaction });
+
+        await transaction.commit();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Problème signalé avec succès',
+            data: {
+                commande_id: commande.id,
+                retour_id: retour.id,
+                nouveau_statut: newOrderStatus,
+                replacement_requested: replacementRequested, // Indicate to frontend that a replacement is needed
+            }
+        });
+
+    } catch (error) {
+        if (transaction) await transaction.rollback();
+        console.error('Erreur dans signalerProblemeLivraison:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Erreur lors du signalement du problème',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
 };
 
-async function createReplacementOrder(originalCommande, transaction) {
-  const nouvelleCommande = await Commande.create({
-    client_id: originalCommande.client_id,
-    adresse_id: originalCommande.adresse_id,
-    prix_total: originalCommande.prix_total,
-    methode_livraison: originalCommande.methode_livraison,
-    methode_paiement: originalCommande.methode_paiement,
-    frais_livraison: originalCommande.frais_livraison,
-    remplace_commande_id: originalCommande.id,
-    statut: 'en_preparation'
-  }, { transaction });
 
-  const articles = await CommandeArticle.findAll({
-    where: { commande_id: originalCommande.id },
-    transaction
-  });
+// File: controllers/livraisonController.js
 
-  if (!articles.length) {
-    console.warn('Aucun article trouvé pour la commande originale:', originalCommande.id);
+// ... (other imports and functions)
+
+const obtenirMesLivraisons = async (req, res) => {
+  try {
+    if (!req.livreur || !req.livreur.utilisateur_id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Non authentifié ou identifiant livreur manquant.'
+      });
+    }
+
+    const livreurId = req.livreur.utilisateur_id;
+
+    // Fetch Colis records directly, then include related Commande data.
+    // This ensures we get all active parcels assigned to the driver.
+    const colisLivraisons = await Colis.findAll({
+      where: {
+        livreur_id: livreurId,
+        statut: {
+          [Op.in]: ['en_preparation', 'expediee'] // Deliveries still in progress
+        }
+      },
+      include: [
+        {
+          model: Commande,
+          as: 'commande',
+          include: [
+            {
+              model: Client,
+              as: 'client',
+              include: [{
+                model: Utilisateur,
+                as: 'utilisateur',
+                attributes: ['prenom', 'nom']
+              }]
+            },
+            {
+              model: Adresse,
+              as: 'adresse',
+              attributes: ['adresse']
+            }
+          ],
+          required: true // Ensure only colis linked to an existing commande are returned
+        }
+      ],
+      order: [
+        ['statut', 'ASC'], // 'en_preparation' first, then 'expediee'
+        [{ model: Commande, as: 'commande' }, 'created_at', 'DESC'] // Order by creation date of the associated command
+      ]
+    });
+
+    const result = colisLivraisons.map(colis => ({
+      livraison_id: colis.commande.id, // Use commande ID as livraison ID
+      reference: colis.commande.reference,
+      date_creation: colis.commande.created_at,
+      adresse_livraison: colis.commande.adresse?.adresse || 'Adresse non disponible',
+      client_nom: colis.commande.client?.utilisateur
+        ? `${colis.commande.client.utilisateur.prenom} ${colis.commande.client.utilisateur.nom}`
+        : 'Client inconnu',
+      statut: colis.statut, // Use colis status as the main delivery status
+      colis: { // Include the specific colis details
+          id: colis.id,
+          numero_suivi: colis.numero_suivi,
+          statut: colis.statut,
+          date_expedition: colis.date_expedition,
+          date_livraison: colis.date_livraison,
+          // Add any other colis-specific fields needed in the app
+      }
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    const errorInfo = debugError('obtenirMesLivraisons', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur.',
+      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+    });
   }
+};
 
-  await CommandeArticle.bulkCreate(
-    articles.map(a => ({
-      commande_id: nouvelleCommande.id,
-      article_id: a.article_id,
-      quantite: a.quantite,
-      prix_unitaire: a.prix_unitaire,
-      taille_id: a.taille_id,
-      couleur_id: a.couleur_id
-    })),
-    { transaction }
-  );
 
-  return nouvelleCommande;
-}
+const obtenirMesLivraisonsAujourdhui = async (req, res) => {
+  try {
+    if (!req.livreur || !req.livreur.utilisateur_id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Non authentifié ou identifiant livreur manquant.'
+      });
+    }
 
+    const livreurId = req.livreur.utilisateur_id;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const livraisons = await Colis.findAll({
+      where: {
+        livreur_id: livreurId,
+        statut: {
+          // Include active statuses that might need attention today
+          [Op.in]: ['en_preparation', 'expediee']
+        },
+        [Op.or]: [
+          // 1. Colis that were EXPEDITED today
+          { date_expedition: { [Op.between]: [todayStart, todayEnd] } },
+          // 2. Colis that are currently 'en_preparation' (newly created or pending assignment/shipping)
+          //    This catches replacement orders that haven't been expedited yet.
+          {
+            statut: 'en_preparation',
+            date_expedition: null // Ensure it hasn't been expedited yet
+            // Optionally, you might want to filter these by creation_date
+            // if you only want 'new today' en_preparation items.
+            // e.g., created_at: { [Op.between]: [todayStart, todayEnd] }
+          },
+          // 3. Colis that were EXPEDITED before today but are still 'expediee' (overdue deliveries)
+          {
+            statut: 'expediee',
+            date_expedition: { [Op.lt]: todayStart }
+          }
+        ]
+      },
+      include: [
+        {
+          model: Commande,
+          as: 'commande',
+          include: [
+            {
+              model: Client,
+              as: 'client',
+              include: [{
+                model: Utilisateur,
+                as: 'utilisateur',
+                attributes: ['prenom', 'nom']
+              }]
+            },
+            {
+              model: Adresse,
+              as: 'adresse',
+              attributes: ['adresse']
+            }
+          ],
+          required: true // Ensure only colis linked to an existing commande are returned
+        }
+      ],
+      order: [
+        ['statut', 'ASC'], // 'en_preparation' first, then 'expediee'
+        [{ model: Commande, as: 'commande' }, 'created_at', 'DESC'] // Newest first for sorting
+      ]
+    });
+
+    const result = livraisons.map(colis => ({
+      livraison_id: colis.commande.id, // Use commande ID as delivery ID for consistency
+      reference: colis.commande.reference,
+      date_creation: colis.commande.created_at,
+      adresse_livraison: colis.commande.adresse?.adresse || 'Adresse non disponible',
+      client_nom: colis.commande.client?.utilisateur
+        ? `${colis.commande.client.utilisateur.prenom} ${colis.commande.client.utilisateur.nom}`
+        : 'Client inconnu',
+      statut: colis.statut, // Use colis status
+      colis: { // Include the specific colis details
+          id: colis.id,
+          numero_suivi: colis.numero_suivi,
+          statut: colis.statut,
+          date_expedition: colis.date_expedition,
+          date_livraison: colis.date_livraison,
+      }
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: result.length,
+      data: result
+    });
+  } catch (error) {
+    console.error('Erreur obtenirMesLivraisonsAujourdhui:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur.',
+      ...(process.env.NODE_ENV === 'development' && {
+        error: error.message,
+        stack: error.stack
+      })
+    });
+  }
+};
 
 module.exports = {
   modifierLivreurLivraison,
@@ -1396,6 +1930,6 @@ module.exports = {
   mettreAJourStatutLivraison,
   obtenirMesStatistiquesLivraison,
   updateStatus,
-  obtenirLivraisonsParDate
+  obtenirLivraisonsParDate,
 };
 

@@ -153,7 +153,7 @@ const cleanupFiles = (files) => {
 // EXISTING FUNCTIONS (PRESERVED)
 // ====================
 
-const creerReclamation = async (req, res) => {
+/* const creerReclamation = async (req, res) => {
   // Validate required fields
   if (!req.body.sujet || !req.body.message || !req.body.email || !req.body.prenom || !req.body.nom) {
     return res.status(400).json({
@@ -242,6 +242,97 @@ if (req.app.get('io')) {
     });
   }
 };
+ */
+
+const creerReclamation = async (req, res) => {
+  if (!req.body.sujet || !req.body.message || !req.body.email || !req.body.prenom || !req.body.nom) {
+    return res.status(400).json({
+      success: false,
+      message: 'Le sujet, le message, l\'email, le prénom et le nom sont obligatoires'
+    });
+  }
+
+  try {
+    const fichiers = [];
+    if (req.files?.length > 0) {
+      for (const file of req.files) {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+        if (!allowedTypes.includes(file.mimetype)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Seuls les fichiers JPG, PNG, WEBP et PDF sont autorisés'
+          });
+        }
+
+        const result = await cloudinary.uploader.upload(file.path, {
+          folder: 'mgm/reclamations',
+          resource_type: file.mimetype === 'application/pdf' ? 'raw' : 'image'
+        });
+
+        fichiers.push({
+          url: result.secure_url,
+          public_id: result.public_id,
+          name: file.originalname,
+          type: file.mimetype,
+          size: formatFileSize(file.size)
+        });
+
+        fs.unlinkSync(file.path);
+      }
+    }
+
+    const reclamationData = {
+      sujet: req.body.sujet,
+      message: req.body.message,
+      email: req.body.email,
+      telephone: req.body.telephone || null,
+      numero_commande: req.body.numeroCommande || null,
+      fichiers: fichiers.length > 0 ? fichiers : null,
+      statut: 'nouveau',
+      prefix: req.body.prefix || '',
+      prenom: req.body.prenom,
+      nom: req.body.nom
+    };
+
+    if (req.utilisateur?.id) {
+      reclamationData.utilisateur_id = req.utilisateur.id;
+    }
+
+    const reclamation = await Reclamation.create(reclamationData);
+    
+    // Emit notification to all admins
+    const io = req.app.get('io');
+    if (io) {
+      io.to('admin-notifications-room').emit('new-reclamation', {
+        id: reclamation.id,
+        sujet: reclamation.sujet,
+        message: reclamation.message,
+        prenom: reclamation.prenom,
+        nom: reclamation.nom,
+        email: reclamation.email,
+        created_at: reclamation.created_at,
+        type: 'reclamation'
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Réclamation créée avec succès',
+      data: {
+        id: reclamation.id,
+        reference: `REC-${reclamation.id.toString().slice(0, 8).toUpperCase()}`
+      }
+    });
+  } catch (error) {
+    console.error('Error creating reclamation:', error);
+    cleanupFiles(req.files);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la création de la réclamation'
+    });
+  }
+};
+
 
 
 // ====================

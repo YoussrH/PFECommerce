@@ -10,7 +10,6 @@ const db = require('../models');
 const sequelize = db.sequelize;
 const { v4: uuidv4 } = require('uuid');
 
-
 const {
   Commande,
   Client,
@@ -26,7 +25,8 @@ const {
   Utilisateur,
   ArticleTaille,
   ImageArticleCouleur,
-  Colis
+  Colis,
+  Retour
 
 } = require('../models');
 
@@ -1958,6 +1958,129 @@ const obtenirCommandesALivrer = async (req, res) => {
     });
   }
 };
+const creerCommandeRemplacement = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const utilisateurId = req.utilisateur?.id;
+
+    // Verify the original command exists and has a replacement request
+    const commandeOriginale = await Commande.findByPk(id, {
+      transaction,
+      include: [
+        {
+          model: CommandeArticle,
+          as: 'commande_articles',
+          include: [{
+            model: Article,
+            as: 'article'
+          }]
+        },
+        {
+          model: Retour,
+          as: 'retours',
+          where: {
+            type: 'livreur',
+            motif: 'demande_de_remplacement',
+            statut: 'en_preparation'
+          },
+          required: true
+        }
+      ]
+    });
+
+    if (!commandeOriginale) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        success: false,
+        message: 'Commande originale non trouvée ou pas de demande de remplacement' 
+      });
+    }
+
+    // Create new order with same details as original
+    const nouvelleCommande = await Commande.create({
+      client_id: commandeOriginale.client_id,
+      adresse_id: commandeOriginale.adresse_id,
+      prix_total: commandeOriginale.prix_total,
+      methode_livraison: commandeOriginale.methode_livraison,
+      methode_paiement: commandeOriginale.methode_paiement,
+      frais_livraison: commandeOriginale.frais_livraison,
+      remplace_commande_id: commandeOriginale.id,
+      statut: 'en_preparation'
+    }, { transaction });
+
+    // Copy articles from original order
+    await CommandeArticle.bulkCreate(
+      commandeOriginale.commande_articles.map(article => ({
+        commande_id: nouvelleCommande.id,
+        article_id: article.article_id,
+        quantite: article.quantite,
+        prix_unitaire: article.prix_unitaire,
+        taille_id: article.taille_id,
+        couleur_id: article.couleur_id
+      })),
+      { transaction }
+    );
+
+    // Update the retour record to mark it as processed
+    await Retour.update(
+      { statut: 'traite' },
+      { 
+        where: { 
+          commande_id: commandeOriginale.id,
+          motif: 'demande_de_remplacement'
+        },
+        transaction
+      }
+    );
+
+    // Create a new colis for the replacement order
+    await Colis.create({
+      commande_id: nouvelleCommande.id,
+      livreur_id: commandeOriginale.livreur_id,
+      statut: 'en_preparation',
+      transporteur: commandeOriginale.methode_livraison === 'express' ? 'Express' : 'Standard',
+      numero_suivi: `TRK${Date.now().toString(36).toUpperCase()}`,
+      url_suivi: `${process.env.TRACKING_BASE_URL}/track/${nouvelleCommande.reference}`,
+    }, { transaction });
+
+    // Log the actions
+    await CommandeHistorique.create({
+      commande_id: nouvelleCommande.id,
+      utilisateur_id: utilisateurId,
+      action: 'commande_remplacement',
+      details: `Commande de remplacement créée pour ${commandeOriginale.reference}`
+    }, { transaction });
+
+    await CommandeHistorique.create({
+      commande_id: commandeOriginale.id,
+      utilisateur_id: utilisateurId,
+      action: 'commande_remplacee',
+      details: `Commande remplacée par ${nouvelleCommande.reference}`
+    }, { transaction });
+
+    await transaction.commit();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Commande de remplacement créée avec succès',
+      data: {
+        nouvelle_commande_id: nouvelleCommande.id,
+        reference: nouvelleCommande.reference,
+        ancienne_commande_id: commandeOriginale.id
+      }
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error in creerCommandeRemplacement:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la création de la commande de remplacement',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
 
 module.exports = {
   genererFacturePDF,
@@ -1974,4 +2097,6 @@ module.exports = {
   notifierExpEdition,
   obtenirCommandesALivrer,
   remplacerCommande,
+    creerCommandeRemplacement
+
 };

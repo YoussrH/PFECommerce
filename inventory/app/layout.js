@@ -5,7 +5,7 @@ import ClientLayout from "./components/ClientLayout";
 import ErrorLayout from "./erreur/layout";
 import { AuthProvider } from "@/app/contexts/AuthContext";
 import { CartProvider } from "@/hooks/use-cart";
-import { SocketProvider } from "./contexts/SocketContext";
+import { AdminSocketProvider } from "./contexts/SocketContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +31,7 @@ export default function RootLayout({ children, notFound }) {
       <meta charSet="UTF-8"/>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
-          <SocketProvider>
+          <AdminSocketProvider>
             <CartProvider>
               {notFound ? (
                 <ErrorLayout>{children}</ErrorLayout>
@@ -39,7 +39,7 @@ export default function RootLayout({ children, notFound }) {
                 <ClientLayout>{children}</ClientLayout>
               )}
             </CartProvider>
-          </SocketProvider>
+          </AdminSocketProvider>
         </AuthProvider>
       </body>
     </html>

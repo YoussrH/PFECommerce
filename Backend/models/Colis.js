@@ -50,7 +50,7 @@ module.exports = (sequelize) => {
     tableName: 'colis',
     timestamps: true,
     paranoid: true,
-    hooks: {
+ hooks: {
       beforeValidate: async (colis) => {
         if (!colis.numero_suivi) {
           colis.numero_suivi = `TRK${Date.now().toString(36).toUpperCase()}`;

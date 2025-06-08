@@ -21,5 +21,6 @@ router.get("/:id/historique", authentifier, commandeController.obtenirHistorique
 router.post("/:id/notifier", authentifier, commandeController.envoyerNotificationClient);
 router.get("/commandes-a-livrer", authentifier, verifierAdmin, commandeController.obtenirCommandesALivrer);
 // Replace the existing /checkPurchaseStatus route with this:
+router.post('/:id/creer-remplacement', authentifier, verifierAdmin,commandeController.creerCommandeRemplacement);
 
 module.exports = router;

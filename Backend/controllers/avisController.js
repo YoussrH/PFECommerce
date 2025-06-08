@@ -3,7 +3,7 @@ const { Client, Article, CommandeArticle, Commande,Utilisateur, Avis } = require
 const db = require('../models'); // Assuming your models are exported from this file
 const sequelize = db.sequelize;
 
-const createAvis = async (req, res) => {
+/* const createAvis = async (req, res) => {
   try {
     const { articleId, note, commentaire } = req.body;
     const clientId = req.utilisateur.id; // Assuming the authenticated user's ID is available here
@@ -138,7 +138,129 @@ if (req.app.get('io')) {
       message: 'Internal server error'
     });
   }
+}; */
+
+
+
+const createAvis = async (req, res) => {
+  try {
+    const { articleId, note, commentaire } = req.body;
+    const clientId = req.utilisateur.id;
+
+    if (!articleId || !note) {
+      return res.status(400).json({
+        success: false,
+        message: 'Product ID and rating are required'
+      });
+    }
+
+    if (note < 1 || note > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rating must be between 1 and 5'
+      });
+    }
+
+    const hasPurchased = await Commande.findOne({
+      include: [
+        {
+          model: CommandeArticle,
+          as: 'commande_articles',
+          where: { article_id: articleId },
+          required: true
+        }
+      ],
+      where: {
+        client_id: clientId,
+        statut: {
+          [Op.in]: ['livree', 'expediee']
+        }
+      }
+    });
+
+    if (!hasPurchased) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only review products you have purchased'
+      });
+    }
+
+    const existingReview = await Avis.findOne({
+      where: {
+        client_id: clientId,
+        article_id: articleId
+      }
+    });
+
+    if (existingReview) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already reviewed this product'
+      });
+    }
+
+    const newReview = await Avis.create({
+      note,
+      commentaire,
+      client_id: clientId,
+      article_id: articleId
+    });
+
+    const client = await Client.findOne({
+      where: { utilisateur_id: clientId },
+      include: [{ 
+        model: Utilisateur, 
+        as: 'utilisateur', 
+        attributes: ['prenom', 'nom', 'email'],
+        required: false
+      }]
+    });
+
+    let articleName = 'Produit inconnu';
+    try {
+      const article = await Article.findByPk(articleId, {
+        attributes: ['nom_produit']
+      });
+      if (article) {
+        articleName = article.nom_produit;
+      }
+    } catch (error) {
+      console.error('Error fetching article details:', error);
+    }
+
+    // Emit Socket.IO notification for new review
+    if (req.app.get('io')) {
+      const notification = {
+        id: newReview.id,
+        article_id: articleId,
+        article_nom: articleName,
+        note: newReview.note,
+        commentaire: commentaire || 'Aucun commentaire',
+        prenom: client?.utilisateur?.prenom || 'Utilisateur',
+        nom: client?.utilisateur?.nom || 'Inconnu',
+        email: client?.utilisateur?.email || 'N/A',
+        created_at: newReview.created_at,
+        message: `Nouvel avis sur ${articleName} par ${client?.utilisateur?.prenom || 'Utilisateur'} ${client?.utilisateur?.nom || 'Inconnu'}`,
+        type: 'review'
+      };
+      req.app.get('io').to('admin-notifications-room').emit('new-review', notification);
+    }
+
+    await updateProductRating(articleId);
+
+    return res.status(201).json({
+      success: true,
+      data: newReview
+    });
+  } catch (error) {
+    console.error('Error creating review:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
 };
+
 // Helper function to update product average rating
 async function updateProductRating(articleId) {
   try {

@@ -38,44 +38,73 @@ const avisRoutes = require('./routes/avisRoutes');
 const couponRoutes = require('./routes/couponRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const catalogRoutes = require('./routes/catalogue');
-// Create HTTP server for Socket.IO
+
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: ['http://localhost:3000', 'your-app-url-here'],
+    origin: ['http://localhost:3000', 'http://localhost:5000'],
     methods: ['GET', 'POST'],
     credentials: true
   }
 });
 
-// Socket.IO connection handling
+// Enhanced Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
   
-  // Handle livreur subscription
-  socket.on('subscribe-livreur', (livreurId) => {
-    socket.join(`livreur-${livreurId}`);
-    console.log(`Livreur ${livreurId} subscribed to notifications`);
+  socket.on('error', (error) => {
+    console.error('Socket error:', error);
   });
 
-    // Add admin subscription handler
-  socket.on('subscribe-admin', () => {
-    socket.join('admin-room');
-    console.log('Admin subscribed to notifications');
-    
-    // Optional: Send any pending notifications when admin first connects
-    // You would need to implement this based on your application needs
+  // Admin subscription
+  socket.on('subscribe-admin', (adminUserId) => {
+    if (!adminUserId) {
+      console.warn('Attempted admin subscription without ID');
+      return;
+    }
+    socket.join(`admin-${adminUserId}`);
+    socket.join('admin-notifications-room');
+    console.log(`Admin ${adminUserId} subscribed to notifications`);
+    socket.emit('subscription-success', { 
+      rooms: [`admin-${adminUserId}`, 'admin-notifications-room'],
+      userId: adminUserId
+    });
   });
 
-  // Handle reclamation notifications
-  socket.on('subscribe-reclamations', () => {
-    socket.join('reclamations-room');
-    console.log(`Client ${socket.id} subscribed to reclamation updates`);
-  });
-  
+ // server.js
+socket.on('subscribe-livreur', (livreurId) => {
+    if (!livreurId) {
+        console.warn('Attempted livreur subscription without ID');
+        socket.emit('subscription-error', { message: 'Livreur ID is required' });
+        return;
+    }
 
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    try {
+        // Leave any previous livreur rooms
+        const rooms = Array.from(socket.rooms).filter(room => room.startsWith('livreur-'));
+        rooms.forEach(room => socket.leave(room));
+
+        // Join new livreur room
+        socket.join(`livreur-${livreurId}`);
+        console.log(`Livreur ${livreurId} subscribed to notifications`);
+
+        // Acknowledge subscription
+        socket.emit('subscription-success', {
+            room: `livreur-${livreurId}`,
+            userId: livreurId,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error in livreur subscription:', error);
+        socket.emit('subscription-error', {
+            message: 'Failed to subscribe',
+            error: error.message
+        });
+    }
+});
+
+  socket.on('disconnect', (reason) => {
+    console.log(`Client disconnected (${socket.id}):`, reason);
   });
 });
 
@@ -98,37 +127,32 @@ const corsOptions = {
   exposedHeaders: ['set-cookie']
 };
 
-// Update session configuration
 app.use(
   session({
     store: new pgSession({
       pool: pool,
       tableName: "session",
-      createTableIfMissing: true, // Changed to true to ensure table exists
+      createTableIfMissing: true,
     }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      secure: false, // Set to true in production with HTTPS
+      maxAge: 24 * 60 * 60 * 1000,
+      secure: false,
       httpOnly: true,
-      sameSite: 'lax', // Changed from 'none' to 'lax' for development
+      sameSite: 'lax',
     },
     name: 'mgm_session_id'
   })
 );
 
-// Apply CORS middleware
 app.use(cors(corsOptions));
-
-// Add OPTIONS handler for preflight requests
 app.options('*', cors());
 app.use(express.urlencoded({ extended: true }));
-
 app.use(express.json({ encoding: 'utf8' }));
-app.options("*", cors());
 
+// Routes
 app.use("/articles", articleRoutes);
 app.use("/categories", categorieRoutes);
 app.use("/marques", marqueRoutes);
@@ -156,8 +180,7 @@ app.use("/factures", factureRoutes);
 app.use("/avis", avisRoutes); 
 app.use('/coupons', couponRoutes);
 app.use('/chat', chatRoutes);
-
-app.use('/catalog',catalogRoutes)
+app.use('/catalog', catalogRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 

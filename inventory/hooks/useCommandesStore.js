@@ -281,7 +281,7 @@ export const useCommandesStore = create((set, get) => ({
     
     set({ loading: true, error: null });
     try {
-      const res = await api.put(`/remplacerCommande/${id}`, { 
+      const res = await api.post(`/${id}/creer-remplacement`, { 
         articles, 
         adresse_id, 
         notes 

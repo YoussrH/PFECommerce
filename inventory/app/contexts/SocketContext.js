@@ -1,117 +1,160 @@
-// app/contexts/SocketContext.js
 "use client";
 import { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { toast } from 'sonner';
 import { useAuth } from './AuthContext';
 
-const SocketContext = createContext(null);
+const AdminSocketContext = createContext(null);
 
-export const SocketProvider = ({ children }) => {
+export const AdminSocketProvider = ({ children }) => {
   const { user } = useAuth();
   const [socket, setSocket] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    // Only initialize socket for authenticated users
-    if (!user) return;
+    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+      }
+      return;
+    }
 
     const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000', {
       withCredentials: true,
       autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
     setSocket(socketInstance);
 
-    // For admin users, subscribe to admin notifications
-    if (user.role === 'admin' || user.role === 'super_admin') {
-      socketInstance.emit('subscribe-admin');
-      console.log('SocketProvider: Admin subscribed to notifications');
-    }
+    socketInstance.on('connect', () => {
+      console.log('Admin Socket connected:', socketInstance.id);
+      setIsConnected(true);
+      socketInstance.emit('subscribe-admin', user.id);
+    });
 
-    // Notification handlers
+    socketInstance.on('disconnect', () => {
+      console.log('Admin Socket disconnected');
+      setIsConnected(false);
+    });
+
+    socketInstance.on('subscription-success', (data) => {
+      console.log(`Admin subscribed successfully to rooms:`, data.rooms);
+    });
+
     const handleNewReclamation = (notification) => {
-      setNotifications(prev => [notification, ...prev]);
+      console.log('New reclamation notification:', notification);
+      const newNotification = {
+        ...notification,
+        id: `reclamation-${Date.now()}`,
+        type: 'reclamation',
+        date: new Date().toISOString(),
+        read: false
+      };
+      setNotifications(prev => [newNotification, ...prev]);
       setUnreadCount(prev => prev + 1);
-      
-      if (user.role === 'admin' || user.role === 'super_admin') {
-        toast.info(`Nouvelle réclamation de ${notification.prenom} ${notification.nom}`, {
-          description: notification.sujet,
-          action: {
-            label: 'Voir',
-            onClick: () => window.location.href = '/admin/reclamations/inbox'
-          }
-        });
-      }
-    };
-
-    const handleNewOrder = (notification) => {
-      setNotifications(prev => [notification, ...prev]);
-      setUnreadCount(prev => prev + 1);
-      
-      if (user.role === 'admin' || user.role === 'super_admin') {
-        toast.info(`Nouvelle commande de ${notification.prenom} ${notification.nom}`, {
-          description: `Commande ${notification.reference} - ${notification.prix_total.toFixed(2)} TND`,
-          action: {
-            label: 'Voir',
-            onClick: () => window.location.href = '/admin/ventes/commandes'
-          }
-        });
-      }
+      toast.info(`Nouvelle réclamation de ${notification.prenom} ${notification.nom}`, {
+        description: notification.sujet,
+        action: {
+          label: 'Voir',
+          onClick: () => window.location.href = '/admin/reclamations/inbox'
+        }
+      });
     };
 
     const handleNewReview = (notification) => {
-      setNotifications(prev => [notification, ...prev]);
+      console.log('New review notification:', notification);
+      const newNotification = {
+        ...notification,
+        id: `review-${Date.now()}`,
+        type: 'review',
+        date: new Date().toISOString(),
+        read: false
+      };
+      setNotifications(prev => [newNotification, ...prev]);
       setUnreadCount(prev => prev + 1);
-      
-      if (user.role === 'admin' || user.role === 'super_admin') {
-        toast.info(`Nouvel avis de ${notification.prenom} ${notification.nom}`, {
-          description: `Avis sur ${notification.article_nom} - Note: ${notification.note}/5`,
-          action: {
-            label: 'Voir',
-            onClick: () => window.location.href = `/admin/avis/${notification.article_id}`
-          }
-        });
-      }
+      toast.info(`Nouvel avis de ${notification.prenom} ${notification.nom}`, {
+        description: `Avis sur ${notification.article_nom} - Note: ${notification.note}/5`,
+        action: {
+          label: 'Voir',
+          onClick: () => window.location.href = `/admin/avis/${notification.article_id}`
+        }
+      });
     };
 
-    // Add event listeners
+    const handleLivraisonStatusChanged = (notification) => {
+      console.log('Livraison status changed:', notification);
+      const newNotification = {
+        ...notification,
+        id: `livraison-${Date.now()}`,
+        type: 'livraison-status',
+        date: new Date().toISOString(),
+        read: false
+      };
+      setNotifications(prev => [newNotification, ...prev]);
+      setUnreadCount(prev => prev + 1);
+    };
+
     socketInstance.on('new-reclamation', handleNewReclamation);
-    socketInstance.on('new-order', handleNewOrder);
     socketInstance.on('new-review', handleNewReview);
+    socketInstance.on('livraison-status-changed', handleLivraisonStatusChanged);
+
     socketInstance.on('connect_error', (error) => {
-      console.error('SocketProvider: Connection error', error);
+      console.error('Admin SocketProvider: Connection error', error);
+      setIsConnected(false);
     });
 
     return () => {
+      console.log('Admin SocketProvider: Cleaning up');
       socketInstance.off('new-reclamation', handleNewReclamation);
-      socketInstance.off('new-order', handleNewOrder);
       socketInstance.off('new-review', handleNewReview);
+      socketInstance.off('livraison-status-changed', handleLivraisonStatusChanged);
+      socketInstance.off('connect');
+      socketInstance.off('connect_error');
+      socketInstance.off('disconnect');
+      socketInstance.off('subscription-success');
       socketInstance.disconnect();
     };
-  }, [user]); // Reconnect when user changes
+  }, [user]);
 
-  const markAsRead = () => {
-    setUnreadCount(0);
+  const markAsRead = (id) => {
+    if (id) {
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif.id === id ? { ...notif, read: true } : notif
+        )
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } else {
+      setNotifications(prev => 
+        prev.map(notif => ({ ...notif, read: true }))
+      );
+      setUnreadCount(0);
+    }
   };
 
   return (
-    <SocketContext.Provider value={{ 
+    <AdminSocketContext.Provider value={{ 
       socket, 
       notifications, 
       unreadCount, 
-      markAsRead 
+      markAsRead,
+      isConnected
     }}>
       {children}
-    </SocketContext.Provider>
+    </AdminSocketContext.Provider>
   );
 };
 
-export const useSocket = () => {
-  const context = useContext(SocketContext);
+export const useAdminSocket = () => {
+  const context = useContext(AdminSocketContext);
   if (!context) {
-    throw new Error('useSocket must be used within a SocketProvider');
+    throw new Error('useAdminSocket must be used within an AdminSocketProvider');
   }
   return context;
 };
