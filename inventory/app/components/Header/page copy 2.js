@@ -6,7 +6,6 @@ import TopNav from "./TopNav";
 import { useRouter } from "next/navigation";
 import { CiCirclePlus } from "react-icons/ci";
 import IconsComponents from "./Components/icons";
-import SubmenusComponents from "./Components/submenusComponents";
 
 export default function Header({ isFilterBarPresent }) {
   const router = useRouter();
@@ -16,8 +15,8 @@ export default function Header({ isFilterBarPresent }) {
   // State for submenus
   const [submenuOpen, setSubmenuOpen] = useState(false);
   const [petitPrixOpen, setPetitPrixOpen] = useState(false);
-  const [filleOpen, setFilleOpen] = useState(false);
-  const [garconOpen, setGarconOpen] = useState(false);
+  const [femmeOpen, setFemmeOpen] = useState(false);
+  const [hommeOpen, setHommeOpen] = useState(false);
   const [marquesOpen, setMarquesOpen] = useState(false);
   const [outletOpen, setOutletOpen] = useState(false);
   const [luxeOpen, setLuxeOpen] = useState(false);
@@ -38,8 +37,13 @@ export default function Header({ isFilterBarPresent }) {
       window.removeEventListener("scroll", handleScroll);
     };
   }, [isFilterBarPresent]);
+  
 
   const handleClick = (menu) => {
+        if (menu === "Acceuil") {
+      router.push("/");
+      return;
+    }
     const route = menu
       .toLowerCase()
       .replace(/\s+/g, "-")
@@ -61,11 +65,11 @@ export default function Header({ isFilterBarPresent }) {
       case "PETITS PRIX":
         setPetitPrixOpen(true);
         break;
-      case "Fille":
-        setFilleOpen(true);
+      case "Femme":
+        setFemmeOpen(true);
         break;
-      case "Garçon":
-        setGarconOpen(true);
+      case "Homme":
+        setHommeOpen(true);
         break;
       case "Marques":
         setMarquesOpen(true);
@@ -89,11 +93,11 @@ export default function Header({ isFilterBarPresent }) {
       case "PETITS PRIX":
         setPetitPrixOpen(false);
         break;
-      case "Fille":
-        setFilleOpen(false);
+      case "Femme":
+        setFemmeOpen(false);
         break;
-      case "Garçon":
-        setGarconOpen(false);
+      case "Homme":
+        setHommeOpen(false);
         break;
       case "Marques":
         setMarquesOpen(false);
@@ -120,10 +124,11 @@ export default function Header({ isFilterBarPresent }) {
             <div className="mt-5 flex flex-col items-center">
               <nav className="hidden md:flex gap-12">
                 {[
+                  "Acceuil",
                   "Nouveautés",
                   "PETITS PRIX",
-                  "Fille",
-                  "Garçon",                 
+                  "Femme",
+                  "Homme",                 
                   "Marques",
                   "Outlet",
                   "| Luxe",
@@ -131,10 +136,11 @@ export default function Header({ isFilterBarPresent }) {
                   <div key={item} className="relative group">
                     <h4
                       className={`cursor-pointer font-mono pb-1 text-xs lg:text-sm ${
+                        (item === "Acceuil") ||
                         (item === "Nouveautés" && submenuOpen) ||
                         (item === "PETITS PRIX" && petitPrixOpen) ||
-                        (item === "Fille" && filleOpen) ||
-                        (item === "Garçon" && garconOpen) ||
+                        (item === "Femme" && femmeOpen) ||
+                        (item === "Homme" && hommeOpen) ||
                         (item === "Bébé" && bebeOpen) ||
                         (item === "Marques" && marquesOpen) ||
                         (item === "Outlet" && outletOpen) ||
@@ -148,7 +154,7 @@ export default function Header({ isFilterBarPresent }) {
                     >
                       {item}
                     </h4>
-                    {["Fille", "Garçon"].includes(item) && (
+                    {["PETITS PRIX"].includes(item) && (
                       <span className="whitespace-nowrap absolute bottom-full left-1/2 -translate-x-1/2 mb-1 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition">
                        2-16 ans
                       </span>
@@ -170,10 +176,11 @@ export default function Header({ isFilterBarPresent }) {
                
 
                 {[
+                  "Acceuil",
                   "Nouveautés",
                   "PETITS PRIX",
-                  "Fille",
-                  "Garçon",
+                  "Femme",
+                  "Homme",
                   "Marques",
                   "Outlet",
                   "| Luxe",
@@ -181,11 +188,11 @@ export default function Header({ isFilterBarPresent }) {
                   <div key={item} className="relative group">
                     <h4
                       className={`cursor-pointer pb-1 text-sm ${
+                        (item === "Acceuil") ||
                         (item === "Nouveautés" && submenuOpen) ||
                         (item === "PETITS PRIX" && petitPrixOpen) ||
-                        (item === "Fille" && filleOpen) ||
-                        (item === "Garçon" && garconOpen) ||
-                        (item === "Bébé" && bebeOpen) ||
+                        (item === "Femme" && femmeOpen) ||
+                        (item === "Homme" && hommeOpen) ||
                         (item === "Marques" && marquesOpen) ||
                         (item === "Outlet" && outletOpen) ||
                         (item === "| Luxe" && luxeOpen)
@@ -198,7 +205,7 @@ export default function Header({ isFilterBarPresent }) {
                     >
                       {item}
                     </h4>
-                    {["Fille", "Garçon"].includes(item) && (
+                    {["PETITS PRIX"].includes(item) && (
                       <span className="whitespace-nowrap absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition">
                         2-16 ans
                       </span>
@@ -215,18 +222,6 @@ export default function Header({ isFilterBarPresent }) {
         )}
 
 
-        <SubmenusComponents
-          submenuOpen={submenuOpen}
-          petitPrixOpen={petitPrixOpen}
-          filleOpen={filleOpen}
-          garconOpen={garconOpen}        
-          marquesOpen={marquesOpen}
-          outletOpen={outletOpen}
-          luxeOpen={luxeOpen}
-          handleMouseEnter={handleMouseEnter}
-          handleMouseLeave={handleMouseLeave}
-          isScrolled={isScrolled}
-        />
       </header>
     </>
   );

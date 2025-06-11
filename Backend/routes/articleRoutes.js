@@ -36,7 +36,7 @@ router.post("/ajouterArticles", authentifier, verifierAdmin, articleController.a
 router.get("/ObtenirTousArticleAleatoire", articleController.ObtenirTousArticleAleatoire);
 router.get("/obtenirArticleQuotidien", articleController.obtenirArticleQuotidien);
 
-
+router.get('/outlet', articleController.obtenirArticlesEnRemise);
 // Get brand collections/categories
 router.get('/petits-prix', articleController.obtenirArticlesPetitPrix);//est3mtla web
 router.get('/obtenirArticlesFemme', articleController.obtenirArticlesFemme);//est3mltha web

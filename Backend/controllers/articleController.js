@@ -1,6 +1,6 @@
 //articelcontroller.js
 const models = require("../models");
-const { Article, Couleur, Taille, Utilisateur,Genre, Categorie, Marque, ImageArticleCouleur, ArticleTaille, ArticleCouleur } = models;
+const { Article, Couleur, Taille, Utilisateur,Genre,Remise, Categorie, Marque, ImageArticleCouleur, ArticleTaille, ArticleCouleur } = models;
 const { envoyerEmail } = require('../services/emailService');
 const path = require('path');
 const fs = require('fs');
@@ -33,6 +33,110 @@ const uploadToCloudinary = async (file) => {
     xhr.onerror = () => reject(new Error("Erreur de téléchargement"));
     xhr.send(formData);
   });
+};
+const obtenirArticlesEnRemise = async (req, res) => {
+  try {
+    // Get current date without time for comparison
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+
+    // Find all active discounts
+    const activeDiscounts = await Remise.findAll({
+      where: {
+        est_active: true,
+        date_debut: { [Op.lte]: currentDate },
+        date_fin: { [Op.gte]: currentDate }
+      }
+    });
+
+    if (activeDiscounts.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No active discounts found"
+      });
+    }
+
+    // Get all articles that have a discounted price (prix_final < prix)
+    const discountedArticles = await Article.findAll({
+      where: {
+        prix_final: {
+          [Op.lt]: sequelize.col('prix') // Only articles where prix_final < prix
+        }
+      },
+      include: [
+        { 
+          model: Taille,
+          as: 'tailles',
+          through: { 
+            attributes: ['quantite', 'couleur_id'],
+            as: 'ArticleTaille'
+          }
+        },
+        { 
+          model: Couleur,
+          as: 'couleurs',
+          through: { attributes: [] }
+        },
+        { model: Genre, as: 'genre' },
+        { model: Categorie, as: 'categorie' },
+        { model: Marque, as: 'marque' },
+        {
+          model: ImageArticleCouleur,
+          as: 'images_couleurs',
+          include: [{ model: Couleur, as: 'couleur' }],
+          limit: 1
+        },
+        {
+          model: Remise,
+          as: 'article_discounts',
+          where: {
+            est_active: true,
+            date_debut: { [Op.lte]: currentDate },
+            date_fin: { [Op.gte]: currentDate }
+          },
+          required: false,
+          through: { attributes: [] }
+        }
+      ],
+      order: [
+        // Sort by highest discount percentage first
+        [sequelize.literal('(prix - prix_final) / prix * 100'), 'DESC'],
+        ['created_at', 'DESC']
+      ]
+    });
+
+    // Format the articles with discount information
+    const formattedArticles = discountedArticles.map(article => {
+      const plainArticle = article.get({ plain: true });
+      const originalPrice = parseFloat(plainArticle.prix);
+      const salePrice = parseFloat(plainArticle.prix_final);
+      const discount = Math.round(((originalPrice - salePrice) / originalPrice) * 100);
+
+      return {
+        ...plainArticle,
+        originalPrice,
+        salePrice,
+        discount,
+        stock: calculateTotalStock(plainArticle.tailles),
+        primaryImage: plainArticle.images_couleurs.length > 0 
+          ? plainArticle.images_couleurs[0].image_url 
+          : null,
+        isNew: new Date() - new Date(plainArticle.created_at) < 30 * 24 * 60 * 60 * 1000 // Mark as new if created in last 30 days
+      };
+    });
+
+    res.json({
+      success: true,
+      data: formattedArticles
+    });
+  } catch (error) {
+    console.error("Error fetching discounted articles:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching discounted articles",
+      error: error.message
+    });
+  }
 };
 
 const validateUpdateArticle = [
@@ -2253,5 +2357,6 @@ module.exports = {
   filtrerArticlesGFemme,
   filtrerArticlesGHomme,
   obtenirArticleQuotidien,
-  obtenirTousLesArticles
+  obtenirTousLesArticles,obtenirArticlesEnRemise
+  
 };

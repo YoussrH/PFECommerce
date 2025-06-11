@@ -14,7 +14,7 @@ function PowerBIFrame() {
 
   return (
     <div className="rounded-2xl shadow-xl bg-white w-full h-screen p-4 relative overflow-hidden">
-      <h2 className="text-xl font-semibold mb-2 text-gray-800">📊 Tableau Power BI</h2>
+      <h2 className="text-xl font-semibold mb-2 text-gray-800">Tableau de board Power BI</h2>
       <div className="w-full h-[calc(100%-2.5rem)]">
         <iframe 
           key={key}

@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import axios from "axios"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -239,7 +239,7 @@ export default function EditArticlePage() {
     })
   }
 
-  const TailleDropdown = ({ couleurId }) => {
+  const TailleDropdown = useCallback(({ couleurId }) => {
     const selectedSizesForColor = formData.variations
       .filter(v => v.couleur_id === couleurId && v.quantite > 0)
       .map(v => v.taille_id)
@@ -281,62 +281,69 @@ export default function EditArticlePage() {
             </div>
 
             <div className="p-2 space-y-1">
-              {taillesDisponibles.map(taille => {
-                const variation = formData.variations.find(
-                  v => v.couleur_id === couleurId && v.taille_id === taille.id
-                )
-                const quantite = variation ? variation.quantite : 0
-                const isSelected = quantite > 0
+              {taillesDisponibles.length > 0 ? (
+                taillesDisponibles.map(taille => {
+                  const variation = formData.variations.find(
+                    v => v.couleur_id === couleurId && v.taille_id === taille.id
+                  )
+                  const quantite = variation ? variation.quantite : 0
+                  const isSelected = quantite > 0
 
-                return (
-                  <div
-                    key={taille.id}
-                    className="flex items-center justify-between gap-2 px-2 py-1 hover:bg-gray-50 rounded"
-                  >
-                    <div className="flex items-center space-x-2 flex-1">
-                      <input
-                        type="checkbox"
-                        id={`taille-${couleurId}-${taille.id}`}
-                        checked={isSelected}
-                        onChange={e => handleTailleQuantiteChange(
-                          couleurId,
-                          taille.id,
-                          e.target.checked ? (variation?.quantite || 1) : 0
-                        )}
-                        className="h-4 w-4 rounded-none border-gray-300 text-black focus:ring-black"
-                      />
-                      <label
-                        htmlFor={`taille-${couleurId}-${taille.id}`}
-                        className="text-dm cursor-pointer"
-                      >
-                        {taille.libelle}
-                      </label>
-                    </div>
-
-                    {isSelected && (
-                      <div className="flex items-center">
+                  return (
+                    <div
+                      key={taille.id}
+                      className="flex items-center justify-between gap-2 px-2 py-1 hover:bg-gray-50 rounded"
+                    >
+                      <div className="flex items-center space-x-2 flex-1">
                         <input
-                          type="number"
-                          min="1"
-                          value={quantite}
-                          onChange={e => {
-                            const value = Math.max(1, parseInt(e.target.value) || 1)
-                            handleTailleQuantiteChange(couleurId, taille.id, value)
-                          }}
-                          className="w-16 h-8 text-center text-dm border-t border-b border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                          onClick={e => e.stopPropagation()}
+                          type="checkbox"
+                          id={`taille-${couleurId}-${taille.id}`}
+                          checked={isSelected}
+                          onChange={e => handleTailleQuantiteChange(
+                            couleurId,
+                            taille.id,
+                            e.target.checked ? (variation?.quantite || 1) : 0
+                          )}
+                          className="h-4 w-4 rounded-none border-gray-300 text-black focus:ring-black"
                         />
+                        <label
+                          htmlFor={`taille-${couleurId}-${taille.id}`}
+                          className="text-dm cursor-pointer"
+                        >
+                          {taille.libelle}
+                        </label>
                       </div>
-                    )}
-                  </div>
-                )
-              })}
+
+                      {isSelected && (
+                        <div className="flex items-center">
+                          <input
+                            type="number"
+                            min="1"
+                            value={quantite}
+                            onChange={e => {
+                              const value = Math.max(1, parseInt(e.target.value) || 1)
+                              handleTailleQuantiteChange(couleurId, taille.id, value)
+                            }}
+                            className="w-16 h-8 text-center text-dm border-t border-b border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                            onClick={e => e.stopPropagation()}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              ) : (
+                <div className="p-2 text-sm text-gray-500">
+                  Aucune taille disponible pour cette catégorie et ce genre.
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
     )
-  }
+  }, [formData.variations, couleurs, taillesDisponibles, tailleDropdownOpen, handleTailleQuantiteChange])
+
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -601,6 +608,12 @@ export default function EditArticlePage() {
 
         <div>
           <label className="text-dm font-medium text-gray-700 dark:text-gray-300">Couleurs et Images *</label>
+          {/*
+            IMPORTANT: The 'CouleurDropdown' component is responsible for rendering and managing existing images.
+            If images are still not showing correctly when its icon is clicked,
+            the fix needs to be implemented within 'CouleurDropdown.js' itself.
+            Ensure it correctly iterates over 'existingImages' and displays them.
+          */}
           <CouleurDropdown
             couleurs={couleurs}
             setFormData={setFormData}
