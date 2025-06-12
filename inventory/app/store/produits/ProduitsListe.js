@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/pagination"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import ProductDetailsModel from "../productsModel/[id]/page"
-import { useWishlist } from "@/hooks/useListeEnvies"
+import { useWishlist } from "@/hooks/useWishlist"
 
 const ProduitsListe = ({ produits = [], onEffacerTousFiltres = () => {} }) => {
   const [pageCourante, setPageCourante] = useState(1)

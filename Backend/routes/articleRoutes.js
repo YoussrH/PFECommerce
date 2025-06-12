@@ -36,10 +36,10 @@ router.post("/ajouterArticles", authentifier, verifierAdmin, articleController.a
 router.get("/ObtenirTousArticleAleatoire", articleController.ObtenirTousArticleAleatoire);
 router.get("/obtenirArticleQuotidien", articleController.obtenirArticleQuotidien);
 
-router.get('/outlet', articleController.obtenirArticlesEnRemise);
 // Get brand collections/categories
 router.get('/petits-prix', articleController.obtenirArticlesPetitPrix);//est3mtla web
 router.get('/obtenirArticlesFemme', articleController.obtenirArticlesFemme);//est3mltha web
 router.get('/obtenirArticlesHomme', articleController.obtenirArticlesHomme);//est3mltha web
-
+router.post("/filtrerArticlesEnRemise", articleController.filtrerArticlesEnRemise);
+router.get("/obtenirArticlesEnRemise", articleController.obtenirArticlesEnRemise); // New route for fetching all discounted articles
 module.exports = router;
