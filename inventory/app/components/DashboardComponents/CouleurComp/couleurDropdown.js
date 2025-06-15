@@ -13,14 +13,13 @@ import {
 } from "@/components/ui/dialog"
 import { Dropzone } from "@/components/ui/dropzone"
 
-export const CouleurDropdown = ({ couleurs = [], setFormData, formData }) => {
-  // Debug initial state
-  console.log("[INIT] CouleurDropdown mounted with:", {
-    couleursCount: couleurs.length,
-    variations: formData.variations,
-    images: Object.keys(formData.images_par_couleur)
-  })
-
+export const CouleurDropdown = ({ 
+  couleurs = [], 
+  setFormData, 
+  formData,
+  existingImages = {},
+  setExistingImages
+}) => {
   const [isColorModalOpen, setIsColorModalOpen] = useState(false)
   const [isImageModalOpen, setIsImageModalOpen] = useState(false)
   const [selectedColor, setSelectedColor] = useState(null)
@@ -29,13 +28,11 @@ export const CouleurDropdown = ({ couleurs = [], setFormData, formData }) => {
 
   // Get current selections from formData
   const currentSelectedColors = [...new Set(formData.variations.map(v => v.couleur_id))]
-  console.log("[STATE] Current selected colors:", currentSelectedColors)
 
   // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        console.log("[UI] Closing dropdown from outside click")
         setDropdownOpen(false)
       }
     }
@@ -45,13 +42,9 @@ export const CouleurDropdown = ({ couleurs = [], setFormData, formData }) => {
   }, [])
 
   const handleCouleurChange = (couleurId, checked) => {
-    console.groupCollapsed("[ACTION] handleCouleurChange")
-    console.log("Color ID:", couleurId, "Checked:", checked)
-    console.log("Current variations:", formData.variations)
-
     setFormData(prev => {
       const newVariations = checked
-        ? [...prev.variations, { couleur_id: couleurId, taille_id: 0, quantite: 0 }] // Add empty variation
+        ? [...prev.variations, { couleur_id: couleurId, taille_id: 0, quantite: 0 }]
         : prev.variations.filter(v => v.couleur_id !== couleurId)
 
       const newImages = { ...prev.images_par_couleur }
@@ -61,27 +54,21 @@ export const CouleurDropdown = ({ couleurs = [], setFormData, formData }) => {
         delete newImages[couleurId]
       }
 
-      console.log("Updated variations:", newVariations)
-      console.log("Updated images:", Object.keys(newImages))
-      
       return {
         ...prev,
         variations: newVariations,
         images_par_couleur: newImages
       }
     })
-    console.groupEnd()
   }
 
   const toggleDropdown = (e) => {
     e.preventDefault()
     e.stopPropagation()
-    console.log("[UI] Toggling dropdown. Current state:", dropdownOpen)
     setDropdownOpen(prev => !prev)
   }
 
   const handleColorSelect = (couleurId) => {
-    console.log("[UI] Color selected:", couleurId)
     const isSelected = currentSelectedColors.includes(couleurId)
     handleCouleurChange(couleurId, !isSelected)
   }
@@ -89,14 +76,12 @@ export const CouleurDropdown = ({ couleurs = [], setFormData, formData }) => {
   const handleImageClick = (e, couleurId) => {
     e.preventDefault()
     e.stopPropagation()
-    console.log("[UI] Image button clicked for color:", couleurId)
     setSelectedColor(couleurs.find(c => c.id === couleurId))
     setIsImageModalOpen(true)
     setDropdownOpen(false)
   }
 
   const handleAddColor = (newColor) => {
-    console.log("[ACTION] Adding new color:", newColor)
     setFormData(prev => ({
       ...prev,
       images_par_couleur: {
@@ -109,7 +94,6 @@ export const CouleurDropdown = ({ couleurs = [], setFormData, formData }) => {
 
   const handleFileUpload = (files) => {
     if (!selectedColor) return
-    console.log("[ACTION] Uploading files for color:", selectedColor.id, files)
 
     setFormData(prev => ({
       ...prev,
@@ -122,7 +106,6 @@ export const CouleurDropdown = ({ couleurs = [], setFormData, formData }) => {
 
   const removeImage = (index) => {
     if (!selectedColor) return
-    console.log("[ACTION] Removing image at index:", index)
 
     setFormData(prev => {
       const newImages = [...prev.images_par_couleur[selectedColor.id]]
@@ -135,6 +118,21 @@ export const CouleurDropdown = ({ couleurs = [], setFormData, formData }) => {
           [selectedColor.id]: newImages
         }
       }
+    })
+  }
+
+  const removeExistingImage = (index) => {
+    if (!selectedColor) return
+
+    setExistingImages(prev => {
+      const newImages = { ...prev }
+      if (newImages[selectedColor.id]) {
+        newImages[selectedColor.id].splice(index, 1)
+        if (newImages[selectedColor.id].length === 0) {
+          delete newImages[selectedColor.id]
+        }
+      }
+      return newImages
     })
   }
 
@@ -180,7 +178,6 @@ export const CouleurDropdown = ({ couleurs = [], setFormData, formData }) => {
                 ) : (
                   couleurs.map(couleur => {
                     const isSelected = currentSelectedColors.includes(couleur.id)
-                    console.log(`[RENDER] Color option ${couleur.id} - selected: ${isSelected}`)
 
                     return (
                       <div
@@ -236,10 +233,7 @@ export const CouleurDropdown = ({ couleurs = [], setFormData, formData }) => {
           type="button"
           variant="outline"
           size="icon"
-          onClick={() => {
-            console.log("[UI] Add color button clicked")
-            setIsColorModalOpen(true)
-          }}
+          onClick={() => setIsColorModalOpen(true)}
           className="h-10 w-10"
           title="Ajouter une nouvelle couleur"
         >
@@ -252,10 +246,7 @@ export const CouleurDropdown = ({ couleurs = [], setFormData, formData }) => {
         <div className="flex flex-wrap gap-2 mt-2">
           {currentSelectedColors.map(colorId => {
             const color = couleurs.find(c => c.id === colorId)
-            if (!color) {
-              console.warn("[WARN] Missing color data for ID:", colorId)
-              return null
-            }
+            if (!color) return null
 
             return (
               <div 
@@ -269,10 +260,7 @@ export const CouleurDropdown = ({ couleurs = [], setFormData, formData }) => {
                 <span>{color.libelle}</span>
                 <button
                   type="button"
-                  onClick={() => {
-                    console.log("[UI] Remove color clicked:", colorId)
-                    handleCouleurChange(colorId, false)
-                  }}
+                  onClick={() => handleCouleurChange(colorId, false)}
                   className="ml-1 text-gray-500 hover:text-gray-700"
                   title="Supprimer la couleur"
                 >
@@ -295,77 +283,92 @@ export const CouleurDropdown = ({ couleurs = [], setFormData, formData }) => {
       {/* Color modal */}
       <CouleurModal 
         open={isColorModalOpen} 
-        onOpenChange={(open) => {
-          console.log("[MODAL] Color modal open:", open)
-          setIsColorModalOpen(open)
-        }} 
+        onOpenChange={setIsColorModalOpen} 
         onColorAdded={handleAddColor} 
       />
 
       {/* Image modal */}
-      <Dialog open={isImageModalOpen} onOpenChange={(open) => {
-        console.log("[MODAL] Image modal open:", open)
-        setIsImageModalOpen(open)
-      }}>
-        <DialogContent>
+      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="text-xs">
+            <DialogTitle className="text-sm">
               Images pour {selectedColor?.libelle || 'couleur inconnue'}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Ajoutez des images pour cette couleur
+              Gérer les images pour cette couleur
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 text-xs">
+          <div className="space-y-4">
             <Dropzone 
-              onDrop={(files) => {
-                console.log("[DROPZONE] Files dropped:", files)
-                handleFileUpload(files)
-              }} 
-              accept="image/*" 
+              onDrop={handleFileUpload} 
+              accept="image/*"
+              maxFiles={10}
+              className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center"
             />
 
-            <div className="flex gap-2 flex-wrap text-xs">
-              {selectedColor && formData.images_par_couleur[selectedColor.id]?.length > 0 ? (
-                formData.images_par_couleur[selectedColor.id].map((file, index) => (
-                  <div key={index} className="relative group">
-                    <img
-                      src={URL.createObjectURL(file) || "/placeholder.svg"}
-                      alt={`Preview ${index}`}
-                      className="w-20 h-20 object-cover rounded-lg"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        console.log("[UI] Remove image clicked at index:", index)
-                        removeImage(index)
-                      }}
-                      className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Supprimer l'image"
-                    >
-                      ×
-                    </button>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+              {/* Existing images */}
+              {selectedColor && existingImages[selectedColor.id]?.map((imageUrl, index) => (
+                <div key={`existing-${index}`} className="relative group">
+                  <img
+                    src={imageUrl}
+                    alt={`Existing ${index}`}
+                    className="w-full h-24 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeExistingImage(index)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Supprimer l'image"
+                  >
+                    ×
+                  </button>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 text-center">
+                    Existante
                   </div>
-                ))
-              ) : (
-                <div className="text-xs text-gray-500">
-                  Aucune image ajoutée pour cette couleur
                 </div>
-              )}
+              ))}
+
+              {/* Newly uploaded images */}
+              {selectedColor && formData.images_par_couleur[selectedColor.id]?.map((file, index) => (
+                <div key={`new-${index}`} className="relative group">
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt={`New ${index}`}
+                    className="w-full h-24 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Supprimer l'image"
+                  >
+                    ×
+                  </button>
+                  <div className="absolute bottom-0 left-0 right-0 bg-blue-500 bg-opacity-50 text-white text-xs p-1 text-center">
+                    Nouvelle
+                  </div>
+                </div>
+              ))}
             </div>
+
+            {selectedColor && 
+              (!existingImages[selectedColor.id] || existingImages[selectedColor.id].length === 0) && 
+              (!formData.images_par_couleur[selectedColor.id] || formData.images_par_couleur[selectedColor.id].length === 0) && (
+              <div className="text-center py-4 text-sm text-gray-500">
+                Aucune image pour cette couleur
+              </div>
+            )}
           </div>
 
           <DialogFooter>
             <Button 
               type="button" 
-              onClick={() => {
-                console.log("[UI] Apply button clicked in image modal")
-                setIsImageModalOpen(false)
-              }} 
-              className="mt-4 text-xs"
+              onClick={() => setIsImageModalOpen(false)}
+              className="mt-4"
             >
-              Appliquer
+              Terminer
             </Button>
           </DialogFooter>
         </DialogContent>

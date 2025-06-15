@@ -285,18 +285,6 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             label="Informations Personnelles"
             isSidebarCollapsed={isSidebarCollapsed}
           />
-          <SidebarLink
-            href="/admin/parametres/notifications"
-            icon={Mail}
-            label="Notifications"
-            isSidebarCollapsed={isSidebarCollapsed}
-          />
-          <SidebarLink
-            href="/admin/parametres/preferences"
-            icon={Settings}
-            label="Préférences"
-            isSidebarCollapsed={isSidebarCollapsed}
-          />
         </SidebarSection>
       </div>
 

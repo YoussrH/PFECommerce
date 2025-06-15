@@ -56,46 +56,6 @@ const fetchAllArticles = useCallback(async () => {
     setLoading(false);
   }
 }, []);
-  
-/* const fetchArticleById = useCallback(async (id) => {
-  setLoading(true);
-  try {
-    const response = await axios.get(`${API_URL}/obtenirArticleParId/${id}`);
-    if (response.data.success) {
-      const articleData = response.data.donnees;
-      
-      // Formatage des données en français uniquement
-      const formattedArticle = {
-        id: articleData.id,
-        nom_produit: articleData.nom_produit || "N/A",
-        description: articleData.description || "",
-        conseils: articleData.conseils || "",
-        prix: articleData.prix || 0,
-        prix_final: articleData.prix_final || articleData.prix || 0,
-        sku: articleData.sku || "N/A",
-        stock: articleData.stock || 0,
-        seo_titre: articleData.seo_titre || "",
-        mots_cles_seo: articleData.mots_cles_seo || "",
-        genre: articleData.genre?.libelle || "N/A",
-        categorie: articleData.categorie?.libelle || "N/A",
-        marque: articleData.marque?.libelle || "N/A",
-        couleurs: articleData.couleurs || [],
-        images: articleData.images_couleurs?.map(img => img.image_url) || [],
-        tailles_par_couleur: articleData.tailles_par_couleur || {},
-        primaryImage: articleData.primaryImage || 
-                     (articleData.images_couleurs?.[0]?.image_url || '')
-      };
-
-      setArticle(formattedArticle);
-      return formattedArticle;
-    }
-    return null;
-  } catch (error) {
-    return handleError(error, "Échec de la récupération de l'article");
-  } finally {
-    setLoading(false);
-  }
-}, []); */
 
 const fetchArticleById = useCallback(async (id) => {
   setLoading(true);
@@ -138,45 +98,61 @@ const fetchArticleById = useCallback(async (id) => {
     }
   }, [isAuthenticated, user?.isAdmin])
 
-  // Update article (admin only)
-  const updateArticle = useCallback(async (id, articleData, images) => {
-    if (!isAuthenticated || !user?.isAdmin) {
-      toast.error("Unauthorized access")
-      return false
-    }
+// Update article (admin only)
+const updateArticle = useCallback(async (id, articleData) => {
+  if (!isAuthenticated || !user?.isAdmin) {
+    toast.error("Unauthorized access");
+    return false;
+  }
 
-    setLoading(true)
-    try {
-      const formData = new FormData()
-      Object.keys(articleData).forEach(key => {
-        formData.append(key, articleData[key])
-      })
-      if (images) {
-        images.forEach(image => {
-          formData.append('images', image)
-        })
-      }
-
-      const response = await axios.put(`${API_URL}/mettreAJourArticle/${id}`, formData, {
+  setLoading(true);
+  try {
+    const response = await axios.put(
+      `${API_URL}/mettreAJourArticle/${id}`,
+      articleData,
+      {
         withCredentials: true,
         headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
-
-      if (response.data.success) {
-        toast.success("Article updated successfully")
-        return response.data.donnees
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user?.token}`,
+        },
       }
-      return false
-    } catch (error) {
-      handleError(error, "Failed to update article")
-      return false
-    } finally {
-      setLoading(false)
-    }
-  }, [isAuthenticated, user?.isAdmin])
+    );
 
+    if (response.data.success) {
+      toast.success("Article updated successfully");
+      return response.data.donnees;
+    }
+    return false;
+  } catch (error) {
+    console.error("Update article error:", error);
+    
+    let errorMessage = "Failed to update article";
+    if (error.response) {
+      switch (error.response.status) {
+        case 401:
+          errorMessage = "Unauthorized - Please login again";
+          break;
+        case 403:
+          errorMessage = "Permission denied";
+          break;
+        case 404:
+          errorMessage = "Article not found";
+          break;
+        case 500:
+          errorMessage = error.response.data?.message || "Server error";
+          break;
+        default:
+          errorMessage = error.response.data?.message || errorMessage;
+      }
+    }
+
+    toast.error(errorMessage);
+    return false;
+  } finally {
+    setLoading(false);
+  }
+}, [isAuthenticated, user?.isAdmin, user?.token]);
 const deleteArticle = useCallback(async (id) => {
   if (!isAuthenticated || !isAdmin) {
     toast.error("Accès non autorisé");
