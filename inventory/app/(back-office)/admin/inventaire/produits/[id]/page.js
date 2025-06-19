@@ -283,9 +283,9 @@ const TailleDropdown = useCallback(({ couleurId }) => {
           ...prev,
           [couleurId]: !prev[couleurId]
         }))}
-        className="w-full flex justify-between items-center px-4 py-2 text-dm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black"
+        className="w-full flex justify-between items-center px-4 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black"
       >
-        <span className="text-dm">
+        <span className="text-xs">
           {selectedSizesForColor.length > 0 ? (
             `${selectedSizesForColor.length} taille(s) sélectionnée(s)`
           ) : (
@@ -361,7 +361,7 @@ const TailleDropdown = useCallback(({ couleurId }) => {
                 )
               })
             ) : (
-              <div className="p-2 text-sm text-gray-500">
+              <div className="p-2 text-xs text-gray-500">
                 Aucune taille disponible pour cette catégorie et ce genre.
               </div>
             )}
@@ -581,7 +581,6 @@ const TailleDropdown = useCallback(({ couleurId }) => {
     const response = await updateArticle(id, submissionData)
 
     if (response) {
-      toast.success("Article mis à jour avec succès!")
       router.push("/admin/inventaire/produits")
     }
   } catch (error) {

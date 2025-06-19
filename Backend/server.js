@@ -42,7 +42,7 @@ const catalogRoutes = require('./routes/catalogue');
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://localhost:5000'],
+    origin: ['http://localhost:3000','http://192.168.1.116:8081', 'http://192.168.1.110:5000', 'http://localhost:5000'],
     methods: ['GET', 'POST'],
     credentials: true
   }

@@ -98,49 +98,60 @@ const fetchArticleById = useCallback(async (id) => {
     }
   }, [isAuthenticated, user?.isAdmin])
 
-// Update article (admin only)
 const updateArticle = useCallback(async (id, articleData) => {
-  if (!isAuthenticated || !user?.isAdmin) {
-    toast.error("Unauthorized access");
+  if (!isAuthenticated || !isAdmin) {
+    toast.error("Accès non autorisé");
     return false;
   }
 
   setLoading(true);
   try {
+    // Prepare headers with authorization
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add token if available
+    if (user?.token) {
+      headers['Authorization'] = `Bearer ${user.token}`;
+    }
+
     const response = await axios.put(
       `${API_URL}/mettreAJourArticle/${id}`,
       articleData,
       {
         withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${user?.token}`,
-        },
+        headers: headers
       }
     );
 
     if (response.data.success) {
-      toast.success("Article updated successfully");
+      toast.success("Article mis à jour avec succès");
       return response.data.donnees;
     }
     return false;
   } catch (error) {
     console.error("Update article error:", error);
     
-    let errorMessage = "Failed to update article";
+    let errorMessage = "Échec de la mise à jour de l'article";
     if (error.response) {
       switch (error.response.status) {
+        case 400:
+          errorMessage = error.response.data?.message || "Données invalides";
+          break;
         case 401:
-          errorMessage = "Unauthorized - Please login again";
+          errorMessage = "Session expirée - Veuillez vous reconnecter";
+          // Optionally trigger logout
+          logout();
           break;
         case 403:
-          errorMessage = "Permission denied";
+          errorMessage = "Permission refusée - Accès administrateur requis";
           break;
         case 404:
-          errorMessage = "Article not found";
+          errorMessage = "Article non trouvé";
           break;
         case 500:
-          errorMessage = error.response.data?.message || "Server error";
+          errorMessage = error.response.data?.message || "Erreur serveur";
           break;
         default:
           errorMessage = error.response.data?.message || errorMessage;
@@ -152,7 +163,9 @@ const updateArticle = useCallback(async (id, articleData) => {
   } finally {
     setLoading(false);
   }
-}, [isAuthenticated, user?.isAdmin, user?.token]);
+}, [isAuthenticated, isAdmin, user?.token]);
+
+
 const deleteArticle = useCallback(async (id) => {
   if (!isAuthenticated || !isAdmin) {
     toast.error("Accès non autorisé");

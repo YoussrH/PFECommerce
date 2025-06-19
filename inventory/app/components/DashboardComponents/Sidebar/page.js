@@ -117,11 +117,13 @@ const Sidebar = ({ isSidebarCollapsed }) => {
             iconColor="text-gray-500"
           />
           <SidebarLink
-            href="/admin/reports"
-            icon={PieChart}
-            label="Rapports & Analyses"
-            isSidebarCollapsed={isSidebarCollapsed}
-          />
+  href="/admin/reports"
+  icon={PieChart}
+  label="Rapports & Analyses"
+  isSidebarCollapsed={isSidebarCollapsed}
+  disabled
+/>
+
         </SidebarSection>
 
         {/* Inventory Section */}

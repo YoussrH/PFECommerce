@@ -63,7 +63,7 @@ const getDeliveryInfo = (method) => ({
 });
 
 // 1. Generate PDF Invoice
-const genererFacturePDF = async (req, res) => {
+/* const genererFacturePDF = async (req, res) => {
   try {
     const { reference } = req.params;
 
@@ -190,6 +190,150 @@ const genererFacturePDF = async (req, res) => {
     const errorInfo = debugError('genererFacturePDF', error, { reference: req.params.reference });
     res.status(500).json({ 
       success: false, 
+      message: 'Erreur génération facture',
+      debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
+    });
+  }
+}; */
+
+// 1. Generate PDF Invoice
+const genererFacturePDF = async (req, res) => {
+  let transaction; // Declare transaction here
+  try {
+    const { reference } = req.params;
+
+    transaction = await sequelize.transaction();
+
+    const commande = await Commande.findOne({
+      where: { reference },
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          include: [{ model: Utilisateur, as: 'utilisateur' }]
+        },
+        { model: Adresse, as: 'adresse' },
+        {
+          model: CommandeArticle,
+          as: 'commande_articles', // Use commande_articles as defined in associations
+          include: [
+            {
+              model: Article,
+              as: 'article',
+              include: [
+                { model: Marque, as: 'marque' },
+                {
+                  model: Taille,
+                  as: 'tailles',
+                  through: { attributes: [] }
+                },
+                {
+                  model: Couleur,
+                  as: 'couleurs',
+                  through: { attributes: [] }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      transaction // Pass transaction here
+    });
+
+    if (!commande) {
+      await transaction.rollback(); // Rollback on error
+      return res.status(404).json({
+        success: false,
+        message: 'Commande non trouvée'
+      });
+    }
+
+    if (commande.statut === 'annulee') {
+      await transaction.rollback(); // Rollback on error
+      return res.status(400).json({
+        success: false,
+        message: 'Impossible de générer une facture pour une commande annulée'
+      });
+    }
+
+    const numeroFacture = `FAC-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+    const filename = `${numeroFacture}.pdf`; // Changed filename to match generateCommandeInvoice style
+    const filepath = path.join(__dirname, '../../public/factures', filename);
+
+    // Ensure directory exists
+    if (!fs.existsSync(path.dirname(filepath))) {
+      fs.mkdirSync(path.dirname(filepath), { recursive: true });
+    }
+
+    const doc = new PDFDocument({ margin: 30 });
+    const writeStream = fs.createWriteStream(filepath);
+    doc.pipe(writeStream);
+
+    // Get delivery info
+    const deliveryInfo = getDeliveryInfo(commande.methode_livraison);
+
+    // Use generateCommandeInvoice for PDF content
+    generateCommandeInvoice(doc, commande, numeroFacture, deliveryInfo);
+
+    doc.end();
+
+    await new Promise((resolve, reject) => {
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+    });
+
+    // Create or update Facture record
+    let facture = await Facture.findOne({
+      where: { commande_id: commande.id },
+      transaction,
+    });
+
+    if (!facture) {
+      facture = await Facture.create(
+        {
+          commande_id: commande.id,
+          numero: numeroFacture,
+          date_emission: new Date(),
+          // Assuming prix_total on commande already includes delivery and is TTC
+          montant_ht: commande.prix_total / 1.2,
+          taux_tva: 20.0,
+          montant_ttc: commande.prix_total,
+          fichier_url: `/factures/${filename}`,
+          est_payee: commande.paiement_recu,
+          date_paiement: commande.date_paiement,
+          methode_paiement: commande.methode_paiement
+        },
+        { transaction }
+      );
+
+      await CommandeHistorique.create(
+        {
+          commande_id: commande.id,
+          utilisateur_id: req.utilisateur?.id || null,
+          action: "generation_facture",
+          details: `Facture ${numeroFacture} générée`,
+        },
+        { transaction }
+      );
+    } else {
+      // Update existing invoice with payment info if needed
+      await facture.update({
+        est_payee: commande.paiement_recu,
+        date_paiement: commande.date_paiement
+      }, { transaction });
+    }
+
+    await transaction.commit(); // Commit transaction on success
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename=${filename}`);
+    fs.createReadStream(filepath).pipe(res);
+
+  } catch (error) {
+    if (transaction) await transaction.rollback(); // Rollback on error
+    const errorInfo = debugError('genererFacturePDF', error, { reference: req.params.reference });
+    res.status(500).json({
+      success: false,
       message: 'Erreur génération facture',
       debug: process.env.NODE_ENV === 'development' ? errorInfo : undefined
     });

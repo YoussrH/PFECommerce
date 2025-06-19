@@ -291,7 +291,7 @@ export const CouleurDropdown = ({
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="text-sm">
+            <DialogTitle className="text-xs">
               Images pour {selectedColor?.libelle || 'couleur inconnue'}
             </DialogTitle>
             <DialogDescription className="text-xs">
@@ -356,7 +356,7 @@ export const CouleurDropdown = ({
             {selectedColor && 
               (!existingImages[selectedColor.id] || existingImages[selectedColor.id].length === 0) && 
               (!formData.images_par_couleur[selectedColor.id] || formData.images_par_couleur[selectedColor.id].length === 0) && (
-              <div className="text-center py-4 text-sm text-gray-500">
+              <div className="text-center py-4 text-xs text-gray-500">
                 Aucune image pour cette couleur
               </div>
             )}

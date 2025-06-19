@@ -634,7 +634,21 @@ const mettreAJourArticle = async (req, res) => {
       images_par_couleur = {}
     } = req.body;
 
-    const article = await Article.findByPk(id, { transaction });
+    // Find the article with current associations
+    const article = await Article.findByPk(id, {
+      include: [
+        {
+          model: ArticleTaille,
+          as: 'inventory'
+        },
+        {
+          model: ImageArticleCouleur,
+          as: 'images_couleurs'
+        }
+      ],
+      transaction
+    });
+
     if (!article) {
       await transaction.rollback();
       return res.status(404).json({ 
@@ -643,83 +657,172 @@ const mettreAJourArticle = async (req, res) => {
       });
     }
 
-    await article.update({
-      nom_produit,
-      description,
-      prix,
-      remise,
-      prix_final: prix * (1 - (remise / 100)),
-      sku,
-      seo_titre,
-      mots_cles_seo,
-      categorie_id,
-      marque_id,
-      genre_id,
-      conseils
-    }, { transaction });
+    // Update only changed article fields
+    const articleUpdates = {};
+    const fieldsToCheck = [
+      'nom_produit', 'description', 'prix', 'remise', 'sku', 
+      'seo_titre', 'mots_cles_seo', 'categorie_id', 'marque_id', 
+      'genre_id', 'conseils'
+    ];
 
-    // Mettre à jour les variations (combinaisons couleur/taille)
-    if (variations) {
-      await models.ArticleTaille.destroy({ 
-        where: { article_id: id },
-        transaction 
-      });
-      
-      const variationsACreer = [];
-      const couleursUniques = new Set();
-      
-      for (const variation of variations) {
-        variationsACreer.push({
-          article_id: id,
-          taille_id: parseInt(variation.taille_id),
-          couleur_id: parseInt(variation.couleur_id),
-          quantite: parseInt(variation.quantite)
-        });
-        couleursUniques.add(parseInt(variation.couleur_id));
+    fieldsToCheck.forEach(field => {
+      if (req.body[field] !== undefined && req.body[field] !== article[field]) {
+        articleUpdates[field] = req.body[field];
       }
+    });
 
-      await models.ArticleTaille.bulkCreate(variationsACreer, { transaction });
-      
-      // Mettre à jour les associations de couleur
-      await models.ArticleCouleur.destroy({ 
-        where: { article_id: id },
-        transaction 
-      });
-      
-      const associationsCouleurs = Array.from(couleursUniques).map(couleur_id => ({
-        article_id: id,
-        couleur_id
-      }));
-      
-      await models.ArticleCouleur.bulkCreate(associationsCouleurs, { transaction });
+    // Calculate final price if remise or price changed
+    if (articleUpdates.prix !== undefined || articleUpdates.remise !== undefined) {
+      const newPrix = articleUpdates.prix !== undefined ? articleUpdates.prix : article.prix;
+      const newRemise = articleUpdates.remise !== undefined ? articleUpdates.remise : article.remise;
+      articleUpdates.prix_final = newPrix * (1 - (newRemise / 100));
     }
-    
-    // Mettre à jour les images
-    if (images_par_couleur) {
-      await ImageArticleCouleur.destroy({ 
-        where: { article_id: id },
-        transaction 
+
+    if (Object.keys(articleUpdates).length > 0) {
+      await article.update(articleUpdates, { transaction });
+    }
+
+    // Handle variations updates
+    if (variations) {
+      // Get current variations as a map for quick lookup
+      const currentVariationsMap = new Map();
+      article.inventory.forEach(v => {
+        const key = `${v.taille_id}-${v.couleur_id}`;
+        currentVariationsMap.set(key, v);
       });
-      
-      const imagesACreer = [];
-      for (const couleurId in images_par_couleur) {
-        const imagesPourCouleur = images_par_couleur[couleurId] || [];
-        for (const imageUrl of imagesPourCouleur) {
-          imagesACreer.push({
+
+      // Process new variations
+      const variationsToCreate = [];
+      const variationsToUpdate = [];
+      const seenVariations = new Set();
+
+      for (const variation of variations) {
+        const key = `${variation.taille_id}-${variation.couleur_id}`;
+        seenVariations.add(key);
+
+        const existingVariation = currentVariationsMap.get(key);
+        if (existingVariation) {
+          // Only update if quantity changed
+          if (existingVariation.quantite !== parseInt(variation.quantite)) {
+            variationsToUpdate.push({
+              id: existingVariation.id,
+              quantite: parseInt(variation.quantite)
+            });
+          }
+        } else {
+          // New variation to create
+          variationsToCreate.push({
             article_id: id,
-            couleur_id: couleurId,
-            image_url: imageUrl
+            taille_id: parseInt(variation.taille_id),
+            couleur_id: parseInt(variation.couleur_id),
+            quantite: parseInt(variation.quantite)
           });
         }
       }
-      
-      await ImageArticleCouleur.bulkCreate(imagesACreer, { transaction });
+
+      // Find variations to delete (present in DB but not in new variations)
+      const variationsToDelete = article.inventory.filter(v => {
+        const key = `${v.taille_id}-${v.couleur_id}`;
+        return !seenVariations.has(key);
+      });
+
+      // Execute all variation operations
+      await Promise.all([
+        // Create new variations
+        variationsToCreate.length > 0 && 
+          ArticleTaille.bulkCreate(variationsToCreate, { transaction }),
+        
+        // Update existing variations
+        variationsToUpdate.length > 0 && 
+          Promise.all(variationsToUpdate.map(v => 
+            ArticleTaille.update(
+              { quantite: v.quantite },
+              { where: { id: v.id }, transaction }
+            )
+          )),
+        
+        // Delete removed variations
+        variationsToDelete.length > 0 && 
+          ArticleTaille.destroy({
+            where: { 
+              id: variationsToDelete.map(v => v.id) 
+            },
+            transaction
+          })
+      ]);
+
+      // Update color associations (only for new colors)
+      const currentColorIds = new Set(article.inventory.map(v => v.couleur_id));
+      const newColorIds = new Set(variations.map(v => v.couleur_id));
+      const colorsToAdd = [...newColorIds].filter(id => !currentColorIds.has(id));
+
+      if (colorsToAdd.length > 0) {
+        await ArticleCouleur.bulkCreate(
+          colorsToAdd.map(couleur_id => ({ article_id: id, couleur_id })),
+          { transaction }
+        );
+      }
     }
 
-    // Valider la transaction
+    // Handle images updates
+    if (images_par_couleur) {
+      // Get current images by color
+      const currentImagesByColor = {};
+      article.images_couleurs.forEach(img => {
+        if (!currentImagesByColor[img.couleur_id]) {
+          currentImagesByColor[img.couleur_id] = new Set();
+        }
+        currentImagesByColor[img.couleur_id].add(img.image_url);
+      });
+
+      // Process new images
+      const imagesToCreate = [];
+      const seenImages = new Set();
+
+      for (const [couleur_id, imageUrls] of Object.entries(images_par_couleur)) {
+        for (const imageUrl of imageUrls) {
+          const key = `${couleur_id}-${imageUrl}`;
+          seenImages.add(key);
+
+          // Only add if image doesn't already exist
+          if (!currentImagesByColor[couleur_id] || !currentImagesByColor[couleur_id].has(imageUrl)) {
+            imagesToCreate.push({
+              article_id: id,
+              couleur_id,
+              image_url: imageUrl
+            });
+          }
+        }
+      }
+
+      // Find images to delete (present in DB but not in new images)
+      const imagesToDelete = article.images_couleurs.filter(img => {
+        const key = `${img.couleur_id}-${img.image_url}`;
+        return !seenImages.has(key);
+      });
+
+      // Execute all image operations
+      await Promise.all([
+        // Add new images
+        imagesToCreate.length > 0 && 
+          ImageArticleCouleur.bulkCreate(imagesToCreate, { transaction }),
+        
+        // Delete removed images
+        imagesToDelete.length > 0 && 
+          ImageArticleCouleur.destroy({
+            where: { 
+              id: imagesToDelete.map(img => img.id) 
+            },
+            transaction
+          })
+      ]);
+    }
+
+    // Commit transaction
     await transaction.commit();
 
-    const articleMisAJour = await Article.scope('avecQuantiteTotale').findByPk(id, {
+    // Fetch the complete updated article
+    const updatedArticle = await Article.scope('avecQuantiteTotale').findByPk(id, {
       include: [
         { 
           model: Taille, 
@@ -745,8 +848,8 @@ const mettreAJourArticle = async (req, res) => {
       ]
     });
 
-    // Formater les tailles par couleur
-    const plainArticle = articleMisAJour.get({ plain: true });
+    // Format the response
+    const plainArticle = updatedArticle.get({ plain: true });
     const taillesParCouleur = {};
     plainArticle.tailles.forEach(taille => {
       const couleurId = taille.ArticleTaille.couleur_id;
@@ -773,16 +876,28 @@ const mettreAJourArticle = async (req, res) => {
         tailles_par_couleur: taillesParCouleur
       }
     });
+
   } catch (error) {
     await transaction.rollback();
     console.error("Erreur lors de la mise à jour de l'article:", error);
+    
+    let errorMessage = "Erreur lors de la mise à jour de l'article";
+    if (error.name === 'SequelizeValidationError') {
+      errorMessage = "Données invalides: " + error.errors.map(e => e.message).join(', ');
+    } else if (error.name === 'SequelizeUniqueConstraintError') {
+      errorMessage = "Une combinaison article/taille/couleur existe déjà";
+    } else if (error.name === 'SequelizeForeignKeyConstraintError') {
+      errorMessage = "Référence invalide (couleur, taille, ou autre clé étrangère non trouvée)";
+    }
+
     res.status(500).json({
       success: false,
-      message: "Erreur lors de la mise à jour de l'article",
-      error: error.message
+      message: errorMessage,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
+
 
 const supprimerArticle = async (req, res) => {
   const transaction = await sequelize.transaction();
@@ -2237,36 +2352,59 @@ const obtenirArticleQuotidien = async (req, res) => {
 const obtenirArticlesEnRemise = async (req, res) => {
   try {
     const currentDate = new Date();
-    const articles = await Article.findAll({
+    
+    // First, find all active discounts
+    const activeDiscounts = await Remise.findAll({
       where: {
-        prix_final: {
-          [Op.lt]: sequelize.col('Article.prix') // Where final price is less than original price
-        }
-      },
+        est_active: true,
+        date_debut: { [Op.lte]: currentDate },
+        date_fin: { [Op.gte]: currentDate }
+      }
+    });
+
+    if (activeDiscounts.length === 0) {
+      return res.json({
+        success: true,
+        donnees: [],
+        message: "Aucune remise active trouvée"
+      });
+    }
+
+    // Then find articles with discounts applied
+    const articles = await Article.findAll({
       include: [
         {
           model: Remise,
           as: 'article_discounts',
           where: {
-            est_active: true,
-            date_debut: { [Op.lte]: currentDate },
-            date_fin: { [Op.gte]: currentDate }
+            id: activeDiscounts.map(d => d.id)
           },
-          required: true // Only include articles that currently have an active discount
+          required: true
         },
-        { model: Marque, as: 'marque', attributes: ['id', 'libelle'] },
-        { model: Couleur, as: 'couleurs', through: { attributes: [] }, attributes: ['id', 'libelle', 'hexcode'] },
-        { model: Taille, as: 'tailles', through: { attributes: ['quantite'] }, attributes: ['id', 'libelle'] },
-        { model: Genre, as: 'genre', attributes: ['id', 'libelle'] },
-        { model: Categorie, as: 'categorie', attributes: ['id', 'libelle'] },
+        { 
+          model: Taille,
+          as: 'tailles',
+          through: { 
+            attributes: ['quantite', 'couleur_id'],
+            as: 'ArticleTaille'
+          }
+        },
+        { 
+          model: Couleur,
+          as: 'couleurs',
+          through: { attributes: [] }
+        },
+        { model: Genre, as: 'genre' },
+        { model: Categorie, as: 'categorie' },
+        { model: Marque, as: 'marque' },
         {
           model: ImageArticleCouleur,
           as: 'images_couleurs',
           include: [{ model: Couleur, as: 'couleur' }],
-          limit: 1 // Fetch only one image per article for the primary image
+          limit: 1
         }
       ],
-      order: [['updated_at', 'DESC']], // Order by latest updated articles
+      order: [['updated_at', 'DESC']],
       distinct: true
     });
 
@@ -2278,7 +2416,9 @@ const obtenirArticlesEnRemise = async (req, res) => {
         primaryImage: plainArticle.images_couleurs?.length > 0
           ? plainArticle.images_couleurs[0].image_url
           : null,
-        remise_details: plainArticle.article_discounts?.length > 0 ? plainArticle.article_discounts[0] : null // Attach discount details
+        remise_details: plainArticle.article_discounts?.length > 0 
+          ? plainArticle.article_discounts[0]
+          : null
       };
     });
 
@@ -2296,19 +2436,23 @@ const obtenirArticlesEnRemise = async (req, res) => {
   }
 };
 
-
-// New function to filter articles that have a discount, similar to filtrerArticles
 const filtrerArticlesEnRemise = async (req, res) => {
   try {
     const { filtres = [] } = req.body;
     const currentDate = new Date();
 
+    // Base where clause to only get discounted items
     const where = {
-      [Op.and]: [],
-      prix_final: {
-        [Op.lt]: sequelize.col('Article.prix') // Ensure it's a discounted item
-      }
+      [Op.and]: [
+        { 
+          prix_final: { 
+            [Op.lt]: sequelize.col('prix') // Only items where final price < original price
+          } 
+        }
+      ]
     };
+
+    // Base includes with required discount filtering
     const include = [
       {
         model: Remise,
@@ -2318,32 +2462,32 @@ const filtrerArticlesEnRemise = async (req, res) => {
           date_debut: { [Op.lte]: currentDate },
           date_fin: { [Op.gte]: currentDate }
         },
-        required: true // Must have an active discount
+        required: true
       },
-      {
-        model: Marque,
+      { 
+        model: Marque, 
         as: 'marque',
         attributes: ['id', 'libelle']
       },
-      {
-        model: Couleur,
-        as: 'couleurs',
+      { 
+        model: Couleur, 
+        as: 'couleurs', 
         through: { attributes: [] },
         attributes: ['id', 'libelle', 'hexcode']
       },
-      {
-        model: Taille,
-        as: 'tailles',
+      { 
+        model: Taille, 
+        as: 'tailles', 
         through: { attributes: ['quantite'] },
         attributes: ['id', 'libelle']
       },
-      {
-        model: Genre,
+      { 
+        model: Genre, 
         as: 'genre',
         attributes: ['id', 'libelle']
       },
-      {
-        model: Categorie,
+      { 
+        model: Categorie, 
         as: 'categorie',
         attributes: ['id', 'libelle']
       },
@@ -2355,48 +2499,63 @@ const filtrerArticlesEnRemise = async (req, res) => {
       }
     ];
 
+    // Process each filter
     filtres.forEach(({ category, filter }) => {
       switch (category) {
         case "Prix":
           where[Op.and].push({
-            prix_final: { [Op.between]: [filter.min, filter.max] }
+            prix_final: { 
+              [Op.between]: [filter.min, filter.max] 
+            }
           });
           break;
-        case "Genres":
-          include.push({
-            model: Genre,
-            as: 'genre',
-            where: { libelle: filter },
-            required: true
-          });
-          break;
+          
         case "Catégories":
           include.push({
             model: Categorie,
             as: 'categorie',
             where: { libelle: filter },
-            required: true
+            required: true,
+            attributes: ['id', 'libelle']
           });
           break;
-        case "Tailles":
-          include.push({
-            model: Taille,
-            as: 'tailles',
-            where: { libelle: filter },
-            required: true
-          });
-          break;
+          
         case "Marques":
           include.push({
             model: Marque,
             as: 'marque',
             where: { libelle: filter },
-            required: true
+            required: true,
+            attributes: ['id', 'libelle']
           });
           break;
+          
+        case "Genres":
+          include.push({
+            model: Genre,
+            as: 'genre',
+            where: { libelle: filter },
+            required: true,
+            attributes: ['id', 'libelle']
+          });
+          break;
+          
+        case "Tailles":
+          include.push({
+            model: Taille,
+            as: 'tailles',
+            where: { libelle: filter },
+            required: true,
+            attributes: ['id', 'libelle']
+          });
+          break;
+          
+        default:
+          console.warn(`Unknown filter category: ${category}`);
       }
     });
 
+    // Execute the query
     const articles = await Article.findAll({
       where,
       include,
@@ -2404,15 +2563,17 @@ const filtrerArticlesEnRemise = async (req, res) => {
       distinct: true
     });
 
+    // Format the response
     const formattedArticles = articles.map(article => {
       const plainArticle = article.get({ plain: true });
+      
       return {
         ...plainArticle,
         stock: calculateTotalStock(plainArticle.tailles),
-        primaryImage: plainArticle.images_couleurs?.length > 0
-          ? plainArticle.images_couleurs[0].image_url
+        primaryImage: plainArticle.images_couleurs?.length > 0 
+          ? plainArticle.images_couleurs[0].image_url 
           : null,
-        remise_details: plainArticle.article_discounts?.length > 0 ? plainArticle.article_discounts[0] : null // Attach discount details
+        remise_details: plainArticle.article_discounts?.[0] || null
       };
     });
 
@@ -2420,12 +2581,18 @@ const filtrerArticlesEnRemise = async (req, res) => {
       success: true,
       donnees: formattedArticles
     });
+
   } catch (error) {
-    console.error("Error filtering discounted articles:", error);
+    console.error("Error filtering discounted articles:", {
+      error: error.message,
+      stack: error.stack,
+      filters: req.body.filtres
+    });
+    
     res.status(500).json({
       success: false,
       message: "Error filtering discounted articles",
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
